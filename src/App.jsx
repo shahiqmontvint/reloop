@@ -1548,9 +1548,7 @@ function ProfitBotPage({ rates }) {
           <div style={{background:"#C8F13510",border:"1px solid #C8F13530",borderRadius:10,padding:"14px 16px"}}>
             <div style={{fontSize:11,color:"#C8F135",fontWeight:600,marginBottom:6}}>💡 How the formulas work</div>
             <div style={{fontSize:12,color:"#6B5F8B",lineHeight:1.8}}>
-              <strong style={{color:"#F0EBF8"}}>Sold Price</strong> = Bought ÷ (1 − Profit% − Commission%) &nbsp;·&nbsp;
-              <strong style={{color:"#F0EBF8"}}>Profit</strong> = Sold − Cost − Commission &nbsp;·&nbsp;
-              <strong style={{color:"#F0EBF8"}}>Max Buy</strong> = Selling × (1 − Profit% − Commission%)
+              <strong style={{color:"#F0EBF8"}}>Sold Price</strong>{" = Bought / (1 - Profit% - Commission%)  ·  "}<strong style={{color:"#F0EBF8"}}>Profit</strong>{" = Sold - Cost - Commission  ·  "}<strong style={{color:"#F0EBF8"}}>Max Buy</strong>{" = Selling x (1 - Profit% - Commission%)"}
             </div>
           </div>
         </div>
