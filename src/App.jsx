@@ -795,6 +795,10 @@ export default function App(){
             <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:32,fontWeight:700,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Loop</span>
           </div>
           <div style={{fontSize:10.5,color:T.ghost,marginTop:4}}>Inventory Management Platform</div>
+          <div style={{marginTop:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:isAdmin?`${T.lime}22`:T.cobaltBg,color:isAdmin?T.lime:T.cobaltText,fontWeight:600,border:`1px solid ${isAdmin?T.lime:T.cobaltText}44`}}>{isAdmin?"Admin":"Staff"}</span>
+            <button onClick={()=>{localStorage.removeItem("rl_auth");localStorage.removeItem("rl_role");window.location.reload();}} style={{fontSize:10,color:T.ghost,background:"none",border:`1px solid ${T.border}`,borderRadius:6,padding:"2px 8px",cursor:"pointer",fontFamily:FB}}>Sign out</button>
+          </div>
         </div>
 
         <div style={{padding:"14px 14px 10px",overflowY:"auto",flex:1}}>
@@ -906,15 +910,15 @@ export default function App(){
                           <TCell w={COLS[6].w}>{it.grade?<span style={{fontSize:12,fontWeight:700,color:T.lime,background:`${T.lime}18`,padding:"2px 8px",borderRadius:6,border:`1px solid ${T.lime}30`}}>{it.grade}</span>:<span style={{color:T.ghost,fontSize:12}}>—</span>}</TCell>
                           <TCell w={COLS[7].w}><span style={{fontSize:11,color:T.ghost,fontFamily:"monospace",letterSpacing:"0.3px"}}>{it.sku||"—"}</span></TCell>
                           <TCell w={COLS[8].w}><StatusPill status={it.status}/></TCell>
-                          <TCell w={COLS[9].w}><span style={{fontSize:12,color:T.muted}}>₨{it.cost.toLocaleString()}</span></TCell>
+                          <TCell w={COLS[9].w}><span style={{fontSize:12,color:T.muted}}>{isAdmin?`₨${it.cost.toLocaleString()}`:"*****"}</span></TCell>
                           <TCell w={COLS[10].w}>
                             <div style={{textAlign:"center"}}>
-                              <div style={{fontSize:13,fontWeight:700,color:T.lime}}>{sym}{it.price.toLocaleString()}</div>
-                              {it.currency&&it.currency!=="PKR"&&it.price>0&&<div style={{fontSize:10,color:T.ghost}}>₨{pricePKR.toLocaleString()}</div>}
+                              <div style={{fontSize:13,fontWeight:700,color:T.lime}}>{isAdmin?`${sym}${it.price.toLocaleString()}`:"*****"}</div>
+                              {isAdmin&&it.currency&&it.currency!=="PKR"&&it.price>0&&<div style={{fontSize:10,color:T.ghost}}>₨{pricePKR.toLocaleString()}</div>}
                             </div>
                           </TCell>
                           <TCell w={COLS[11].w} left><span style={{fontSize:11,color:T.ghost,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.notes||"—"}</span></TCell>
-                          <TCell w={COLS[12].w}><span style={{fontSize:12,fontWeight:700,color:prof>=0?T.profit:T.loss}}>{prof>=0?"+":""}₨{prof.toLocaleString()}</span></TCell>
+                          <TCell w={COLS[12].w}><span style={{fontSize:12,fontWeight:700,color:prof>=0?T.profit:T.loss}}>{isAdmin?(prof>=0?"+":"")+"₨"+prof.toLocaleString():"*****"}</span></TCell>
                           <TCell w={COLS[13].w}><div style={{display:"flex",gap:6,justifyContent:"center"}}><IconBtn title="Edit" onClick={e=>{e.stopPropagation();setEditItem(it);}}/><IconBtn title="Delete" danger onClick={e=>{e.stopPropagation();delItem(it.id);}}/></div></TCell>
                         </div>
                       );
@@ -944,8 +948,8 @@ export default function App(){
               <StatusPill status={it.status}/>
             </div>
             <div style={{margin:"14px 16px 0",background:T.card,borderRadius:10,padding:"13px 15px",border:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between"}}>
-              <div><div style={{fontSize:9.5,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:3}}>Cost</div><div style={{fontSize:16,fontWeight:700,color:T.muted}}>₨{it.cost.toLocaleString()}</div></div>
-              {it.status==="sold"&&<div style={{textAlign:"right"}}><div style={{fontSize:9.5,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:3}}>Profit</div><div style={{fontSize:18,fontWeight:700,color:prof>=0?T.profit:T.loss}}>{prof>=0?"+":""}₨{prof.toLocaleString()}</div><div style={{fontSize:10,color:T.ghost}}>{mg}%</div></div>}
+              <div><div style={{fontSize:9.5,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:3}}>Cost</div><div style={{fontSize:16,fontWeight:700,color:T.muted}}>{isAdmin?`₨${it.cost.toLocaleString()}`:"*****"}</div></div>
+              {it.status==="sold"&&<div style={{textAlign:"right"}}><div style={{fontSize:9.5,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:3}}>Profit</div><div style={{fontSize:18,fontWeight:700,color:prof>=0?T.profit:T.loss}}>{isAdmin?(prof>=0?"+":"")+"₨"+prof.toLocaleString():"*****"}</div>{isAdmin&&<div style={{fontSize:10,color:T.ghost}}>{mg}%</div>}</div>}
             </div>
             <div style={{padding:"12px 16px"}}>
               {[["SKU",it.sku||"—"],(it.qty||1)>1&&["Qty",it.qty],["Category",it.category],["Subcat",it.subcategory||"—"],["Size",sizeLabel(it)],it.grade&&["Grade",it.grade],it.notes&&["Notes",it.notes],it.status==="reserved"&&it.reservedFor&&["Reserved for",it.reservedFor],it.status==="reserved"&&it.reservedPlatform&&["Via",it.reservedPlatform]].filter(Boolean).map(([k,v])=>(
@@ -958,7 +962,7 @@ export default function App(){
                 <label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px"}}>Update status</label>
                 <select value={it.status} onChange={e=>handleStatusChange(it.id,e.target.value)} style={{...INP,background:T.card}}>{Object.entries(STLBL).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select>
               </div>
-              {it.status==="sold"&&(
+              {it.status==="sold"&&isAdmin&&(
                 <div style={{marginTop:12,padding:14,background:T.bg,borderRadius:10,border:`1px solid ${T.rougeBg}`}}>
                   <div style={{fontSize:10,color:T.rougeText,textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600,marginBottom:12}}>Sale details</div>
                   <label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px"}}>Sold price — per piece</label>
