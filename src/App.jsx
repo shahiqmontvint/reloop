@@ -1243,16 +1243,22 @@ function PBSoldCalc({ gbpRate, usdRate, eurRate }) {
     <PBCard title="Price (Sold) Calculator" emoji="🏷️">
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
         <div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-            <PBLabel>Bought Price ✏️</PBLabel>
-            <select style={PB_SEL} value={inCur} onChange={e=>setInCur(e.target.value)}>
+          <PBLabel>Bought Price ✏️</PBLabel>
+          <div style={{display:"flex",alignItems:"center",gap:0,background:"#C8F13510",border:"2px solid #C8F135",borderRadius:9,overflow:"hidden"}}>
+            <select style={{...PB_SEL,border:"none",borderRight:"1px solid #C8F13540",borderRadius:0,background:"#C8F13518",flexShrink:0,height:46,padding:"0 8px"}} value={inCur} onChange={e=>setInCur(e.target.value)}>
               {PB_CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
             </select>
+            <input type="number" value={boughtPKR} onChange={e=>setBoughtPKR(e.target.value)} placeholder={`e.g. ${inCur==="PKR"?"1900":"5.50"}`} style={{...PB_INP_GREEN,border:"none",borderRadius:0,flex:1,background:"transparent"}}/>
           </div>
-          <input type="number" value={boughtPKR} onChange={e=>setBoughtPKR(e.target.value)} placeholder={`e.g. ${inCur==="PKR"?"1900":"5.50"}`} style={PB_INP_GREEN}/>
         </div>
-        <div><PBLabel>Target Profit % ✏️</PBLabel><input type="number" value={profitPct} onChange={e=>setProfitPct(e.target.value)} placeholder="e.g. 65" style={PB_INP_GREEN}/></div>
-        <div><PBLabel>Commission % ✏️</PBLabel><input type="number" value={commPct} onChange={e=>setCommPct(e.target.value)} placeholder="e.g. 18" style={PB_INP_GREEN}/></div>
+        <div>
+          <PBLabel>Target Profit % ✏️</PBLabel>
+          <input type="number" value={profitPct} onChange={e=>setProfitPct(e.target.value)} placeholder="e.g. 65" style={PB_INP_GREEN}/>
+        </div>
+        <div>
+          <PBLabel>Commission % ✏️</PBLabel>
+          <input type="number" value={commPct} onChange={e=>setCommPct(e.target.value)} placeholder="e.g. 18" style={PB_INP_GREEN}/>
+        </div>
       </div>
       {r?(<div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
         <PBOutBox label="Sold Price (₨)" value={pbFmtPKR(r.soldPKR)} accent="#C8F135"/>
@@ -1298,17 +1304,26 @@ function PBProfitCalc({ gbpRate, usdRate, eurRate }) {
     <PBCard title="Profit Calculator" emoji="📊">
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:12}}>
         <div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-            <PBLabel>Sold Price ✏️</PBLabel>
-            <select style={PB_SEL} value={soldCur} onChange={e=>setSoldCur(e.target.value)}>
+          <PBLabel>Sold Price ✏️</PBLabel>
+          <div style={{display:"flex",alignItems:"center",gap:0,background:"#C8F13510",border:"2px solid #C8F135",borderRadius:9,overflow:"hidden"}}>
+            <select style={{...PB_SEL,border:"none",borderRight:"1px solid #C8F13540",borderRadius:0,background:"#C8F13518",flexShrink:0,height:46,padding:"0 8px"}} value={soldCur} onChange={e=>setSoldCur(e.target.value)}>
               {PB_CURRENCIES.filter(c=>c.code!=="PKR").map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
             </select>
+            <input type="number" value={soldVal} onChange={e=>setSoldVal(e.target.value)} placeholder={`e.g. ${soldCur==="GBP"?"8.22":soldCur==="USD"?"10.50":"9.80"}`} style={{...PB_INP_GREEN,border:"none",borderRadius:0,flex:1,background:"transparent"}}/>
           </div>
-          <input type="number" value={soldVal} onChange={e=>setSoldVal(e.target.value)} placeholder={`e.g. ${soldCur==="GBP"?"8.22":soldCur==="USD"?"10.50":"9.80"}`} style={PB_INP_GREEN}/>
         </div>
-        <div><PBLabel>Commission % ✏️</PBLabel><input type="number" value={commPct} onChange={e=>setCommPct(e.target.value)} placeholder="e.g. 0" style={PB_INP_GREEN}/></div>
-        <div><PBLabel>Bought Price (₨) ✏️</PBLabel><input type="number" value={boughtPKR} onChange={e=>setBoughtPKR(e.target.value)} placeholder="e.g. 1850" style={PB_INP_GREEN}/></div>
-        <div><PBLabel>Est. Shipping (₨) ✏️</PBLabel><input type="number" value={shipPKR} onChange={e=>setShipPKR(e.target.value)} placeholder="e.g. 250" style={PB_INP_GREEN}/></div>
+        <div>
+          <PBLabel>Commission % ✏️</PBLabel>
+          <input type="number" value={commPct} onChange={e=>setCommPct(e.target.value)} placeholder="e.g. 0" style={PB_INP_GREEN}/>
+        </div>
+        <div>
+          <PBLabel>Bought Price (₨) ✏️</PBLabel>
+          <input type="number" value={boughtPKR} onChange={e=>setBoughtPKR(e.target.value)} placeholder="e.g. 1850" style={PB_INP_GREEN}/>
+        </div>
+        <div>
+          <PBLabel>Est. Shipping (₨) ✏️</PBLabel>
+          <input type="number" value={shipPKR} onChange={e=>setShipPKR(e.target.value)} placeholder="e.g. 250" style={PB_INP_GREEN}/>
+        </div>
       </div>
       {shipPKR&&<div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,padding:"10px 14px",background:"#261C3A",borderRadius:9,border:"1px solid #3D2F5A"}}>
         <span style={{fontSize:12,color:"#6B5F8B"}}>Shipping is:</span>
@@ -1366,16 +1381,22 @@ function PBBoughtCalc({ gbpRate, usdRate, eurRate }) {
     <PBCard title="Price (Bought) Calculator" emoji="🛒">
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
         <div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-            <PBLabel>Selling Price (Avg) ✏️</PBLabel>
-            <select style={PB_SEL} value={selCur} onChange={e=>setSelCur(e.target.value)}>
+          <PBLabel>Selling Price (Avg) ✏️</PBLabel>
+          <div style={{display:"flex",alignItems:"center",gap:0,background:"#C8F13510",border:"2px solid #C8F135",borderRadius:9,overflow:"hidden"}}>
+            <select style={{...PB_SEL,border:"none",borderRight:"1px solid #C8F13540",borderRadius:0,background:"#C8F13518",flexShrink:0,height:46,padding:"0 8px"}} value={selCur} onChange={e=>setSelCur(e.target.value)}>
               {PB_CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
             </select>
+            <input type="number" value={sellingVal} onChange={e=>setSellingVal(e.target.value)} placeholder={`e.g. ${selCur==="PKR"?"1500":"4.20"}`} style={{...PB_INP_GREEN,border:"none",borderRadius:0,flex:1,background:"transparent"}}/>
           </div>
-          <input type="number" value={sellingVal} onChange={e=>setSellingVal(e.target.value)} placeholder={`e.g. ${selCur==="PKR"?"1500":"4.20"}`} style={PB_INP_GREEN}/>
         </div>
-        <div><PBLabel>Target Profit % ✏️</PBLabel><input type="number" value={profitPct} onChange={e=>setProfitPct(e.target.value)} placeholder="e.g. 30" style={PB_INP_GREEN}/></div>
-        <div><PBLabel>Commission % ✏️</PBLabel><input type="number" value={commPct} onChange={e=>setCommPct(e.target.value)} placeholder="e.g. 15" style={PB_INP_GREEN}/></div>
+        <div>
+          <PBLabel>Target Profit % ✏️</PBLabel>
+          <input type="number" value={profitPct} onChange={e=>setProfitPct(e.target.value)} placeholder="e.g. 30" style={PB_INP_GREEN}/>
+        </div>
+        <div>
+          <PBLabel>Commission % ✏️</PBLabel>
+          <input type="number" value={commPct} onChange={e=>setCommPct(e.target.value)} placeholder="e.g. 15" style={PB_INP_GREEN}/>
+        </div>
       </div>
       {r?(<div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
         <PBOutBox label="Max Buy (₨)" value={pbFmtPKR(r.boughtPKR)} accent="#7EB8F0"/>
