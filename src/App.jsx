@@ -115,6 +115,9 @@ async function sbSet(payload) {
 function StatusPill({status}){const s=STCOL[status]||{};return <span style={{background:s.bg,color:s.color,fontSize:10,fontFamily:FB,fontWeight:700,padding:"3px 10px",borderRadius:20,letterSpacing:"0.4px",whiteSpace:"nowrap",display:"inline-block",border:`1px solid ${s.color}50`}}>{STLBL[status]}</span>;}
 const INP={width:"100%",padding:"9px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none",boxSizing:"border-box"};
 function Field({label,children}){return <div style={{marginBottom:13}}><label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontFamily:FB}}>{label}</label>{children}</div>;}
+// ── Hoisted helpers (module-level to prevent focus loss on re-render) ─────────
+function FR({label,children}){return <div style={{marginBottom:12}}><label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.9px",fontFamily:FB}}>{label}</label>{children}</div>;}
+function Sug({s,pick,clear}){if(!s||s.length===0)return null;return <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:100,background:T.card,border:`1px solid ${T.border}`,borderRadius:8,marginTop:3,overflow:"hidden",boxShadow:"0 6px 20px rgba(0,0,0,0.35)"}}>{s.map(x=><div key={x} onMouseDown={()=>{pick(x);clear();}} style={{padding:"8px 12px",fontSize:12.5,color:T.offWhite,cursor:"pointer",borderBottom:`1px solid ${T.border}`}} onMouseEnter={e=>e.currentTarget.style.background=T.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>{x}</div>)}</div>;}
 function Modal({open,onClose,title,children}){if(!open)return null;return <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}><div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:490,maxWidth:"96vw",maxHeight:"92vh",overflowY:"auto",padding:26}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:22}}><div style={{fontFamily:FD,fontSize:22,fontWeight:700,color:T.lime}}>{title}</div><button onClick={onClose} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:7,cursor:"pointer",fontSize:18,color:T.muted,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button></div>{children}</div></div>;}
 
 function IconBtn({title,onClick,danger}){
@@ -193,7 +196,6 @@ function ItemForm({brands,initial,onSave,onClose,defaultBrand,allItems,catTree,o
   const handleSave=()=>{if(!f.name.trim())return;const m=mem();if(f.productBrand)m.brands=uniq([...m.brands,f.productBrand]);if(f.supplierName)m.suppliers=uniq([...m.suppliers,f.supplierName]);if(f.supplierArea)m.areas=uniq([...m.areas,f.supplierArea]);onSave({...f,cost:parseInt(f.cost)||0,price:parseInt(f.price)||0});};
   const ab={padding:"0 10px",height:36,border:`1px solid ${T.lime}`,borderRadius:8,background:"transparent",color:T.lime,cursor:"pointer",fontSize:18,lineHeight:1,fontFamily:FB,flexShrink:0};
   const G2={display:"grid",gridTemplateColumns:"1fr 1fr",gap:12};
-  const Sug=({s,pick,clear})=>s.length===0?null:<div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:100,background:T.card,border:`1px solid ${T.border}`,borderRadius:8,marginTop:3,overflow:"hidden",boxShadow:"0 6px 20px rgba(0,0,0,0.35)"}}>{s.map(x=><div key={x} onMouseDown={()=>{pick(x);clear();}} style={{padding:"8px 12px",fontSize:12.5,color:T.offWhite,cursor:"pointer",borderBottom:`1px solid ${T.border}`}} onMouseEnter={e=>e.currentTarget.style.background=T.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>{x}</div>)}</div>;
   return <div>
     <div style={G2}>
       <Field label="Vertical"><select style={INP} value={f.brand} onChange={e=>setBrand(e.target.value)}>{brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></Field>
@@ -271,7 +273,6 @@ function FixesPage({fixes,setFixes,items,brands}){
   const sub=()=>{if(!form.type||!form.date)return;setFixes(p=>[...p,{id:nfid,...form,pieces:parseInt(form.pieces)||1,returned:false,returnedDate:null,rating:null,returnNotes:""}]);setNfid(n=>n+1);setForm(bf);setFormOpen(false);};
   const subRet=()=>{if(!retData.returnedDate||!retData.rating)return;setFixes(p=>p.map(f=>f.id===retId?{...f,returned:true,...retData}:f));setRetId(null);};
   const I3={width:"100%",padding:"8px 11px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none",boxSizing:"border-box"};
-  const FR=({label,children})=><div style={{marginBottom:12}}><label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.9px"}}>{label}</label>{children}</div>;
   const Stars=({value,onChange})=><div style={{display:"flex",gap:4}}>{[1,2,3,4,5].map(s=><span key={s} onClick={()=>onChange(s)} style={{fontSize:22,cursor:"pointer",color:s<=value?T.lime:T.ghost}}>★</span>)}</div>;
   return <div style={{display:"flex",flexDirection:"column",height:"100%"}}><div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10}}><div style={{fontFamily:FD,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>Jobs</div><div style={{display:"flex",border:`1px solid ${T.border}`,borderRadius:8,overflow:"hidden"}}>{[{k:"log",l:"Active"},{k:"history",l:"History"}].map((t,i)=><button key={t.k} onClick={()=>setView(t.k)} style={{padding:"6px 14px",background:view===t.k?T.lime:"transparent",border:"none",borderLeft:i>0?`1px solid ${T.border}`:"none",cursor:"pointer",fontSize:12.5,color:view===t.k?T.ink:T.muted,fontFamily:FB,fontWeight:view===t.k?700:400}}>{t.l} ({t.k==="log"?af.length:cf.length})</button>)}</div><button onClick={()=>setFormOpen(true)} style={{padding:"7px 18px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Log jobs</button></div><div style={{flex:1,overflowY:"auto",background:T.bg,padding:"18px 20px"}}>{view==="log"&&(af.length===0?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:36}}>🧵</div><div style={{fontSize:18,fontWeight:600,color:T.ghost}}>No active jobs</div></div>:<div style={{display:"flex",flexDirection:"column",gap:10}}>{af.map(fx=><div key={fx.id} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 16px",display:"grid",gridTemplateColumns:"100px 1fr 100px 80px 80px 120px 80px",gap:12,alignItems:"center"}}><div style={{fontSize:12,color:T.muted}}>{fx.date}</div><div style={{fontSize:13,fontWeight:500,color:T.offWhite}}>{fx.notes||"—"}</div><span style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:20,background:`${sc(fx.type)}22`,color:sc(fx.type),border:`1px solid ${sc(fx.type)}44`}}>{fx.type}</span><div style={{fontSize:13,color:T.offWhite}}>{fx.pieces}</div><div style={{fontSize:11,fontWeight:600,color:gb(fx.brand)?.color||T.muted}}>{gb(fx.brand)?.name||"—"}</div><div style={{fontSize:12,color:T.muted}}>{fx.tailor||"—"}</div><button onClick={()=>{setRetId(fx.id);setRetData({returnedDate:new Date().toISOString().slice(0,10),rating:0,notes:""});}} style={{padding:"5px 10px",border:`1px solid ${T.lime}`,borderRadius:7,background:"transparent",color:T.lime,cursor:"pointer",fontSize:12,fontFamily:FB}}>Mark returned</button></div>)}</div>)}{view==="history"&&(cf.length===0?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:36}}>📋</div><div style={{fontSize:18,fontWeight:600,color:T.ghost,marginTop:12}}>No completed fixes yet</div></div>:<div style={{display:"flex",flexDirection:"column",gap:10}}>{cf.map(fx=><div key={fx.id} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 16px"}}><div style={{fontSize:13,fontWeight:500,color:T.offWhite}}>{fx.notes||"—"}</div><div style={{fontSize:11,color:T.ghost,marginTop:4}}>{fx.date} → {fx.returnedDate} · {fx.pieces} pcs</div></div>)}</div>)}</div>
   {formOpen&&<div onClick={()=>setFormOpen(false)} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}><div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:460,maxWidth:"96vw",maxHeight:"92vh",overflowY:"auto",padding:26}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{fontFamily:FD,fontSize:22,fontWeight:700,color:T.lime}}>Log jobs</div><button onClick={()=>setFormOpen(false)} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:7,cursor:"pointer",fontSize:18,color:T.muted,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><FR label="Fix type"><select style={I3} value={form.type} onChange={e=>sf("type",e.target.value)}>{["Mending","Washing","Dyeing","Tailoring","Dry Clean","Other"].map(t=><option key={t}>{t}</option>)}</select></FR><FR label="Vertical"><select style={I3} value={form.brand} onChange={e=>sf("brand",e.target.value)}><option value="">— select —</option>{brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></FR></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><FR label="Date sent"><input style={I3} type="date" value={form.date} onChange={e=>sf("date",e.target.value)}/></FR><FR label="No. of pieces"><input style={I3} type="number" min="1" value={form.pieces} onChange={e=>sf("pieces",e.target.value)}/></FR></div><FR label="Tailor / Vendor"><input style={I3} value={form.tailor} onChange={e=>sf("tailor",e.target.value)} placeholder="e.g. Rehman Tailor"/></FR><FR label="Notes"><input style={I3} value={form.notes} onChange={e=>sf("notes",e.target.value)} placeholder="e.g. 3 jeans for hem alteration"/></FR><div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20,paddingTop:18,borderTop:`1px solid ${T.border}`}}><button onClick={()=>setFormOpen(false)} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button><button onClick={sub} style={{padding:"8px 20px",border:"none",borderRadius:8,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>Save entry</button></div></div></div>}
@@ -616,7 +617,6 @@ const ABSENCE_REASONS = ["Sick","No Show","Personal","Holiday","Late","Other"];
 const ROLE_COLORS_A = {"Admin":"#C8F135","Manager":"#7EB8F0","Inventory Staff":"#7ECB7E","Packer":"#F0C060","Sales":"#C070F0","Other":"#9B8FBB"};
 const rca = r => ROLE_COLORS_A[r]||T.muted;
 const I3s = {width:"100%",padding:"9px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none",boxSizing:"border-box"};
-const FRa = ({label,children}) => <div style={{marginBottom:13}}><label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontFamily:FB}}>{label}</label>{children}</div>;
 
 function MemberModal({ editId, roles, onAddRole, onRemoveRole, onSave, onClose }) {
   const [name, setName] = useState("");
@@ -638,10 +638,10 @@ function MemberModal({ editId, roles, onAddRole, onRemoveRole, onSave, onClose }
         </div>
 
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <FRa label="Full name">
+          <FR label="Full name">
             <input style={I3s} value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Sara Ahmed" autoFocus/>
-          </FRa>
-          <FRa label={
+          </FR>
+          <FR label={
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
               <span>Role</span>
               <button onClick={()=>setManagingRoles(o=>!o)} style={{fontSize:9.5,color:managingRoles?T.lime:T.ghost,background:"none",border:`1px solid ${managingRoles?T.lime:T.border}`,borderRadius:5,padding:"1px 7px",cursor:"pointer",fontFamily:FB,fontWeight:600}}>
@@ -673,11 +673,11 @@ function MemberModal({ editId, roles, onAddRole, onRemoveRole, onSave, onClose }
                       style={{padding:"6px 12px",border:"none",borderRadius:7,background:T.lime,color:T.ink,cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:FB,flexShrink:0}}>Add</button>
                   </div>
                 </div>}
-          </FRa>
+          </FR>
         </div>
 
-        <FRa label="Phone (optional)"><input style={I3s} value={phone} onChange={e=>setPhone(e.target.value)} placeholder="e.g. 0300-1234567"/></FRa>
-        <FRa label="Notes"><input style={I3s} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Any extra info…"/></FRa>
+        <FR label="Phone (optional)"><input style={I3s} value={phone} onChange={e=>setPhone(e.target.value)} placeholder="e.g. 0300-1234567"/></FR>
+        <FR label="Notes"><input style={I3s} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Any extra info…"/></FR>
 
         <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20,paddingTop:18,borderTop:`1px solid ${T.border}`}}>
           <button onClick={onClose} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
@@ -700,17 +700,17 @@ function AbsenceModal({ members, onSave, onClose }) {
           <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.rougeText}}>🚫 Mark absence</div>
           <button onClick={onClose} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:7,cursor:"pointer",fontSize:18,color:T.muted,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
         </div>
-        <FRa label="Team member">
+        <FR label="Team member">
           <select style={I3s} value={memberId} onChange={e=>setMemberId(e.target.value)}>
             <option value="">— select member —</option>
             {members.map(m=><option key={m.id} value={m.id}>{m.name} ({m.role})</option>)}
           </select>
-        </FRa>
+        </FR>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <FRa label="Date"><input style={I3s} type="date" value={date} onChange={e=>setDate(e.target.value)}/></FRa>
-          <FRa label="Reason"><select style={I3s} value={reason} onChange={e=>setReason(e.target.value)}>{ABSENCE_REASONS.map(r=><option key={r}>{r}</option>)}</select></FRa>
+          <FR label="Date"><input style={I3s} type="date" value={date} onChange={e=>setDate(e.target.value)}/></FR>
+          <FR label="Reason"><select style={I3s} value={reason} onChange={e=>setReason(e.target.value)}>{ABSENCE_REASONS.map(r=><option key={r}>{r}</option>)}</select></FR>
         </div>
-        <FRa label="Notes (optional)"><input style={I3s} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Any details…"/></FRa>
+        <FR label="Notes (optional)"><input style={I3s} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Any details…"/></FR>
         <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20,paddingTop:18,borderTop:`1px solid ${T.border}`}}>
           <button onClick={onClose} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
           <button onClick={()=>{if(!memberId)return;onSave({memberId:Number(memberId),date,reason,notes});}} disabled={!memberId}
@@ -935,7 +935,6 @@ function RateEntryModal({ onSave, onClose, initial }) {
   const canSave = (gbp||usd||eur) && dateFrom && dateTo && platform;
 
   const IS = {width:"100%",padding:"9px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none",boxSizing:"border-box"};
-  const FRL = ({label,children}) => <div style={{marginBottom:13}}><label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontFamily:FB}}>{label}</label>{children}</div>;
 
   return (
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}>
@@ -949,9 +948,9 @@ function RateEntryModal({ onSave, onClose, initial }) {
         <div style={{background:T.card,borderRadius:10,padding:"14px 16px",border:`1px solid ${T.border}`,marginBottom:16}}>
           <div style={{fontSize:11,color:T.lime,fontWeight:600,marginBottom:12,textTransform:"uppercase",letterSpacing:"0.8px"}}>📅 Date range this rate applied</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 36px 1fr",gap:8,alignItems:"center"}}>
-            <FRL label="From"><input style={IS} type="date" value={dateFrom} onChange={e=>{setDateFrom(e.target.value);if(e.target.value>dateTo)setDateTo(e.target.value);}}/></FRL>
+            <FR label="From"><input style={IS} type="date" value={dateFrom} onChange={e=>{setDateFrom(e.target.value);if(e.target.value>dateTo)setDateTo(e.target.value);}}/></FR>
             <div style={{fontSize:18,color:T.ghost,textAlign:"center",paddingTop:16}}>→</div>
-            <FRL label="To"><input style={IS} type="date" value={dateTo} min={dateFrom} onChange={e=>setDateTo(e.target.value)}/></FRL>
+            <FR label="To"><input style={IS} type="date" value={dateTo} min={dateFrom} onChange={e=>setDateTo(e.target.value)}/></FR>
           </div>
           {dateFrom!==dateTo&&<div style={{fontSize:11,color:T.cobaltText,marginTop:4,background:T.cobaltBg,padding:"4px 10px",borderRadius:8,display:"inline-block"}}>
             Range: {Math.round((new Date(dateTo)-new Date(dateFrom))/(1000*60*60*24)+1)} days
@@ -959,11 +958,11 @@ function RateEntryModal({ onSave, onClose, initial }) {
         </div>
 
         {/* Platform */}
-        <FRL label="Selling platform">
+        <FR label="Selling platform">
           <select style={IS} value={platform} onChange={e=>setPlatform(e.target.value)}>
             {CONV_PLATFORMS_SELL.map(p=><option key={p}>{p}</option>)}
           </select>
-        </FRL>
+        </FR>
 
         {/* Rates */}
         <div style={{background:T.card,borderRadius:10,padding:"14px 16px",border:`1px solid ${T.border}`,marginBottom:14}}>
@@ -984,9 +983,9 @@ function RateEntryModal({ onSave, onClose, initial }) {
           </div>
         </div>
 
-        <FRL label="Notes (optional)">
+        <FR label="Notes (optional)">
           <input style={IS} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="e.g. Post-budget rate spike, Eid season…"/>
-        </FRL>
+        </FR>
 
         <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20,paddingTop:18,borderTop:`1px solid ${T.border}`}}>
           <button onClick={onClose} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
@@ -1189,204 +1188,392 @@ function ConversionPage({ rates, setRates, rateHistory, setRateHistory }) {
 }
 
 // ── Profit Bot Page ───────────────────────────────────────────────────────────
+// Shared helpers (module-level so they're never recreated)
+const PB_INP_GREEN = {padding:"10px 14px",border:`2px solid #C8F135`,borderRadius:9,background:"#C8F13510",fontSize:15,fontFamily:"'Google Sans','Product Sans',system-ui,sans-serif",color:"#F0EBF8",outline:"none",width:"100%",boxSizing:"border-box",fontWeight:600};
+const PB_INP_GREY  = {padding:"10px 14px",border:"1px solid #3D2F5A",borderRadius:9,background:"#2E2244",fontSize:15,fontFamily:"'Google Sans','Product Sans',system-ui,sans-serif",color:"#F0EBF8",outline:"none",width:"100%",boxSizing:"border-box"};
+const PB_SEL       = {padding:"5px 10px",border:"1px solid #3D2F5A",borderRadius:8,background:"#2E2244",fontSize:12,fontFamily:"'Google Sans','Product Sans',system-ui,sans-serif",color:"#C8F135",outline:"none",fontWeight:700,cursor:"pointer"};
+
+const PBLabel = ({children}) => <div style={{fontSize:10,color:"#6B5F8B",textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600,marginBottom:6}}>{children}</div>;
+const PBOutBox = ({label,value,accent}) => (
+  <div style={{background:"#261C3A",borderRadius:10,padding:"12px 14px",border:"1px solid #3D2F5A"}}>
+    <PBLabel>{label}</PBLabel>
+    <div style={{fontSize:18,fontWeight:700,color:accent||"#C8F135"}}>{value||"—"}</div>
+  </div>
+);
+const PBCard = ({title,emoji,children}) => (
+  <div style={{background:"#2E2244",borderRadius:14,border:"1px solid #3D2F5A",padding:"22px 22px",marginBottom:18}}>
+    <div style={{fontSize:16,fontWeight:700,color:"#C8F135",marginBottom:18,display:"flex",alignItems:"center",gap:8}}>
+      <span style={{fontSize:20}}>{emoji}</span>{title}
+    </div>
+    {children}
+  </div>
+);
+
+const CURRENCIES = [{code:"GBP",sym:"£"},{code:"USD",sym:"$"},{code:"EUR",sym:"€"},{code:"PKR",sym:"₨"}];
+const pbFmt    = (n,d=2) => n!=null&&!isNaN(n)?n.toFixed(d):null;
+const pbFmtPKR = n => n!=null&&!isNaN(n)?`₨${Math.round(n).toLocaleString()}`:null;
+const pbFmtCur = (n,sym,d=2) => n!=null&&!isNaN(n)?`${sym}${parseFloat(n).toFixed(d)}`:null;
+const pbFmtPct = n => n!=null&&!isNaN(n)?`${parseFloat(n).toFixed(2)}%`:null;
+
+function PBSoldCalc({ gbpRate, usdRate, eurRate }) {
+  const [boughtPKR, setBoughtPKR] = useState("");
+  const [profitPct, setProfitPct] = useState("");
+  const [commPct,   setCommPct]   = useState("");
+  const [inCur,     setInCur]     = useState("PKR"); // currency of boughtPrice input
+
+  const getRateToGBP = cur => cur==="GBP"?1:cur==="USD"?gbpRate/usdRate:cur==="EUR"?gbpRate/eurRate:1/gbpRate;
+  const toGBP = (val,cur) => parseFloat(val)*getRateToGBP(cur);
+
+  const calc = () => {
+    const boughtV = parseFloat(boughtPKR)||0;
+    const profit  = parseFloat(profitPct)||0;
+    const comm    = parseFloat(commPct)||0;
+    if (!boughtV) return null;
+    const denom = 1-(profit/100)-(comm/100);
+    if (denom<=0) return null;
+    const boughtPKRv = inCur==="PKR"?boughtV:inCur==="GBP"?boughtV*gbpRate:inCur==="USD"?boughtV*usdRate:boughtV*eurRate;
+    const soldPKR = boughtPKRv/denom;
+    return { soldPKR, soldGBP:soldPKR/gbpRate, soldEUR:soldPKR/eurRate, soldUSD:soldPKR/usdRate };
+  };
+  const r = calc();
+
+  const inSym = CURRENCIES.find(c=>c.code===inCur)?.sym||"₨";
+
+  return (
+    <PBCard title="Price (Sold) Calculator" emoji="🏷️">
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            <PBLabel>Bought Price ✏️</PBLabel>
+            <select style={PB_SEL} value={inCur} onChange={e=>setInCur(e.target.value)}>
+              {CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
+            </select>
+          </div>
+          <input type="number" value={boughtPKR} onChange={e=>setBoughtPKR(e.target.value)} placeholder={`e.g. ${inCur==="PKR"?"1900":"5.50"}`} style={PB_INP_GREEN}/>
+        </div>
+        <div><PBLabel>Target Profit % ✏️</PBLabel><input type="number" value={profitPct} onChange={e=>setProfitPct(e.target.value)} placeholder="e.g. 65" style={PB_INP_GREEN}/></div>
+        <div><PBLabel>Commission % ✏️</PBLabel><input type="number" value={commPct} onChange={e=>setCommPct(e.target.value)} placeholder="e.g. 18" style={PB_INP_GREEN}/></div>
+      </div>
+      {r?(<div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+        <PBOutBox label="Sold Price (₨)" value={pbFmtPKR(r.soldPKR)} accent="#C8F135"/>
+        <PBOutBox label="Sold Price (£)" value={pbFmtCur(r.soldGBP,"£")}/>
+        <PBOutBox label="Sold Price (€)" value={pbFmtCur(r.soldEUR,"€")}/>
+        <PBOutBox label="Sold Price ($)" value={pbFmtCur(r.soldUSD,"$")}/>
+      </div>):<div style={{fontSize:12,color:"#6B5F8B",textAlign:"center",padding:"14px 0"}}>Fill in the green fields above to calculate</div>}
+    </PBCard>
+  );
+}
+
+function PBProfitCalc({ gbpRate, usdRate, eurRate }) {
+  const [soldVal,   setSoldVal]   = useState("");
+  const [soldCur,   setSoldCur]   = useState("GBP");
+  const [commPct,   setCommPct]   = useState("");
+  const [boughtPKR, setBoughtPKR] = useState("");
+  const [shipPKR,   setShipPKR]   = useState("");
+  const [shipMode,  setShipMode]  = useState("excluding");
+
+  const toRatePKR = cur => cur==="PKR"?1:cur==="GBP"?gbpRate:cur==="USD"?usdRate:eurRate;
+  const sym = CURRENCIES.find(c=>c.code===soldCur)?.sym||"£";
+
+  const calc = () => {
+    const soldV     = parseFloat(soldVal)||0;
+    const comm      = parseFloat(commPct)||0;
+    const boughtV   = parseFloat(boughtPKR)||0;
+    const ship      = parseFloat(shipPKR)||0;
+    if (!soldV) return null;
+    const soldPKR   = soldV * toRatePKR(soldCur);
+    const commAmt   = soldPKR*(comm/100);
+    const boughtGBP = boughtV/gbpRate;
+    const shipDeduct= shipMode==="including"?ship:0;
+    const profitPKR = soldPKR-boughtV-commAmt-shipDeduct;
+    const profitGBP = profitPKR/gbpRate;
+    const profitPct = soldPKR>0?(profitPKR/soldPKR)*100:0;
+    const profitExcl= soldPKR-boughtV-commAmt;
+    const profitIncl= soldPKR-boughtV-commAmt-ship;
+    return { soldPKR,boughtGBP,profitPKR,profitGBP,profitPct,profitExcl,profitIncl,ship };
+  };
+  const r = calc();
+
+  return (
+    <PBCard title="Profit Calculator" emoji="📊">
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:12}}>
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            <PBLabel>Sold Price ✏️</PBLabel>
+            <select style={PB_SEL} value={soldCur} onChange={e=>setSoldCur(e.target.value)}>
+              {CURRENCIES.filter(c=>c.code!=="PKR").map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
+            </select>
+          </div>
+          <input type="number" value={soldVal} onChange={e=>setSoldVal(e.target.value)} placeholder={`e.g. ${soldCur==="GBP"?"8.22":soldCur==="USD"?"10.50":"9.80"}`} style={PB_INP_GREEN}/>
+        </div>
+        <div><PBLabel>Commission % ✏️</PBLabel><input type="number" value={commPct} onChange={e=>setCommPct(e.target.value)} placeholder="e.g. 0" style={PB_INP_GREEN}/></div>
+        <div><PBLabel>Bought Price (₨) ✏️</PBLabel><input type="number" value={boughtPKR} onChange={e=>setBoughtPKR(e.target.value)} placeholder="e.g. 1850" style={PB_INP_GREEN}/></div>
+        <div><PBLabel>Est. Shipping (₨) ✏️</PBLabel><input type="number" value={shipPKR} onChange={e=>setShipPKR(e.target.value)} placeholder="e.g. 250" style={PB_INP_GREEN}/></div>
+      </div>
+      {shipPKR&&<div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,padding:"10px 14px",background:"#261C3A",borderRadius:9,border:"1px solid #3D2F5A"}}>
+        <span style={{fontSize:12,color:"#6B5F8B"}}>Shipping is:</span>
+        {["excluding","including"].map(m=>(
+          <button key={m} onClick={()=>setShipMode(m)} style={{padding:"4px 14px",borderRadius:20,fontSize:12,cursor:"pointer",fontWeight:shipMode===m?700:400,border:`1px solid ${shipMode===m?"#C8F135":"#3D2F5A"}`,background:shipMode===m?"#C8F13522":"transparent",color:shipMode===m?"#C8F135":"#9B8FBB"}}>
+            {m==="excluding"?"Excluding (customer pays)":"Including (out of sale)"}
+          </button>
+        ))}
+      </div>}
+      {r?(<>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:r.ship?12:0}}>
+          <PBOutBox label="Bought Price (£)" value={pbFmtCur(r.boughtGBP,"£")}/>
+          <PBOutBox label={`Sold (₨)`} value={pbFmtPKR(r.soldPKR)}/>
+          <PBOutBox label="Profit (£)" value={pbFmtCur(r.profitGBP,"£")} accent={r.profitGBP>=0?"#A8E060":"#F07070"}/>
+          <PBOutBox label="Profit (₨)" value={pbFmtPKR(r.profitPKR)} accent={r.profitPKR>=0?"#A8E060":"#F07070"}/>
+          <PBOutBox label="Profit %" value={pbFmtPct(r.profitPct)} accent={r.profitPct>=0?"#A8E060":"#F07070"}/>
+        </div>
+        {r.ship>0&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:2}}>
+          <div style={{background:"#261C3A",borderRadius:10,padding:"12px 14px",border:"1px solid #7ECB7E44"}}>
+            <div style={{fontSize:10,color:"#7ECB7E",textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600,marginBottom:6}}>✅ Excl. shipping (customer pays)</div>
+            <div style={{fontSize:16,fontWeight:700,color:r.profitExcl>=0?"#A8E060":"#F07070"}}>₨{Math.round(r.profitExcl).toLocaleString()}</div>
+            <div style={{fontSize:11,color:"#6B5F8B",marginTop:2}}>{pbFmtCur(r.profitExcl/gbpRate,"£")} · {pbFmtPct(r.soldPKR>0?(r.profitExcl/r.soldPKR)*100:0)} margin</div>
+          </div>
+          <div style={{background:"#261C3A",borderRadius:10,padding:"12px 14px",border:"1px solid #F0707044"}}>
+            <div style={{fontSize:10,color:"#F07070",textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600,marginBottom:6}}>📦 Incl. shipping (out of sale)</div>
+            <div style={{fontSize:16,fontWeight:700,color:r.profitIncl>=0?"#A8E060":"#F07070"}}>₨{Math.round(r.profitIncl).toLocaleString()}</div>
+            <div style={{fontSize:11,color:"#6B5F8B",marginTop:2}}>{pbFmtCur(r.profitIncl/gbpRate,"£")} · {pbFmtPct(r.soldPKR>0?(r.profitIncl/r.soldPKR)*100:0)} margin</div>
+          </div>
+        </div>}
+      </>):<div style={{fontSize:12,color:"#6B5F8B",textAlign:"center",padding:"14px 0"}}>Fill in the green fields above to calculate</div>}
+    </PBCard>
+  );
+}
+
+function PBBoughtCalc({ gbpRate, usdRate, eurRate }) {
+  const [sellingVal, setSellingVal] = useState("");
+  const [selCur,     setSelCur]     = useState("GBP");
+  const [profitPct,  setProfitPct]  = useState("");
+  const [commPct,    setCommPct]    = useState("");
+
+  const toRatePKR = cur => cur==="PKR"?1:cur==="GBP"?gbpRate:cur==="USD"?usdRate:eurRate;
+
+  const calc = () => {
+    const selV   = parseFloat(sellingVal)||0;
+    const profit = parseFloat(profitPct)||0;
+    const comm   = parseFloat(commPct)||0;
+    if (!selV) return null;
+    const selPKR    = selV*toRatePKR(selCur);
+    const boughtPKR = selPKR*(1-(profit/100)-(comm/100));
+    return { boughtPKR, boughtGBP:boughtPKR/gbpRate, boughtUSD:boughtPKR/usdRate, boughtEUR:boughtPKR/eurRate };
+  };
+  const r = calc();
+
+  return (
+    <PBCard title="Price (Bought) Calculator" emoji="🛒">
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            <PBLabel>Selling Price (Avg) ✏️</PBLabel>
+            <select style={PB_SEL} value={selCur} onChange={e=>setSelCur(e.target.value)}>
+              {CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
+            </select>
+          </div>
+          <input type="number" value={sellingVal} onChange={e=>setSellingVal(e.target.value)} placeholder={`e.g. ${selCur==="PKR"?"1500":"4.20"}`} style={PB_INP_GREEN}/>
+        </div>
+        <div><PBLabel>Target Profit % ✏️</PBLabel><input type="number" value={profitPct} onChange={e=>setProfitPct(e.target.value)} placeholder="e.g. 30" style={PB_INP_GREEN}/></div>
+        <div><PBLabel>Commission % ✏️</PBLabel><input type="number" value={commPct} onChange={e=>setCommPct(e.target.value)} placeholder="e.g. 15" style={PB_INP_GREEN}/></div>
+      </div>
+      {r?(<div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+        <PBOutBox label="Max Buy (₨)" value={pbFmtPKR(r.boughtPKR)} accent="#7EB8F0"/>
+        <PBOutBox label="Max Buy (£)" value={pbFmtCur(r.boughtGBP,"£")} accent="#7EB8F0"/>
+        <PBOutBox label="Max Buy ($)" value={pbFmtCur(r.boughtUSD,"$")} accent="#7EB8F0"/>
+        <PBOutBox label="Max Buy (€)" value={pbFmtCur(r.boughtEUR,"€")} accent="#7EB8F0"/>
+      </div>):<div style={{fontSize:12,color:"#6B5F8B",textAlign:"center",padding:"14px 0"}}>Fill in the green fields above to calculate</div>}
+    </PBCard>
+  );
+}
+
+// ── AI Assistant Panel ────────────────────────────────────────────────────────
+function AIAssistant({ context, systemPrompt, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (bottomRef.current) bottomRef.current.scrollIntoView({ behavior:"smooth" });
+  }, [messages, loading]);
+
+  useEffect(() => {
+    if (open && inputRef.current) inputRef.current.focus();
+  }, [open]);
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+    setInput("");
+    const userMsg = { role:"user", content: text };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setLoading(true);
+
+    try {
+      const contextBlock = context ? `\n\nCurrent page context:\n${context}` : "";
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1000,
+          system: systemPrompt + contextBlock,
+          messages: newMessages,
+        }),
+      });
+      const data = await response.json();
+      const reply = data.content?.map(b => b.text||"").join("") || "Sorry, I couldn't get a response.";
+      setMessages(prev => [...prev, { role:"assistant", content: reply }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role:"assistant", content:"Connection error. Please try again." }]);
+    }
+    setLoading(false);
+  };
+
+  const clear = () => setMessages([]);
+
+  // Floating button when closed
+  if (!open) return (
+    <button onClick={()=>setOpen(true)} title="AI Assistant"
+      style={{position:"fixed",bottom:24,right:24,width:52,height:52,borderRadius:"50%",background:T.lime,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,boxShadow:"0 4px 20px rgba(0,0,0,0.4)",zIndex:200,transition:"transform 0.15s"}}
+      onMouseEnter={e=>e.currentTarget.style.transform="scale(1.1)"}
+      onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
+      🤖
+    </button>
+  );
+
+  return (
+    <div style={{position:"fixed",bottom:24,right:24,width:380,maxWidth:"calc(100vw - 48px)",height:520,background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,display:"flex",flexDirection:"column",zIndex:200,boxShadow:"0 8px 40px rgba(0,0,0,0.5)"}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",borderBottom:`1px solid ${T.border}`,background:T.card,borderRadius:"16px 16px 0 0",flexShrink:0}}>
+        <span style={{fontSize:20}}>🤖</span>
+        <div style={{flex:1}}>
+          <div style={{fontSize:13,fontWeight:700,color:T.lime,fontFamily:FB}}>AI Assistant</div>
+          <div style={{fontSize:10,color:T.ghost,fontFamily:FB}}>Context-aware · Powered by Claude</div>
+        </div>
+        {messages.length>0&&<button onClick={clear} title="Clear chat" style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer",color:T.ghost,fontSize:11,padding:"2px 8px",fontFamily:FB}} onMouseEnter={e=>e.currentTarget.style.borderColor=T.rougeText} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>Clear</button>}
+        <button onClick={()=>setOpen(false)} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,cursor:"pointer",fontSize:16,color:T.muted,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+      </div>
+
+      {/* Messages */}
+      <div style={{flex:1,overflowY:"auto",padding:"14px 14px 8px",display:"flex",flexDirection:"column",gap:10}}>
+        {messages.length===0&&(
+          <div style={{textAlign:"center",padding:"30px 10px"}}>
+            <div style={{fontSize:32,marginBottom:10}}>🤖</div>
+            <div style={{fontSize:13,color:T.offWhite,fontWeight:600,fontFamily:FB,marginBottom:6}}>How can I help?</div>
+            <div style={{fontSize:11,color:T.ghost,fontFamily:FB,lineHeight:1.6}}>{placeholder}</div>
+          </div>
+        )}
+        {messages.map((m,i)=>(
+          <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
+            <div style={{
+              maxWidth:"85%",padding:"10px 13px",borderRadius:m.role==="user"?"12px 12px 3px 12px":"12px 12px 12px 3px",
+              background:m.role==="user"?T.lime:T.card,
+              color:m.role==="user"?T.ink:T.offWhite,
+              fontSize:12.5,fontFamily:FB,lineHeight:1.6,
+              border:m.role==="assistant"?`1px solid ${T.border}`:"none",
+              whiteSpace:"pre-wrap",wordBreak:"break-word",
+            }}>
+              {m.content}
+            </div>
+          </div>
+        ))}
+        {loading&&(
+          <div style={{display:"flex",justifyContent:"flex-start"}}>
+            <div style={{padding:"10px 14px",borderRadius:"12px 12px 12px 3px",background:T.card,border:`1px solid ${T.border}`,display:"flex",gap:5,alignItems:"center"}}>
+              {[0,1,2].map(i=>(
+                <div key={i} style={{width:7,height:7,borderRadius:"50%",background:T.lime,animation:"pbdot 1s ease-in-out infinite",animationDelay:`${i*0.15}s`,opacity:0.4}}/>
+              ))}
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef}/>
+      </div>
+
+      {/* Input */}
+      <div style={{padding:"10px 12px",borderTop:`1px solid ${T.border}`,display:"flex",gap:8,flexShrink:0}}>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={e=>setInput(e.target.value)}
+          onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
+          placeholder="Ask anything…"
+          disabled={loading}
+          style={{flex:1,padding:"9px 12px",border:`1px solid ${T.border}`,borderRadius:9,background:T.bg,fontSize:12.5,fontFamily:FB,color:T.offWhite,outline:"none",resize:"none"}}
+        />
+        <button onClick={send} disabled={!input.trim()||loading}
+          style={{padding:"9px 14px",border:"none",borderRadius:9,background:!input.trim()||loading?T.border:T.lime,color:!input.trim()||loading?T.ghost:T.ink,cursor:!input.trim()||loading?"not-allowed":"pointer",fontSize:13,fontWeight:700,fontFamily:FB,flexShrink:0}}>
+          Send
+        </button>
+      </div>
+
+      <style>{`@keyframes pbdot{0%,80%,100%{opacity:0.2;transform:scale(0.8)}40%{opacity:1;transform:scale(1)}}`}</style>
+    </div>
+  );
+}
+
 function ProfitBotPage({ rates }) {
-  // Exchange rates — pull from saved rates but allow local override
   const [gbpRate, setGbpRate] = useState(parseFloat(rates?.GBP)||372);
   const [usdRate, setUsdRate] = useState(parseFloat(rates?.USD)||278);
   const [eurRate, setEurRate] = useState(parseFloat(rates?.EUR)||300);
 
-  // ── Calculator 1: Price (Sold) Calculator ────────────────────────────────
-  const [c1BoughtPKR, setC1BoughtPKR] = useState("");
-  const [c1ProfitPct, setC1ProfitPct] = useState("");
-  const [c1CommPct,   setC1CommPct]   = useState("");
-
-  const c1Calc = () => {
-    const bought = parseFloat(c1BoughtPKR)||0;
-    const profit = parseFloat(c1ProfitPct)||0;
-    const comm   = parseFloat(c1CommPct)||0;
-    if (!bought) return null;
-    // Sold = Bought / (1 - profit/100 - comm/100)  [so after deducting profit% and commission% you're left with cost]
-    const denom = 1 - (profit/100) - (comm/100);
-    if (denom <= 0) return null;
-    const soldPKR = bought / denom;
-    return {
-      soldPKR,
-      soldGBP: soldPKR / gbpRate,
-      soldEUR: soldPKR / eurRate,
-      soldUSD: soldPKR / usdRate,
-    };
-  };
-  const c1 = c1Calc();
-
-  // ── Calculator 2: Profit Calculator ─────────────────────────────────────
-  const [c2SoldGBP,    setC2SoldGBP]    = useState("");
-  const [c2CommPct,    setC2CommPct]     = useState("");
-  const [c2BoughtPKR,  setC2BoughtPKR]  = useState("");
-
-  const c2Calc = () => {
-    const soldGBP   = parseFloat(c2SoldGBP)||0;
-    const comm      = parseFloat(c2CommPct)||0;
-    const boughtPKR = parseFloat(c2BoughtPKR)||0;
-    if (!soldGBP) return null;
-    const soldPKR        = soldGBP * gbpRate;
-    const commAmt        = soldPKR * (comm/100);
-    const boughtGBP      = boughtPKR / gbpRate;
-    const profitPKR      = soldPKR - boughtPKR - commAmt;
-    const profitGBP      = profitPKR / gbpRate;
-    const profitPct      = soldPKR > 0 ? (profitPKR / soldPKR) * 100 : 0;
-    return { soldPKR, boughtGBP, profitGBP, profitPKR, profitPct };
-  };
-  const c2 = c2Calc();
-
-  // ── Calculator 3: Price (Bought) Calculator ──────────────────────────────
-  const [c3SellingGBP, setC3SellingGBP] = useState("");
-  const [c3ProfitPct,  setC3ProfitPct]  = useState("");
-  const [c3CommPct,    setC3CommPct]    = useState("");
-
-  const c3Calc = () => {
-    const selling = parseFloat(c3SellingGBP)||0;
-    const profit  = parseFloat(c3ProfitPct)||0;
-    const comm    = parseFloat(c3CommPct)||0;
-    if (!selling) return null;
-    const sellingPKR = selling * gbpRate;
-    // Max you can spend = sellingPKR * (1 - profit/100 - comm/100)
-    const boughtPKR  = sellingPKR * (1 - (profit/100) - (comm/100));
-    const boughtGBP  = boughtPKR / gbpRate;
-    return { boughtPKR, boughtGBP };
-  };
-  const c3 = c3Calc();
-
-  const INP_GREEN = {
-    padding:"10px 14px", border:`2px solid ${T.lime}`, borderRadius:9,
-    background:`${T.lime}10`, fontSize:15, fontFamily:FB, color:T.offWhite,
-    outline:"none", width:"100%", boxSizing:"border-box", fontWeight:600,
-  };
-  const INP_GREY = {
-    padding:"10px 14px", border:`1px solid ${T.border}`, borderRadius:9,
-    background:T.card, fontSize:15, fontFamily:FB, color:T.offWhite,
-    outline:"none", width:"100%", boxSizing:"border-box",
-  };
-  const RATE_INP = {
-    background:"transparent", border:"none", outline:"none",
-    fontSize:16, fontWeight:700, color:T.offWhite, fontFamily:FB,
-    width:80, textAlign:"right",
-  };
-
-  const Label = ({children}) => (
-    <div style={{fontSize:10,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600,marginBottom:6,fontFamily:FB}}>{children}</div>
-  );
-
-  const OutBox = ({label, value, accent, prefix=""}) => (
-    <div style={{background:T.surface,borderRadius:10,padding:"12px 14px",border:`1px solid ${T.border}`}}>
-      <Label>{label}</Label>
-      <div style={{fontSize:18,fontWeight:700,color:accent||T.lime,fontFamily:FB}}>{value||"—"}</div>
-    </div>
-  );
-
-  const CalcCard = ({title,emoji,children}) => (
-    <div style={{background:T.card,borderRadius:14,border:`1px solid ${T.border}`,padding:"22px 22px",marginBottom:18}}>
-      <div style={{fontFamily:FB,fontSize:16,fontWeight:700,color:T.lime,marginBottom:18,display:"flex",alignItems:"center",gap:8}}>
-        <span style={{fontSize:20}}>{emoji}</span>{title}
-      </div>
-      {children}
-    </div>
-  );
-
-  const fmt = (n,dec=2) => n!=null&&!isNaN(n) ? n.toFixed(dec) : null;
-  const fmtPKR = n => n!=null&&!isNaN(n) ? `₨${Math.round(n).toLocaleString()}` : null;
-  const fmtGBP = n => n!=null&&!isNaN(n) ? `£${fmt(n)}` : null;
-  const fmtUSD = n => n!=null&&!isNaN(n) ? `$${fmt(n)}` : null;
-  const fmtEUR = n => n!=null&&!isNaN(n) ? `€${fmt(n)}` : null;
-  const fmtPct = n => n!=null&&!isNaN(n) ? `${fmt(n,2)}%` : null;
+  const RATE_INP = {background:"transparent",border:"none",outline:"none",fontSize:16,fontWeight:700,color:"#F0EBF8",fontFamily:"'Google Sans',system-ui,sans-serif",width:80,textAlign:"right"};
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-        <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>🤖 Profit Bot</div>
-        <span style={{fontSize:12,color:T.ghost}}>Green cells are editable inputs</span>
+      <div style={{background:"#261C3A",borderBottom:"1px solid #3D2F5A",padding:"12px 20px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <div style={{fontFamily:"'Google Sans',system-ui,sans-serif",fontSize:20,fontWeight:700,color:"#F0EBF8",flex:1}}>🤖 Profit Bot</div>
+        <span style={{fontSize:12,color:"#6B5F8B"}}>Green cells are editable · Currency selectors on each input</span>
       </div>
-
-      <div style={{flex:1,overflowY:"auto",background:T.bg,padding:"20px 24px"}}>
-        <div style={{maxWidth:900}}>
-
-          {/* ── Exchange Rates ── */}
-          <div style={{background:T.card,borderRadius:14,border:`1px solid ${T.border}`,padding:"16px 22px",marginBottom:20,display:"flex",flexWrap:"wrap",gap:16,alignItems:"center"}}>
-            <div style={{fontSize:11,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600,marginRight:4}}>Exchange Rates → PKR</div>
-            {[
-              {label:"£ GBP",val:gbpRate,set:setGbpRate,sym:"£"},
-              {label:"$ USD",val:usdRate,set:setUsdRate,sym:"$"},
-              {label:"€ EUR",val:eurRate,set:setEurRate,sym:"€"},
-            ].map(({label,val,set,sym})=>(
-              <div key={label} style={{display:"flex",alignItems:"center",gap:8,background:T.surface,borderRadius:9,padding:"8px 14px",border:`1px solid ${T.border}`,flex:1,minWidth:180}}>
-                <span style={{fontSize:14,fontWeight:700,color:T.lime,flexShrink:0}}>{sym}1 =</span>
-                <span style={{fontSize:13,color:T.ghost}}>₨</span>
-                <input type="number" value={val} onChange={e=>set(parseFloat(e.target.value)||0)} style={RATE_INP}/>
+      <div style={{flex:1,overflowY:"auto",background:"#1E1530",padding:"20px 24px"}}>
+        <div style={{maxWidth:960}}>
+          {/* Exchange Rates */}
+          <div style={{background:"#2E2244",borderRadius:14,border:"1px solid #3D2F5A",padding:"16px 22px",marginBottom:20,display:"flex",flexWrap:"wrap",gap:16,alignItems:"center"}}>
+            <div style={{fontSize:11,color:"#6B5F8B",textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600,marginRight:4}}>Exchange Rates → PKR</div>
+            {[{label:"£ GBP",val:gbpRate,set:setGbpRate,sym:"£"},{label:"$ USD",val:usdRate,set:setUsdRate,sym:"$"},{label:"€ EUR",val:eurRate,set:setEurRate,sym:"€"}].map(({label,val,set,sym})=>(
+              <div key={label} style={{display:"flex",alignItems:"center",gap:8,background:"#261C3A",borderRadius:9,padding:"8px 14px",border:"1px solid #3D2F5A",flex:1,minWidth:180}}>
+                <span style={{fontSize:14,fontWeight:700,color:"#C8F135",flexShrink:0}}>{sym}1 =</span>
+                <span style={{fontSize:13,color:"#6B5F8B"}}>₨</span>
+                <input type="number" value={val} onChange={e=>setGbpRate===set?setGbpRate(parseFloat(e.target.value)||0):set(parseFloat(e.target.value)||0)} style={RATE_INP}/>
               </div>
             ))}
           </div>
-
-          {/* ── Calculator 1: Price (Sold) ── */}
-          <CalcCard title="Price (Sold) Calculator" emoji="🏷️">
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
-              <div><Label>Bought Price (₨) ✏️</Label><input type="number" value={c1BoughtPKR} onChange={e=>setC1BoughtPKR(e.target.value)} placeholder="e.g. 1900" style={INP_GREEN}/></div>
-              <div><Label>Target Profit % ✏️</Label><input type="number" value={c1ProfitPct} onChange={e=>setC1ProfitPct(e.target.value)} placeholder="e.g. 65" style={INP_GREEN}/></div>
-              <div><Label>Commission % ✏️</Label><input type="number" value={c1CommPct} onChange={e=>setC1CommPct(e.target.value)} placeholder="e.g. 18" style={INP_GREEN}/></div>
-            </div>
-            {c1 ? (
-              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
-                <OutBox label="Sold Price (₨)" value={fmtPKR(c1.soldPKR)} accent={T.lime}/>
-                <OutBox label="Sold Price (£)" value={fmtGBP(c1.soldGBP)}/>
-                <OutBox label="Sold Price (€)" value={fmtEUR(c1.soldEUR)}/>
-                <OutBox label="Sold Price ($)" value={fmtUSD(c1.soldUSD)}/>
-              </div>
-            ):<div style={{fontSize:12,color:T.ghost,textAlign:"center",padding:"14px 0"}}>Fill in the green fields above to calculate</div>}
-          </CalcCard>
-
-          {/* ── Calculator 2: Profit ── */}
-          <CalcCard title="Profit Calculator" emoji="📊">
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
-              <div><Label>Sold Price (£) ✏️</Label><input type="number" value={c2SoldGBP} onChange={e=>setC2SoldGBP(e.target.value)} placeholder="e.g. 8.22" style={INP_GREEN}/></div>
-              <div><Label>Commission % ✏️</Label><input type="number" value={c2CommPct} onChange={e=>setC2CommPct(e.target.value)} placeholder="e.g. 0" style={INP_GREEN}/></div>
-              <div><Label>Bought Price (₨) ✏️</Label><input type="number" value={c2BoughtPKR} onChange={e=>setC2BoughtPKR(e.target.value)} placeholder="e.g. 1850" style={INP_GREEN}/></div>
-            </div>
-            {c2 ? (
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr) repeat(2,1fr)",gap:10}}>
-                <OutBox label="Bought Price (£)" value={fmtGBP(c2.boughtGBP)}/>
-                <OutBox label="Sold per piece (₨)" value={fmtPKR(c2.soldPKR)}/>
-                <OutBox label="Profit per piece (£)" value={fmtGBP(c2.profitGBP)} accent={c2.profitGBP>=0?T.profit:T.loss}/>
-                <OutBox label="Profit per piece (₨)" value={fmtPKR(c2.profitPKR)} accent={c2.profitPKR>=0?T.profit:T.loss}/>
-                <OutBox label="Profit %" value={fmtPct(c2.profitPct)} accent={c2.profitPct>=0?T.profit:T.loss}/>
-              </div>
-            ):<div style={{fontSize:12,color:T.ghost,textAlign:"center",padding:"14px 0"}}>Fill in the green fields above to calculate</div>}
-          </CalcCard>
-
-          {/* ── Calculator 3: Price (Bought) ── */}
-          <CalcCard title="Price (Bought) Calculator" emoji="🛒">
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
-              <div><Label>Selling Price Average (£) ✏️</Label><input type="number" value={c3SellingGBP} onChange={e=>setC3SellingGBP(e.target.value)} placeholder="e.g. 4.20" style={INP_GREEN}/></div>
-              <div><Label>Target Profit % ✏️</Label><input type="number" value={c3ProfitPct} onChange={e=>setC3ProfitPct(e.target.value)} placeholder="e.g. 30" style={INP_GREEN}/></div>
-              <div><Label>Commission % ✏️</Label><input type="number" value={c3CommPct} onChange={e=>setC3CommPct(e.target.value)} placeholder="e.g. 15" style={INP_GREEN}/></div>
-            </div>
-            {c3 ? (
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                <OutBox label="Max Bought Price (£)" value={fmtGBP(c3.boughtGBP)} accent={T.cobaltText}/>
-                <OutBox label="Max Bought Price (₨)" value={fmtPKR(c3.boughtPKR)} accent={T.cobaltText}/>
-              </div>
-            ):<div style={{fontSize:12,color:T.ghost,textAlign:"center",padding:"14px 0"}}>Fill in the green fields above to calculate</div>}
-          </CalcCard>
-
-          {/* Info note */}
-          <div style={{background:`${T.lime}10`,border:`1px solid ${T.lime}30`,borderRadius:10,padding:"14px 16px"}}>
-            <div style={{fontSize:11,color:T.lime,fontWeight:600,marginBottom:6}}>💡 How the formulas work</div>
-            <div style={{fontSize:12,color:T.ghost,lineHeight:1.8}}>
-              <strong style={{color:T.offWhite}}>Sold Price</strong> = Bought ÷ (1 − Profit% − Commission%) &nbsp;·&nbsp;
-              <strong style={{color:T.offWhite}}>Profit</strong> = Sold − Cost − Commission &nbsp;·&nbsp;
-              <strong style={{color:T.offWhite}}>Max Buy</strong> = Selling × (1 − Profit% − Commission%)
+          <PBSoldCalc gbpRate={gbpRate} usdRate={usdRate} eurRate={eurRate}/>
+          <PBProfitCalc gbpRate={gbpRate} usdRate={usdRate} eurRate={eurRate}/>
+          <PBBoughtCalc gbpRate={gbpRate} usdRate={usdRate} eurRate={eurRate}/>
+          <div style={{background:"#C8F13510",border:"1px solid #C8F13530",borderRadius:10,padding:"14px 16px"}}>
+            <div style={{fontSize:11,color:"#C8F135",fontWeight:600,marginBottom:6}}>💡 How the formulas work</div>
+            <div style={{fontSize:12,color:"#6B5F8B",lineHeight:1.8}}>
+              <strong style={{color:"#F0EBF8"}}>Sold Price</strong> = Bought ÷ (1 − Profit% − Commission%) &nbsp;·&nbsp;
+              <strong style={{color:"#F0EBF8"}}>Profit</strong> = Sold − Cost − Commission &nbsp;·&nbsp;
+              <strong style={{color:"#F0EBF8"}}>Max Buy</strong> = Selling × (1 − Profit% − Commission%)
             </div>
           </div>
-
         </div>
       </div>
+      <AIAssistant
+        context={`Exchange rates: GBP=₨${gbpRate}, USD=₨${usdRate}, EUR=₨${eurRate}`}
+        systemPrompt={`You are an expert pricing and profit assistant for a secondhand/vintage fashion resale business based in Pakistan that sells internationally (primarily on Vinted, Depop, Fleek, Instagram).
+
+You help with:
+- Pricing strategy (what to sell for, what profit margin to target)
+- Profit calculations (GBP/USD/EUR ↔ PKR conversions)
+- Commission and shipping cost advice
+- Break-even analysis
+- Buying decisions (max price to pay for an item given target margin)
+
+Formula reference:
+- Sold Price = Bought ÷ (1 − Profit% − Commission%)
+- Profit = Sold − Cost − Commission − Shipping
+- Max Buy = Selling × (1 − Profit% − Commission%)
+
+Always be concise, give concrete numbers when asked, and factor in the current exchange rates provided in context. Respond in plain text, no markdown.`}
+        placeholder={"Ask me anything about pricing, profit margins, or buying decisions.\n\nExamples:\n• 'I bought something for ₨2000, what should I sell it for at 50% margin with 15% commission?'\n• 'Is £6 a good price for something I paid ₨1500 for?'\n• 'What's the max I should pay for something I plan to sell at £8?'"}
+      />
     </div>
   );
 }
@@ -1426,7 +1613,6 @@ function OrderFormModal({ initial, onSave, onClose }) {
   };
 
   const IS = {width:"100%",padding:"9px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none",boxSizing:"border-box"};
-  const FR = ({label,children}) => <div style={{marginBottom:13}}><label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontFamily:FB}}>{label}</label>{children}</div>;
   const G2 = {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12};
 
   const p = profit();
@@ -1650,6 +1836,21 @@ function OrderWorkingPage({ orders, setOrders }) {
       {lightbox&&<div onClick={()=>setLightbox(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:400,cursor:"zoom-out"}}>
         <img src={lightbox} style={{maxWidth:"90vw",maxHeight:"90vh",borderRadius:12,objectFit:"contain"}}/>
       </div>}
+      <AIAssistant
+        context={`Current orders (${(orders||[]).length} total):\n${(orders||[]).slice(0,20).map(o=>`- ${o.itemName} | Customer: ${o.customerName} | Bought: ₨${o.priceBought||0} | Sold: ₨${o.soldAt||0} | Status: ${o.status} | Platform: ${o.platform} | Profit: ₨${(parseFloat(o.soldAt)||0)-(parseFloat(o.priceBought)||0)-(parseFloat(o.commission)||0)-(parseFloat(o.expectedShipping)||0)}`).join("\n")}\n\nStats: Total revenue ₨${(orders||[]).reduce((s,o)=>(parseFloat(o.soldAt)||0)*(o.qty||1)+s,0).toLocaleString()}, Net profit ₨${(orders||[]).reduce((s,o)=>s+(parseFloat(o.soldAt)||0)-(parseFloat(o.priceBought)||0)-(parseFloat(o.commission)||0)-(parseFloat(o.expectedShipping)||0),0).toLocaleString()}`}
+        systemPrompt={`You are an order management and sales assistant for a secondhand/vintage fashion resale business based in Pakistan.
+
+You have access to the current order list in context. You help with:
+- Analysing order performance and profitability
+- Identifying which orders/platforms are most profitable
+- Flagging orders with low margins or losses
+- Summarising pending, shipped, delivered orders
+- Advice on shipping, commissions, and pricing strategy
+- Tracking customer patterns
+
+Be concise and direct. Give concrete numbers and actionable insights. Respond in plain text, no markdown.`}
+        placeholder={"Ask me about your orders, customers, or profitability.\n\nExamples:\n• 'Which orders have the highest profit?'\n• 'How many orders are still pending?'\n• 'What's my average profit per order?'\n• 'Which platform is performing best?'"}
+      />
     </div>
   );
 }
