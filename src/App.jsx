@@ -836,7 +836,7 @@ export default function App(){
           </div>
           <div style={{fontSize:10.5,color:T.ghost,marginTop:4}}>Inventory Management Platform</div>
           <div style={{marginTop:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:isAdmin?`${T.lime}22`:T.cobaltBg,color:isAdmin?T.lime:T.cobaltText,fontWeight:600,border:`1px solid ${isAdmin?T.lime:T.cobaltText}44`}}>{isAdmin?"Admin":"Ninja 🥷🏻"}</span>
+            <span style={{fontSize:11,padding:"2px 8px",borderRadius:20,background:isAdmin?`${T.lime}22`:T.cobaltBg,color:isAdmin?T.lime:T.cobaltText,fontWeight:600,border:`1px solid ${isAdmin?T.lime:T.cobaltText}44`}}>{isAdmin?"Admin":"Ninja 🥷🏻"}</span>
             <button onClick={()=>{localStorage.removeItem("rl_auth");localStorage.removeItem("rl_role");window.location.reload();}} style={{fontSize:10,color:T.ghost,background:"none",border:`1px solid ${T.border}`,borderRadius:6,padding:"2px 8px",cursor:"pointer",fontFamily:FB}}>Sign out</button>
           </div>
         </div>
@@ -946,9 +946,10 @@ export default function App(){
 
               {filtered.length===0
                 ?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:40,marginBottom:12}}>🏷️</div><div style={{fontSize:22,fontWeight:700,color:T.ghost}}>Nothing here yet</div></div>
-                :<div style={{background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,overflowX:"auto"}}>
-                  <div style={{minWidth:TOTAL_W}}>
-                    <div style={{display:"flex",alignItems:"center",padding:"0 8px",borderBottom:`1px solid ${T.border}`,background:T.card,borderRadius:"12px 12px 0 0",height:40,width:TOTAL_W}}>
+                :<div style={{background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,overflow:"hidden"}}>
+                  <div style={{overflowX:"auto"}}>
+                  <div style={{width:TOTAL_W+16}}>
+                    <div style={{display:"flex",alignItems:"center",padding:"0 8px",borderBottom:`1px solid ${T.border}`,background:T.card,borderRadius:"12px 12px 0 0",height:40,width:TOTAL_W+16}}>
                       {COLS.map(col=>(
                         <TCell key={col.key} w={col.w} left={col.key==="name"||col.key==="notes"}>
                           <div onClick={col.key!=="actions"?()=>handleSort(col.key):undefined}
@@ -968,7 +969,7 @@ export default function App(){
                         <div key={it.id} onClick={()=>setDetail(it)}
                           onMouseEnter={e=>{if(detail?.id!==it.id)e.currentTarget.style.background=T.card;}}
                           onMouseLeave={e=>{if(detail?.id!==it.id)e.currentTarget.style.background="transparent";}}
-                          style={{display:"flex",alignItems:"center",padding:"0 8px",borderBottom:isLast?"none":`1px solid ${T.border}`,cursor:"pointer",background:detail?.id===it.id?T.cardHov:"transparent",transition:"background 0.12s",minHeight:52}}>
+                          style={{display:"flex",alignItems:"center",padding:"0 8px",borderBottom:isLast?"none":`1px solid ${T.border}`,cursor:"pointer",background:detail?.id===it.id?T.cardHov:"transparent",transition:"background 0.12s",minHeight:52,width:TOTAL_W+16}}>
                           <TCell w={COLS[0].w} left><span style={{fontSize:13,fontWeight:500,color:T.offWhite,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.name}</span></TCell>
                           <TCell w={COLS[1].w}><span style={{fontSize:11,fontWeight:600,color:bc}}>{b?.name}</span></TCell>
                           <TCell w={COLS[2].w}><span style={{fontSize:12,color:T.muted}}>{it.category}</span></TCell>
