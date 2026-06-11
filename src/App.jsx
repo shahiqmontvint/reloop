@@ -1189,8 +1189,8 @@ function ConversionPage({ rates, setRates, rateHistory, setRateHistory }) {
 
 // ── Profit Bot Page ───────────────────────────────────────────────────────────
 // Shared helpers (module-level so they're never recreated)
-const PB_INP_GREEN = {padding:"10px 14px",border:`2px solid #C8F135`,borderRadius:9,background:"#C8F13510",fontSize:15,fontFamily:"'Google Sans','Product Sans',system-ui,sans-serif",color:"#F0EBF8",outline:"none",width:"100%",boxSizing:"border-box",fontWeight:600};
-const PB_INP_GREY  = {padding:"10px 14px",border:"1px solid #3D2F5A",borderRadius:9,background:"#2E2244",fontSize:15,fontFamily:"'Google Sans','Product Sans',system-ui,sans-serif",color:"#F0EBF8",outline:"none",width:"100%",boxSizing:"border-box"};
+const PB_INP_GREEN = {padding:"10px 14px",border:`2px solid #C8F135`,borderRadius:9,background:"#C8F13510",fontSize:15,fontFamily:"'Google Sans','Product Sans',system-ui,sans-serif",color:"#F0EBF8",outline:"none",width:"100%",boxSizing:"border-box",fontWeight:600,height:46};
+const PB_INP_GREY  = {padding:"10px 14px",border:"1px solid #3D2F5A",borderRadius:9,background:"#2E2244",fontSize:15,fontFamily:"'Google Sans','Product Sans',system-ui,sans-serif",color:"#F0EBF8",outline:"none",width:"100%",boxSizing:"border-box",height:46};
 const PB_SEL       = {padding:"5px 10px",border:"1px solid #3D2F5A",borderRadius:8,background:"#2E2244",fontSize:12,fontFamily:"'Google Sans','Product Sans',system-ui,sans-serif",color:"#C8F135",outline:"none",fontWeight:700,cursor:"pointer"};
 
 const PBLabel = ({children}) => <div style={{fontSize:10,color:"#6B5F8B",textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600,marginBottom:6}}>{children}</div>;
@@ -1244,11 +1244,11 @@ function PBSoldCalc({ gbpRate, usdRate, eurRate }) {
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
         <div>
           <PBLabel>Bought Price ✏️</PBLabel>
-          <div style={{display:"flex",alignItems:"center",gap:0,background:"#C8F13510",border:"2px solid #C8F135",borderRadius:9,overflow:"hidden"}}>
-            <select style={{...PB_SEL,border:"none",borderRight:"1px solid #C8F13540",borderRadius:0,background:"#C8F13518",flexShrink:0,height:46,padding:"0 8px"}} value={inCur} onChange={e=>setInCur(e.target.value)}>
+          <div style={{display:"flex",alignItems:"center",gap:0,background:"#C8F13510",border:"2px solid #C8F135",borderRadius:9,overflow:"hidden",height:46,boxSizing:"border-box"}}>
+            <select style={{...PB_SEL,border:"none",borderRight:"1px solid #C8F13540",borderRadius:0,background:"#C8F13518",flexShrink:0,alignSelf:"stretch",padding:"0 10px",minWidth:80}} value={inCur} onChange={e=>setInCur(e.target.value)}>
               {PB_CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
             </select>
-            <input type="number" value={boughtPKR} onChange={e=>setBoughtPKR(e.target.value)} placeholder={`e.g. ${inCur==="PKR"?"1900":"5.50"}`} style={{...PB_INP_GREEN,border:"none",borderRadius:0,flex:1,background:"transparent"}}/>
+            <input type="number" value={boughtPKR} onChange={e=>setBoughtPKR(e.target.value)} placeholder={`e.g. ${inCur==="PKR"?"1900":"5.50"}`} style={{...PB_INP_GREEN,border:"none",borderRadius:0,flex:1,background:"transparent",height:"100%",alignSelf:"stretch"}}/>
           </div>
         </div>
         <div>
@@ -1305,11 +1305,11 @@ function PBProfitCalc({ gbpRate, usdRate, eurRate }) {
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:12}}>
         <div>
           <PBLabel>Sold Price ✏️</PBLabel>
-          <div style={{display:"flex",alignItems:"center",gap:0,background:"#C8F13510",border:"2px solid #C8F135",borderRadius:9,overflow:"hidden"}}>
-            <select style={{...PB_SEL,border:"none",borderRight:"1px solid #C8F13540",borderRadius:0,background:"#C8F13518",flexShrink:0,height:46,padding:"0 8px"}} value={soldCur} onChange={e=>setSoldCur(e.target.value)}>
+          <div style={{display:"flex",alignItems:"center",gap:0,background:"#C8F13510",border:"2px solid #C8F135",borderRadius:9,overflow:"hidden",height:46,boxSizing:"border-box"}}>
+            <select style={{...PB_SEL,border:"none",borderRight:"1px solid #C8F13540",borderRadius:0,background:"#C8F13518",flexShrink:0,alignSelf:"stretch",padding:"0 10px",minWidth:80}} value={soldCur} onChange={e=>setSoldCur(e.target.value)}>
               {PB_CURRENCIES.filter(c=>c.code!=="PKR").map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
             </select>
-            <input type="number" value={soldVal} onChange={e=>setSoldVal(e.target.value)} placeholder={`e.g. ${soldCur==="GBP"?"8.22":soldCur==="USD"?"10.50":"9.80"}`} style={{...PB_INP_GREEN,border:"none",borderRadius:0,flex:1,background:"transparent"}}/>
+            <input type="number" value={soldVal} onChange={e=>setSoldVal(e.target.value)} placeholder={`e.g. ${soldCur==="GBP"?"8.22":soldCur==="USD"?"10.50":"9.80"}`} style={{...PB_INP_GREEN,border:"none",borderRadius:0,flex:1,background:"transparent",height:"100%",alignSelf:"stretch"}}/>
           </div>
         </div>
         <div>
@@ -1382,11 +1382,11 @@ function PBBoughtCalc({ gbpRate, usdRate, eurRate }) {
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
         <div>
           <PBLabel>Selling Price (Avg) ✏️</PBLabel>
-          <div style={{display:"flex",alignItems:"center",gap:0,background:"#C8F13510",border:"2px solid #C8F135",borderRadius:9,overflow:"hidden"}}>
-            <select style={{...PB_SEL,border:"none",borderRight:"1px solid #C8F13540",borderRadius:0,background:"#C8F13518",flexShrink:0,height:46,padding:"0 8px"}} value={selCur} onChange={e=>setSelCur(e.target.value)}>
+          <div style={{display:"flex",alignItems:"center",gap:0,background:"#C8F13510",border:"2px solid #C8F135",borderRadius:9,overflow:"hidden",height:46,boxSizing:"border-box"}}>
+            <select style={{...PB_SEL,border:"none",borderRight:"1px solid #C8F13540",borderRadius:0,background:"#C8F13518",flexShrink:0,alignSelf:"stretch",padding:"0 10px",minWidth:80}} value={selCur} onChange={e=>setSelCur(e.target.value)}>
               {PB_CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
             </select>
-            <input type="number" value={sellingVal} onChange={e=>setSellingVal(e.target.value)} placeholder={`e.g. ${selCur==="PKR"?"1500":"4.20"}`} style={{...PB_INP_GREEN,border:"none",borderRadius:0,flex:1,background:"transparent"}}/>
+            <input type="number" value={sellingVal} onChange={e=>setSellingVal(e.target.value)} placeholder={`e.g. ${selCur==="PKR"?"1500":"4.20"}`} style={{...PB_INP_GREEN,border:"none",borderRadius:0,flex:1,background:"transparent",height:"100%",alignSelf:"stretch"}}/>
           </div>
         </div>
         <div>
