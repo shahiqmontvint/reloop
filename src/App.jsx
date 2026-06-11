@@ -606,9 +606,16 @@ function ConversionPage({rates,setRates}){
 
 function EditableTagline({value,onChange}){
   const[e,setE]=useState(false);const[v,setV]=useState(value);
+  const[bold,setBold]=useState(false);const[italic,setItalic]=useState(true);
   const commit=()=>{if(v.trim())onChange(v.trim());setE(false);};
-  if(e)return <input autoFocus value={v} onChange={x=>setV(x.target.value)} onBlur={commit} onKeyDown={x=>{if(x.key==="Enter")commit();if(x.key==="Escape"){setV(value);setE(false);}}} style={{fontSize:11,color:T.ghost,background:"transparent",border:"none",borderBottom:`1px solid ${T.border}`,outline:"none",fontFamily:FB,fontStyle:"italic",marginTop:3,width:180,padding:"1px 0"}}/>;
-  return <div onClick={()=>{setV(value);setE(true);}} style={{fontSize:11,color:T.ghost,marginTop:3,fontStyle:"italic",cursor:"text",display:"inline-flex",alignItems:"center",gap:5}}>{value}<span style={{fontSize:9,opacity:0.5}}>✎</span></div>;
+  const fw=bold?"700":"400";const fs=italic?"italic":"normal";
+  if(e)return <div style={{display:"flex",alignItems:"center",gap:6,marginTop:3}}>
+    <button onClick={()=>setBold(b=>!b)} style={{padding:"2px 7px",borderRadius:5,border:`1px solid ${bold?T.lime:T.border}`,background:bold?`${T.lime}22`:"transparent",color:bold?T.lime:T.ghost,cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:FB}}>B</button>
+    <button onClick={()=>setItalic(i=>!i)} style={{padding:"2px 7px",borderRadius:5,border:`1px solid ${italic?T.lime:T.border}`,background:italic?`${T.lime}22`:"transparent",color:italic?T.lime:T.ghost,cursor:"pointer",fontSize:12,fontStyle:"italic",fontFamily:FB}}>I</button>
+    <input autoFocus value={v} onChange={x=>setV(x.target.value)} onBlur={commit} onKeyDown={x=>{if(x.key==="Enter")commit();if(x.key==="Escape"){setV(value);setE(false);}}} style={{fontSize:12,color:T.white,background:"transparent",border:"none",borderBottom:`1px solid ${T.lime}`,outline:"none",fontFamily:FB,fontStyle:fs,fontWeight:fw,width:200,padding:"1px 0"}}/>
+    <span style={{fontSize:10,color:T.lime,cursor:"pointer"}} onClick={commit}>✓</span>
+  </div>;
+  return <div onClick={()=>{setV(value);setE(true);}} style={{fontSize:12,color:T.white,marginTop:3,fontStyle:fs,fontWeight:fw,cursor:"text",display:"inline-flex",alignItems:"center",gap:5}}>{value}<span style={{fontSize:9,opacity:0.4}}>✎</span></div>;
 }
 
 // ── Main App ──────────────────────────────────────────────────────────────────
