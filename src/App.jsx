@@ -660,9 +660,12 @@ function LoginScreen({onLogin}){
   return <div style={{fontFamily:FB,display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg}}>
     <div style={{background:T.surface,borderRadius:20,border:`1px solid ${T.border}`,padding:"40px 36px",width:380,boxShadow:"0 24px 60px rgba(0,0,0,0.5)"}}>
       <div style={{textAlign:"center",marginBottom:32}}>
-        <div style={{lineHeight:1,marginBottom:8}}>
-          <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:40,fontWeight:400,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Re</span>
-          <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:40,fontWeight:700,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Loop</span>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:8}}>
+          <div style={{lineHeight:1}}>
+            <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:40,fontWeight:400,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Re</span>
+            <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:40,fontWeight:700,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Loop</span>
+          </div>
+          <img src="https://res.cloudinary.com/daw3s99fs/image/upload/f_auto,q_auto/WhatsApp_Image_2026-06-08_at_19.43.43-removebg-preview_fcadkj" alt="ReLoop icon" style={{width:44,height:44,objectFit:"contain",flexShrink:0}}/>
         </div>
         <div style={{fontSize:12,color:T.ghost}}>Inventory Management Platform</div>
       </div>
