@@ -662,6 +662,9 @@ export default function App(){
         if(d.fixes)          setFixes(d.fixes);
         if(d.rates)          setRates(d.rates);
         if(d.bundles)        setBundles(d.bundles);
+      } else {
+        // Nothing in Supabase yet — persist the defaults immediately
+        sbSet({ brands:initBrands, items:initItems, nid:7, catTree:{encore:{...BRAND_CATS.encore},generic:{...GENERIC_CATS}}, fixes:[], rates:DEFAULT_RATES, bundles:[] });
       }
       setLoaded(true);
     })();
