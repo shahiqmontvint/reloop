@@ -629,8 +629,53 @@ function EditableTagline({value,bold,italic,color,onChange}){
   return <div onClick={openEdit} style={{fontSize:12,color:tc,marginTop:3,fontStyle:fs,fontWeight:fw,cursor:"text",display:"inline-flex",alignItems:"center",gap:5}}>{value}<span style={{fontSize:9,opacity:0.4}}>✎</span></div>;
 }
 
-// ── Main App ──────────────────────────────────────────────────────────────────
+// ── Login Screen ──────────────────────────────────────────────────────────────
+const USERS = {
+  admin:  { password:"admin96#",  role:"admin" },
+  ninja:  { password:"ninja12345", role:"staff" },
+};
+
+function LoginScreen({onLogin}){
+  const[user,setUser]=useState("");
+  const[pass,setPass]=useState("");
+  const[err,setErr]=useState(false);
+  const[show,setShow]=useState(false);
+  const submit=()=>{
+    const u=USERS[user.trim()];
+    if(u&&pass===u.password){onLogin(user.trim(),u.role);}
+    else{setErr(true);setTimeout(()=>setErr(false),2500);}
+  };
+  return <div style={{fontFamily:FB,display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg}}>
+    <div style={{background:T.surface,borderRadius:20,border:`1px solid ${T.border}`,padding:"40px 36px",width:380,boxShadow:"0 24px 60px rgba(0,0,0,0.5)"}}>
+      <div style={{textAlign:"center",marginBottom:32}}>
+        <div style={{lineHeight:1,marginBottom:8}}>
+          <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:40,fontWeight:400,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Re</span>
+          <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:40,fontWeight:700,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Loop</span>
+        </div>
+        <div style={{fontSize:12,color:T.ghost}}>Inventory Management Platform</div>
+      </div>
+      <div style={{marginBottom:14}}>
+        <label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px"}}>Username</label>
+        <input value={user} onChange={e=>setUser(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="Enter username" style={{...INP,background:T.card}}/>
+      </div>
+      <div style={{marginBottom:24,position:"relative"}}>
+        <label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px"}}>Password</label>
+        <div style={{position:"relative"}}>
+          <input value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} type={show?"text":"password"} placeholder="Enter password" style={{...INP,background:T.card,paddingRight:40}}/>
+          <button onMouseDown={e=>{e.preventDefault();setShow(s=>!s);}} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:14,padding:0}}>{show?"🙈":"👁"}</button>
+        </div>
+      </div>
+      {err&&<div style={{background:T.rougeBg,border:`1px solid ${T.rougeText}`,borderRadius:8,padding:"8px 12px",fontSize:12,color:T.rougeText,marginBottom:16,textAlign:"center"}}>Incorrect username or password</div>}
+      <button onClick={submit} style={{width:"100%",padding:"11px",border:"none",borderRadius:10,background:T.lime,color:T.ink,cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:FB}}>Sign in</button>
+    </div>
+  </div>;
+}
+
 export default function App(){
+  const[authed,setAuthed]=useState(()=>!!localStorage.getItem("rl_auth"));
+  const[role,setRole]=useState(()=>localStorage.getItem("rl_role")||"");
+  const isAdmin=role==="admin";
+  if(!authed)return <LoginScreen onLogin={(u,r)=>{localStorage.setItem("rl_auth","1");localStorage.setItem("rl_role",r);setAuthed(true);setRole(r);}}/>;
   useEffect(()=>{
     const l=document.createElement("link");l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700&family=Google+Sans:wght@400;500;700&display=swap";document.head.appendChild(l);
   },[]);
@@ -808,10 +853,10 @@ export default function App(){
 
             <div style={{padding:"18px 20px",flex:1,overflowY:"auto",background:"#FFF"}}>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}}>
-                {[{label:"Total pieces",val:stats.total,sub:`${stats.avail} available`},{label:"Inventory value",val:`₨${stats.val.toLocaleString()}`,sub:"at cost price"},{label:"Sold",val:stats.sold,sub:"items"},{label:"Profit realised",val:`₨${stats.profit.toLocaleString()}`,sub:"from sold",accent:stats.profit>=0?T.profit:T.loss}].map(s=>(
+                {[{label:"Total pieces",val:stats.total,sub:`${stats.avail} available`,fin:false},{label:"Inventory value",val:`₨${stats.val.toLocaleString()}`,sub:"at cost price",fin:true},{label:"Sold",val:stats.sold,sub:"items",fin:false},{label:"Profit realised",val:`₨${stats.profit.toLocaleString()}`,sub:"from sold",accent:stats.profit>=0?T.profit:T.loss,fin:true}].map(s=>(
                   <div key={s.label} style={{background:T.card,borderRadius:12,padding:"14px 16px",border:`1px solid ${T.border}`}}>
                     <div style={{fontSize:9.5,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600}}>{s.label}</div>
-                    <div style={{fontSize:24,fontWeight:700,fontFamily:FD,color:s.accent||T.lime}}>{s.val}</div>
+                    <div style={{fontSize:24,fontWeight:700,fontFamily:FD,color:s.accent||T.lime}}>{s.fin&&!isAdmin?"*****":s.val}</div>
                     <div style={{fontSize:10.5,color:T.ghost,marginTop:3}}>{s.sub}</div>
                   </div>
                 ))}
