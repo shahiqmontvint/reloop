@@ -1188,6 +1188,472 @@ function ConversionPage({ rates, setRates, rateHistory, setRateHistory }) {
   );
 }
 
+// ── Profit Bot Page ───────────────────────────────────────────────────────────
+function ProfitBotPage({ rates }) {
+  // Exchange rates — pull from saved rates but allow local override
+  const [gbpRate, setGbpRate] = useState(parseFloat(rates?.GBP)||372);
+  const [usdRate, setUsdRate] = useState(parseFloat(rates?.USD)||278);
+  const [eurRate, setEurRate] = useState(parseFloat(rates?.EUR)||300);
+
+  // ── Calculator 1: Price (Sold) Calculator ────────────────────────────────
+  const [c1BoughtPKR, setC1BoughtPKR] = useState("");
+  const [c1ProfitPct, setC1ProfitPct] = useState("");
+  const [c1CommPct,   setC1CommPct]   = useState("");
+
+  const c1Calc = () => {
+    const bought = parseFloat(c1BoughtPKR)||0;
+    const profit = parseFloat(c1ProfitPct)||0;
+    const comm   = parseFloat(c1CommPct)||0;
+    if (!bought) return null;
+    // Sold = Bought / (1 - profit/100 - comm/100)  [so after deducting profit% and commission% you're left with cost]
+    const denom = 1 - (profit/100) - (comm/100);
+    if (denom <= 0) return null;
+    const soldPKR = bought / denom;
+    return {
+      soldPKR,
+      soldGBP: soldPKR / gbpRate,
+      soldEUR: soldPKR / eurRate,
+      soldUSD: soldPKR / usdRate,
+    };
+  };
+  const c1 = c1Calc();
+
+  // ── Calculator 2: Profit Calculator ─────────────────────────────────────
+  const [c2SoldGBP,    setC2SoldGBP]    = useState("");
+  const [c2CommPct,    setC2CommPct]     = useState("");
+  const [c2BoughtPKR,  setC2BoughtPKR]  = useState("");
+
+  const c2Calc = () => {
+    const soldGBP   = parseFloat(c2SoldGBP)||0;
+    const comm      = parseFloat(c2CommPct)||0;
+    const boughtPKR = parseFloat(c2BoughtPKR)||0;
+    if (!soldGBP) return null;
+    const soldPKR        = soldGBP * gbpRate;
+    const commAmt        = soldPKR * (comm/100);
+    const boughtGBP      = boughtPKR / gbpRate;
+    const profitPKR      = soldPKR - boughtPKR - commAmt;
+    const profitGBP      = profitPKR / gbpRate;
+    const profitPct      = soldPKR > 0 ? (profitPKR / soldPKR) * 100 : 0;
+    return { soldPKR, boughtGBP, profitGBP, profitPKR, profitPct };
+  };
+  const c2 = c2Calc();
+
+  // ── Calculator 3: Price (Bought) Calculator ──────────────────────────────
+  const [c3SellingGBP, setC3SellingGBP] = useState("");
+  const [c3ProfitPct,  setC3ProfitPct]  = useState("");
+  const [c3CommPct,    setC3CommPct]    = useState("");
+
+  const c3Calc = () => {
+    const selling = parseFloat(c3SellingGBP)||0;
+    const profit  = parseFloat(c3ProfitPct)||0;
+    const comm    = parseFloat(c3CommPct)||0;
+    if (!selling) return null;
+    const sellingPKR = selling * gbpRate;
+    // Max you can spend = sellingPKR * (1 - profit/100 - comm/100)
+    const boughtPKR  = sellingPKR * (1 - (profit/100) - (comm/100));
+    const boughtGBP  = boughtPKR / gbpRate;
+    return { boughtPKR, boughtGBP };
+  };
+  const c3 = c3Calc();
+
+  const INP_GREEN = {
+    padding:"10px 14px", border:`2px solid ${T.lime}`, borderRadius:9,
+    background:`${T.lime}10`, fontSize:15, fontFamily:FB, color:T.offWhite,
+    outline:"none", width:"100%", boxSizing:"border-box", fontWeight:600,
+  };
+  const INP_GREY = {
+    padding:"10px 14px", border:`1px solid ${T.border}`, borderRadius:9,
+    background:T.card, fontSize:15, fontFamily:FB, color:T.offWhite,
+    outline:"none", width:"100%", boxSizing:"border-box",
+  };
+  const RATE_INP = {
+    background:"transparent", border:"none", outline:"none",
+    fontSize:16, fontWeight:700, color:T.offWhite, fontFamily:FB,
+    width:80, textAlign:"right",
+  };
+
+  const Label = ({children}) => (
+    <div style={{fontSize:10,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600,marginBottom:6,fontFamily:FB}}>{children}</div>
+  );
+
+  const OutBox = ({label, value, accent, prefix=""}) => (
+    <div style={{background:T.surface,borderRadius:10,padding:"12px 14px",border:`1px solid ${T.border}`}}>
+      <Label>{label}</Label>
+      <div style={{fontSize:18,fontWeight:700,color:accent||T.lime,fontFamily:FB}}>{value||"—"}</div>
+    </div>
+  );
+
+  const CalcCard = ({title,emoji,children}) => (
+    <div style={{background:T.card,borderRadius:14,border:`1px solid ${T.border}`,padding:"22px 22px",marginBottom:18}}>
+      <div style={{fontFamily:FB,fontSize:16,fontWeight:700,color:T.lime,marginBottom:18,display:"flex",alignItems:"center",gap:8}}>
+        <span style={{fontSize:20}}>{emoji}</span>{title}
+      </div>
+      {children}
+    </div>
+  );
+
+  const fmt = (n,dec=2) => n!=null&&!isNaN(n) ? n.toFixed(dec) : null;
+  const fmtPKR = n => n!=null&&!isNaN(n) ? `₨${Math.round(n).toLocaleString()}` : null;
+  const fmtGBP = n => n!=null&&!isNaN(n) ? `£${fmt(n)}` : null;
+  const fmtUSD = n => n!=null&&!isNaN(n) ? `$${fmt(n)}` : null;
+  const fmtEUR = n => n!=null&&!isNaN(n) ? `€${fmt(n)}` : null;
+  const fmtPct = n => n!=null&&!isNaN(n) ? `${fmt(n,2)}%` : null;
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>🤖 Profit Bot</div>
+        <span style={{fontSize:12,color:T.ghost}}>Green cells are editable inputs</span>
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",background:T.bg,padding:"20px 24px"}}>
+        <div style={{maxWidth:900}}>
+
+          {/* ── Exchange Rates ── */}
+          <div style={{background:T.card,borderRadius:14,border:`1px solid ${T.border}`,padding:"16px 22px",marginBottom:20,display:"flex",flexWrap:"wrap",gap:16,alignItems:"center"}}>
+            <div style={{fontSize:11,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600,marginRight:4}}>Exchange Rates → PKR</div>
+            {[
+              {label:"£ GBP",val:gbpRate,set:setGbpRate,sym:"£"},
+              {label:"$ USD",val:usdRate,set:setUsdRate,sym:"$"},
+              {label:"€ EUR",val:eurRate,set:setEurRate,sym:"€"},
+            ].map(({label,val,set,sym})=>(
+              <div key={label} style={{display:"flex",alignItems:"center",gap:8,background:T.surface,borderRadius:9,padding:"8px 14px",border:`1px solid ${T.border}`,flex:1,minWidth:180}}>
+                <span style={{fontSize:14,fontWeight:700,color:T.lime,flexShrink:0}}>{sym}1 =</span>
+                <span style={{fontSize:13,color:T.ghost}}>₨</span>
+                <input type="number" value={val} onChange={e=>set(parseFloat(e.target.value)||0)} style={RATE_INP}/>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Calculator 1: Price (Sold) ── */}
+          <CalcCard title="Price (Sold) Calculator" emoji="🏷️">
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
+              <div><Label>Bought Price (₨) ✏️</Label><input type="number" value={c1BoughtPKR} onChange={e=>setC1BoughtPKR(e.target.value)} placeholder="e.g. 1900" style={INP_GREEN}/></div>
+              <div><Label>Target Profit % ✏️</Label><input type="number" value={c1ProfitPct} onChange={e=>setC1ProfitPct(e.target.value)} placeholder="e.g. 65" style={INP_GREEN}/></div>
+              <div><Label>Commission % ✏️</Label><input type="number" value={c1CommPct} onChange={e=>setC1CommPct(e.target.value)} placeholder="e.g. 18" style={INP_GREEN}/></div>
+            </div>
+            {c1 ? (
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+                <OutBox label="Sold Price (₨)" value={fmtPKR(c1.soldPKR)} accent={T.lime}/>
+                <OutBox label="Sold Price (£)" value={fmtGBP(c1.soldGBP)}/>
+                <OutBox label="Sold Price (€)" value={fmtEUR(c1.soldEUR)}/>
+                <OutBox label="Sold Price ($)" value={fmtUSD(c1.soldUSD)}/>
+              </div>
+            ):<div style={{fontSize:12,color:T.ghost,textAlign:"center",padding:"14px 0"}}>Fill in the green fields above to calculate</div>}
+          </CalcCard>
+
+          {/* ── Calculator 2: Profit ── */}
+          <CalcCard title="Profit Calculator" emoji="📊">
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
+              <div><Label>Sold Price (£) ✏️</Label><input type="number" value={c2SoldGBP} onChange={e=>setC2SoldGBP(e.target.value)} placeholder="e.g. 8.22" style={INP_GREEN}/></div>
+              <div><Label>Commission % ✏️</Label><input type="number" value={c2CommPct} onChange={e=>setC2CommPct(e.target.value)} placeholder="e.g. 0" style={INP_GREEN}/></div>
+              <div><Label>Bought Price (₨) ✏️</Label><input type="number" value={c2BoughtPKR} onChange={e=>setC2BoughtPKR(e.target.value)} placeholder="e.g. 1850" style={INP_GREEN}/></div>
+            </div>
+            {c2 ? (
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr) repeat(2,1fr)",gap:10}}>
+                <OutBox label="Bought Price (£)" value={fmtGBP(c2.boughtGBP)}/>
+                <OutBox label="Sold per piece (₨)" value={fmtPKR(c2.soldPKR)}/>
+                <OutBox label="Profit per piece (£)" value={fmtGBP(c2.profitGBP)} accent={c2.profitGBP>=0?T.profit:T.loss}/>
+                <OutBox label="Profit per piece (₨)" value={fmtPKR(c2.profitPKR)} accent={c2.profitPKR>=0?T.profit:T.loss}/>
+                <OutBox label="Profit %" value={fmtPct(c2.profitPct)} accent={c2.profitPct>=0?T.profit:T.loss}/>
+              </div>
+            ):<div style={{fontSize:12,color:T.ghost,textAlign:"center",padding:"14px 0"}}>Fill in the green fields above to calculate</div>}
+          </CalcCard>
+
+          {/* ── Calculator 3: Price (Bought) ── */}
+          <CalcCard title="Price (Bought) Calculator" emoji="🛒">
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
+              <div><Label>Selling Price Average (£) ✏️</Label><input type="number" value={c3SellingGBP} onChange={e=>setC3SellingGBP(e.target.value)} placeholder="e.g. 4.20" style={INP_GREEN}/></div>
+              <div><Label>Target Profit % ✏️</Label><input type="number" value={c3ProfitPct} onChange={e=>setC3ProfitPct(e.target.value)} placeholder="e.g. 30" style={INP_GREEN}/></div>
+              <div><Label>Commission % ✏️</Label><input type="number" value={c3CommPct} onChange={e=>setC3CommPct(e.target.value)} placeholder="e.g. 15" style={INP_GREEN}/></div>
+            </div>
+            {c3 ? (
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <OutBox label="Max Bought Price (£)" value={fmtGBP(c3.boughtGBP)} accent={T.cobaltText}/>
+                <OutBox label="Max Bought Price (₨)" value={fmtPKR(c3.boughtPKR)} accent={T.cobaltText}/>
+              </div>
+            ):<div style={{fontSize:12,color:T.ghost,textAlign:"center",padding:"14px 0"}}>Fill in the green fields above to calculate</div>}
+          </CalcCard>
+
+          {/* Info note */}
+          <div style={{background:`${T.lime}10`,border:`1px solid ${T.lime}30`,borderRadius:10,padding:"14px 16px"}}>
+            <div style={{fontSize:11,color:T.lime,fontWeight:600,marginBottom:6}}>💡 How the formulas work</div>
+            <div style={{fontSize:12,color:T.ghost,lineHeight:1.8}}>
+              <strong style={{color:T.offWhite}}>Sold Price</strong> = Bought ÷ (1 − Profit% − Commission%) &nbsp;·&nbsp;
+              <strong style={{color:T.offWhite}}>Profit</strong> = Sold − Cost − Commission &nbsp;·&nbsp;
+              <strong style={{color:T.offWhite}}>Max Buy</strong> = Selling × (1 − Profit% − Commission%)
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Order Working Page ────────────────────────────────────────────────────────
+const ORDER_STATUSES = ["Pending","Confirmed","Shipped","Delivered","Cancelled","Returned"];
+const ORDER_STATUS_COL = {
+  Pending:   {bg:"#2E2010",color:"#F0C060"},
+  Confirmed: {bg:"#1A2040",color:"#7EB8F0"},
+  Shipped:   {bg:"#1A2E1A",color:"#7ECB7E"},
+  Delivered: {bg:"#1A2E1A",color:"#C8F135"},
+  Cancelled: {bg:"#2E1010",color:"#F07070"},
+  Returned:  {bg:"#2E1010",color:"#F07070"},
+};
+
+function OrderFormModal({ initial, onSave, onClose }) {
+  const blank = { customerName:"", itemName:"", qty:1, priceBought:"", soldAt:"", commission:"", expectedShipping:"", platform:"Fleek", status:"Pending", notes:"", media:[] };
+  const [f, setF] = useState(initial ? {...initial} : blank);
+  const set = (k,v) => setF(p=>({...p,[k]:v}));
+
+  const handleMedia = e => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = ev => setF(p=>({...p, media:[...(p.media||[]), {name:file.name, url:ev.target.result}]}));
+      reader.readAsDataURL(file);
+    });
+  };
+  const removeMedia = i => setF(p=>({...p, media:p.media.filter((_,idx)=>idx!==i)}));
+
+  const profit = () => {
+    const sold = parseFloat(f.soldAt)||0;
+    const cost = parseFloat(f.priceBought)||0;
+    const comm = parseFloat(f.commission)||0;
+    const ship = parseFloat(f.expectedShipping)||0;
+    return sold - cost - comm - ship;
+  };
+
+  const IS = {width:"100%",padding:"9px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none",boxSizing:"border-box"};
+  const FR = ({label,children}) => <div style={{marginBottom:13}}><label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontFamily:FB}}>{label}</label>{children}</div>;
+  const G2 = {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12};
+
+  const p = profit();
+
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:560,maxWidth:"96vw",maxHeight:"92vh",overflowY:"auto",padding:26}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:22}}>
+          <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.lime}}>{initial?"Edit order":"New order"}</div>
+          <button onClick={onClose} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:7,cursor:"pointer",fontSize:18,color:T.muted,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+        </div>
+
+        <div style={G2}>
+          <FR label="Customer name"><input style={IS} value={f.customerName} onChange={e=>set("customerName",e.target.value)} placeholder="e.g. Aisha Khan"/></FR>
+          <FR label="Item name"><input style={IS} value={f.itemName} onChange={e=>set("itemName",e.target.value)} placeholder="e.g. Y2K Crop Top"/></FR>
+        </div>
+        <div style={G2}>
+          <FR label="Quantity"><input style={IS} type="number" min="1" value={f.qty} onChange={e=>set("qty",Math.max(1,parseInt(e.target.value)||1))}/></FR>
+          <FR label="Platform">
+            <select style={IS} value={f.platform} onChange={e=>set("platform",e.target.value)}>
+              {CONV_PLATFORMS_SELL.map(p=><option key={p}>{p}</option>)}
+            </select>
+          </FR>
+        </div>
+        <div style={G2}>
+          <FR label="Price bought (₨)"><input style={IS} type="number" value={f.priceBought} onChange={e=>set("priceBought",e.target.value)} placeholder="0"/></FR>
+          <FR label="Sold at (₨)"><input style={IS} type="number" value={f.soldAt} onChange={e=>set("soldAt",e.target.value)} placeholder="0"/></FR>
+        </div>
+        <div style={G2}>
+          <FR label="Commission (₨)"><input style={IS} type="number" value={f.commission} onChange={e=>set("commission",e.target.value)} placeholder="0"/></FR>
+          <FR label="Expected shipping (₨)"><input style={IS} type="number" value={f.expectedShipping} onChange={e=>set("expectedShipping",e.target.value)} placeholder="0"/></FR>
+        </div>
+        <div style={G2}>
+          <FR label="Status">
+            <select style={IS} value={f.status} onChange={e=>set("status",e.target.value)}>
+              {ORDER_STATUSES.map(s=><option key={s}>{s}</option>)}
+            </select>
+          </FR>
+          <FR label="Notes"><input style={IS} value={f.notes} onChange={e=>set("notes",e.target.value)} placeholder="Any details…"/></FR>
+        </div>
+
+        {/* Live P&L preview */}
+        {(f.soldAt||f.priceBought)&&<div style={{background:p>=0?`${T.profit}12`:`${T.loss}12`,border:`1px solid ${p>=0?T.profit:T.loss}44`,borderRadius:10,padding:"12px 16px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:11,color:T.ghost}}>Sold ₨{parseFloat(f.soldAt||0).toLocaleString()} − Cost ₨{parseFloat(f.priceBought||0).toLocaleString()} − Comm ₨{parseFloat(f.commission||0).toLocaleString()} − Ship ₨{parseFloat(f.expectedShipping||0).toLocaleString()}</div>
+          <div style={{fontSize:18,fontWeight:700,color:p>=0?T.profit:T.loss}}>{p>=0?"+":""}₨{p.toLocaleString()}</div>
+        </div>}
+
+        {/* Media upload */}
+        <FR label="Media (images)">
+          <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:8}}>
+            {(f.media||[]).map((m,i)=>(
+              <div key={i} style={{position:"relative",width:64,height:64,borderRadius:8,overflow:"hidden",border:`1px solid ${T.border}`}}>
+                <img src={m.url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                <button onClick={()=>removeMedia(i)} style={{position:"absolute",top:2,right:2,background:"rgba(0,0,0,0.7)",border:"none",borderRadius:"50%",width:18,height:18,cursor:"pointer",color:"#fff",fontSize:11,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+              </div>
+            ))}
+            <label style={{width:64,height:64,borderRadius:8,border:`2px dashed ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:T.lime,fontSize:22,flexShrink:0}} title="Add media">
+              +<input type="file" accept="image/*" multiple onChange={handleMedia} style={{display:"none"}}/>
+            </label>
+          </div>
+        </FR>
+
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20,paddingTop:18,borderTop:`1px solid ${T.border}`}}>
+          <button onClick={onClose} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
+          <button onClick={()=>{if(!f.customerName.trim()&&!f.itemName.trim())return;onSave(f);}} style={{padding:"8px 22px",border:"none",borderRadius:8,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>{initial?"Save changes":"Add order"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrderWorkingPage({ orders, setOrders }) {
+  const [formOpen, setFormOpen] = useState(false);
+  const [editOrder, setEditOrder] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterPlatform, setFilterPlatform] = useState("all");
+  const [lightbox, setLightbox] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+
+  const list = orders || [];
+
+  const saveOrder = data => {
+    if (editOrder) {
+      setOrders(list.map(o=>o.id===editOrder.id?{...o,...data}:o));
+      setEditOrder(null);
+    } else {
+      setOrders([...list, {id:Date.now(),...data}]);
+    }
+    setFormOpen(false);
+  };
+
+  const deleteOrder = id => setOrders(list.filter(o=>o.id!==id));
+  const updateStatus = (id,s) => setOrders(list.map(o=>o.id===id?{...o,status:s}:o));
+
+  const filtered = list
+    .filter(o=>filterStatus==="all"||o.status===filterStatus)
+    .filter(o=>filterPlatform==="all"||o.platform===filterPlatform)
+    .filter(o=>!search||(o.customerName+o.itemName).toLowerCase().includes(search.toLowerCase()));
+
+  const totalProfit = filtered.reduce((s,o)=>{
+    const p=(parseFloat(o.soldAt)||0)-(parseFloat(o.priceBought)||0)-(parseFloat(o.commission)||0)-(parseFloat(o.expectedShipping)||0);
+    return s+p*(o.qty||1);
+  },0);
+  const totalRevenue = filtered.reduce((s,o)=>(parseFloat(o.soldAt)||0)*(o.qty||1)+s,0);
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      {/* Header */}
+      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>Order Working</div>
+        <div style={{position:"relative"}}>
+          <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",fontSize:13,color:T.ghost,pointerEvents:"none"}}>⌕</span>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search orders…" style={{padding:"7px 12px 7px 28px",border:`1px solid ${T.border}`,borderRadius:9,background:T.card,fontSize:12.5,fontFamily:FB,color:T.offWhite,width:180,outline:"none"}}/>
+        </div>
+        <button onClick={()=>{setEditOrder(null);setFormOpen(true);}} style={{padding:"7px 20px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ New order</button>
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",background:T.bg,padding:"18px 20px"}}>
+        {/* Stats */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}}>
+          {[
+            {label:"Total orders",val:filtered.length},
+            {label:"Total revenue",val:`₨${totalRevenue.toLocaleString()}`,accent:T.lime},
+            {label:"Net profit",val:`₨${totalProfit.toLocaleString()}`,accent:totalProfit>=0?T.profit:T.loss},
+            {label:"Delivered",val:filtered.filter(o=>o.status==="Delivered").length},
+          ].map(s=>(
+            <div key={s.label} style={{background:T.card,borderRadius:12,padding:"14px 16px",border:`1px solid ${T.border}`}}>
+              <div style={{fontSize:9.5,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600}}>{s.label}</div>
+              <div style={{fontSize:22,fontWeight:700,color:s.accent||T.lime}}>{s.val}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div style={{display:"flex",gap:6,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
+          <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{padding:"5px 10px",borderRadius:20,fontSize:12,border:`1px solid ${T.border}`,background:T.card,color:T.muted,fontFamily:FB,outline:"none",cursor:"pointer"}}>
+            <option value="all">All statuses</option>
+            {ORDER_STATUSES.map(s=><option key={s}>{s}</option>)}
+          </select>
+          <select value={filterPlatform} onChange={e=>setFilterPlatform(e.target.value)} style={{padding:"5px 10px",borderRadius:20,fontSize:12,border:`1px solid ${T.border}`,background:T.card,color:T.muted,fontFamily:FB,outline:"none",cursor:"pointer"}}>
+            <option value="all">All platforms</option>
+            {CONV_PLATFORMS_SELL.map(p=><option key={p}>{p}</option>)}
+          </select>
+          <span style={{fontSize:11.5,color:T.ghost,marginLeft:4}}>{filtered.length} order{filtered.length!==1?"s":""}</span>
+        </div>
+
+        {/* Order list */}
+        {filtered.length===0
+          ?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:40,marginBottom:12}}>📦</div><div style={{fontSize:20,fontWeight:700,color:T.ghost}}>No orders yet</div></div>
+          :<div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {filtered.map(o=>{
+              const profit=(parseFloat(o.soldAt)||0)-(parseFloat(o.priceBought)||0)-(parseFloat(o.commission)||0)-(parseFloat(o.expectedShipping)||0);
+              const sc=ORDER_STATUS_COL[o.status]||{};
+              const expanded=expandedId===o.id;
+              return(
+                <div key={o.id} style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,overflow:"hidden"}}>
+                  {/* Main row */}
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 120px 100px 100px 100px 100px 80px 88px",gap:0,padding:"14px 16px",alignItems:"center",cursor:"pointer"}} onClick={()=>setExpandedId(expanded?null:o.id)}>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600,color:T.offWhite}}>{o.itemName||"—"}</div>
+                      <div style={{fontSize:11,color:T.muted,marginTop:2}}>{o.customerName} · {o.platform} · qty {o.qty||1}</div>
+                    </div>
+                    <div style={{fontSize:12,color:T.muted}}>₨{parseFloat(o.priceBought||0).toLocaleString()}</div>
+                    <div style={{fontSize:12,color:T.lime,fontWeight:600}}>₨{parseFloat(o.soldAt||0).toLocaleString()}</div>
+                    <div style={{fontSize:12,color:T.ghost}}>₨{parseFloat(o.commission||0).toLocaleString()}</div>
+                    <div style={{fontSize:12,color:T.ghost}}>₨{parseFloat(o.expectedShipping||0).toLocaleString()}</div>
+                    <div style={{fontSize:13,fontWeight:700,color:profit>=0?T.profit:T.loss}}>{profit>=0?"+":""}₨{profit.toLocaleString()}</div>
+                    <span style={{fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:20,background:sc.bg,color:sc.color,border:`1px solid ${sc.color}44`,whiteSpace:"nowrap"}}>{o.status}</span>
+                    <div style={{display:"flex",gap:5,justifyContent:"flex-end"}}>
+                      <button onClick={e=>{e.stopPropagation();setEditOrder(o);setFormOpen(true);}} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer",color:T.ghost,fontSize:12,padding:"3px 7px"}} onMouseEnter={e=>e.currentTarget.style.borderColor=T.lime} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>✎</button>
+                      <button onClick={e=>{e.stopPropagation();deleteOrder(o.id);}} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer",color:T.ghost,fontSize:12,padding:"3px 7px"}} onMouseEnter={e=>e.currentTarget.style.borderColor=T.rougeText} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>✕</button>
+                    </div>
+                  </div>
+
+                  {/* Column labels row */}
+                  {!expanded&&<div style={{display:"grid",gridTemplateColumns:"1fr 120px 100px 100px 100px 100px 80px 88px",padding:"0 16px 6px",alignItems:"center"}}>
+                    {["","Cost","Sold","Comm","Shipping","Profit","Status",""].map((l,i)=><div key={i} style={{fontSize:9,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.8px"}}>{l}</div>)}
+                  </div>}
+
+                  {/* Expanded details */}
+                  {expanded&&<div style={{borderTop:`1px solid ${T.border}`,padding:"14px 16px",background:T.surface}}>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:12}}>
+                      {[["Cost (bought at)","₨"+(parseFloat(o.priceBought||0).toLocaleString())],["Sold at","₨"+(parseFloat(o.soldAt||0).toLocaleString())],["Commission","₨"+(parseFloat(o.commission||0).toLocaleString())],["Expected shipping","₨"+(parseFloat(o.expectedShipping||0).toLocaleString())],["Platform",o.platform||"—"],["Quantity",o.qty||1]].map(([k,v])=>(
+                        <div key={k} style={{background:T.card,borderRadius:8,padding:"10px 12px",border:`1px solid ${T.border}`}}>
+                          <div style={{fontSize:9.5,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:4}}>{k}</div>
+                          <div style={{fontSize:14,fontWeight:600,color:T.offWhite}}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {o.notes&&<div style={{fontSize:12,color:T.ghost,marginBottom:12,padding:"8px 12px",background:T.card,borderRadius:8,border:`1px solid ${T.border}`}}>{o.notes}</div>}
+
+                    {/* Update status */}
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:12}}>
+                      <span style={{fontSize:10,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.9px"}}>Status:</span>
+                      {ORDER_STATUSES.map(s=>{
+                        const a=o.status===s; const sc2=ORDER_STATUS_COL[s]||{};
+                        return <button key={s} onClick={()=>updateStatus(o.id,s)} style={{padding:"4px 10px",borderRadius:20,fontSize:11,cursor:"pointer",fontFamily:FB,border:`1px solid ${a?sc2.color:T.border}`,background:a?`${sc2.color}22`:"transparent",color:a?sc2.color:T.muted,fontWeight:a?700:400}}>{s}</button>;
+                      })}
+                    </div>
+
+                    {/* Media */}
+                    {(o.media||[]).length>0&&<div>
+                      <div style={{fontSize:10,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.9px",marginBottom:8}}>Media</div>
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                        {o.media.map((m,i)=>(
+                          <img key={i} src={m.url} alt={m.name} onClick={()=>setLightbox(m.url)} style={{width:72,height:72,borderRadius:8,objectFit:"cover",cursor:"pointer",border:`1px solid ${T.border}`}}/>
+                        ))}
+                      </div>
+                    </div>}
+                  </div>}
+                </div>
+              );
+            })}
+          </div>}
+      </div>
+
+      {(formOpen||editOrder)&&<OrderFormModal initial={editOrder} onSave={saveOrder} onClose={()=>{setFormOpen(false);setEditOrder(null);}}/>}
+
+      {/* Lightbox */}
+      {lightbox&&<div onClick={()=>setLightbox(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:400,cursor:"zoom-out"}}>
+        <img src={lightbox} style={{maxWidth:"90vw",maxHeight:"90vh",borderRadius:12,objectFit:"contain"}}/>
+      </div>}
+    </div>
+  );
+}
+
 function EditableTagline({value,bold,italic,color,onChange}){
   const[e,setE]=useState(false);
   const[v,setV]=useState(value);
@@ -1284,6 +1750,7 @@ export default function App(){
   const[rateHistory,setRateHistory]=useState([]);
   const[bundles,setBundles]=useState([]);
   const[attendance,setAttendance]=useState({members:[],absences:[]});
+  const[orders,setOrders]=useState([]);
   const[loaded,setLoaded]=useState(false);
 
   // ── Collapsible sidebar sections ──────────────────────────────────────────
@@ -1321,6 +1788,7 @@ export default function App(){
         if(d.rateHistory)    setRateHistory(d.rateHistory);
         if(d.bundles)        setBundles(d.bundles);
         if(d.attendance)     setAttendance(d.attendance);
+        if(d.orders)         setOrders(d.orders);
       } else {
         sbSet({ brands:initBrands, items:initItems, nid:7, catTree:{encore:{...BRAND_CATS.encore},generic:{...GENERIC_CATS}}, fixes:[], rates:DEFAULT_RATES, bundles:[] });
       }
@@ -1330,9 +1798,9 @@ export default function App(){
 
   // ── Persist to Supabase whenever state changes ────────────────────────────
   const persist = (overrides={}) => {
-    sbSet({ brands, items, nid, catTree, fixes, rates, rateHistory, bundles, attendance, ...overrides });
+    sbSet({ brands, items, nid, catTree, fixes, rates, rateHistory, bundles, attendance, orders, ...overrides });
   };
-  useEffect(()=>{ if(!loaded) return; persist(); },[brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,loaded]);
+  useEffect(()=>{ if(!loaded) return; persist(); },[brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,loaded]);
 
   const saveBrands = next => {
     setBrands(next);
@@ -1472,6 +1940,8 @@ export default function App(){
                   {icon:"📦",label:"Bundles",page:"bundles"},
                   {icon:"💱",label:"Conversion",page:"conversion"},
                   {icon:"🗓️",label:"Attendance",page:"attendance"},
+                  {icon:"📋",label:"Order Working",page:"orders"},
+                  {icon:"🤖",label:"Profit Bot",page:"profitbot"},
                   {icon:"🧾",label:"Sales ↗",page:null},
                   {icon:"📊",label:"Analytics ↗",page:null},
                   {icon:"🤝",label:"Suppliers ↗",page:null},
@@ -1495,7 +1965,9 @@ export default function App(){
         :activePage==="fixes"?<FixesPage fixes={fixes} setFixes={setFixes} items={items} brands={brands}/>
         :activePage==="bundles"?<BundlesPage items={items} bundles={bundles} setBundles={setBundles} brands={brands}/>
         :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);sbSet({brands,items,nid,catTree,fixes,rates:r,rateHistory,bundles,attendance});}} rateHistory={rateHistory} setRateHistory={rh=>{setRateHistory(rh);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory:rh,bundles,attendance});}}/>
-        :activePage==="attendance"?<AttendancePage attendance={attendance} isAdmin={isAdmin} setAttendance={a=>{setAttendance(a);sbSet({brands,items,nid,catTree,fixes,rates,bundles,attendance:a});}}/>
+        :activePage==="attendance"?<AttendancePage attendance={attendance} isAdmin={isAdmin} setAttendance={a=>{setAttendance(a);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance:a,orders});}}/>
+        :activePage==="orders"?<OrderWorkingPage orders={orders} setOrders={o=>{setOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders:o});}}/>
+        :activePage==="profitbot"?<ProfitBotPage rates={rates}/>
         :(
           <>
             {/* Top bar */}
