@@ -129,6 +129,27 @@ function IconBtn({title,onClick,danger}){
 
 function TCell({w,children,left=false}){return <div style={{width:w,minWidth:w,maxWidth:w,display:"flex",alignItems:"center",justifyContent:left?"flex-start":"center",padding:"0 4px",overflow:"hidden"}}>{children}</div>;}
 
+// ── Collapsible Section Header ────────────────────────────────────────────────
+function SectionHeader({ label, collapsed, onToggle }) {
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        display:"flex", alignItems:"center", justifyContent:"space-between",
+        width:"100%", background:"none", border:"none", cursor:"pointer",
+        padding:"0 4px", marginBottom: collapsed ? 4 : 9,
+      }}
+    >
+      <span style={{fontSize:9.5,textTransform:"uppercase",letterSpacing:"1.2px",color:T.ghost,fontWeight:600,fontFamily:FB}}>{label}</span>
+      <span style={{
+        fontSize:9, color:T.ghost, lineHeight:1,
+        transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)",
+        transition:"transform 0.18s", display:"inline-block",
+      }}>▼</span>
+    </button>
+  );
+}
+
 // ── Size Range Picker ─────────────────────────────────────────────────────────
 function SizeRangePicker({category,sizeMin,sizeMax,onChange}){
   const sizes=SIZE_RANGES[category]||SIZE_RANGES.default;
@@ -151,7 +172,7 @@ function ItemForm({brands,initial,onSave,onClose,defaultBrand,allItems,catTree,o
   const dbo=brands.find(b=>b.id===dbid);
   const getBCats=id=>catTree[id]||catTree["generic"]||GENERIC_CATS;
   const fCat=Object.keys(getBCats(dbid))[0]||"Tops";
-  const[f,setF]=useState(()=>{if(initial)return initial;return{brand:dbid,name:"",productBrand:"",category:fCat,subcategory:"",grade:"",sizeMin:"",sizeMax:"",qty:1,supplierName:"",supplierArea:"",cost:"",price:"",currency:"PKR",status:"available",sku:nextSku(dbid,dbo?.name||"",fCat,"",allItems),notes:"",platforms:[]};});
+  const[f,setF]=useState(()=>{if(initial)return initial;return{brand:dbid,name:"",productBrand:"",category:fCat,subcategory:"",grade:"",sizeMin:"",sizeMax:"",qty:1,supplierName:"",supplierArea:"",inventoryDate:new Date().toISOString().slice(0,10),cost:"",price:"",currency:"PKR",status:"available",sku:nextSku(dbid,dbo?.name||"",fCat,"",allItems),notes:"",platforms:[]};});
   const[skuEdited,setSkuEdited]=useState(!!initial?.sku);
   const[addCat,setAddCat]=useState(false);const[newCat,setNewCat]=useState("");
   const[addSub,setAddSub]=useState(false);const[newSub,setNewSub]=useState("");
@@ -194,6 +215,7 @@ function ItemForm({brands,initial,onSave,onClose,defaultBrand,allItems,catTree,o
       <Field label="Supplier Name"><div style={{position:"relative"}}><input style={INP} value={f.supplierName||""} onChange={e=>{set("supplierName",e.target.value);const m=mem();setSnS(e.target.value?uniq(m.suppliers).filter(x=>x.toLowerCase().includes(e.target.value.toLowerCase())):[]);}} onBlur={()=>setTimeout(()=>setSnS([]),150)} placeholder="e.g. Zainab Collection"/><Sug s={snS} pick={v=>set("supplierName",v)} clear={()=>setSnS([])}/></div></Field>
       <Field label="Supplier Area"><div style={{position:"relative"}}><input style={INP} value={f.supplierArea||""} onChange={e=>{set("supplierArea",e.target.value);const m=mem();setSaS(e.target.value?uniq(m.areas).filter(x=>x.toLowerCase().includes(e.target.value.toLowerCase())):[]);}} onBlur={()=>setTimeout(()=>setSaS([]),150)} placeholder="e.g. Zainab Market"/><Sug s={saS} pick={v=>set("supplierArea",v)} clear={()=>setSaS([])}/></div></Field>
     </div>
+    <Field label="Date of Inventory"><input style={INP} type="date" value={f.inventoryDate||""} onChange={e=>set("inventoryDate",e.target.value)}/></Field>
     {showSize&&<Field label="Size range"><SizeRangePicker category={f.category} sizeMin={f.sizeMin} sizeMax={f.sizeMax} onChange={({sizeMin,sizeMax})=>setF(p=>({...p,sizeMin,sizeMax}))}/></Field>}
     <div style={G2}>
       <Field label="Cost Price (₨)"><input style={INP} type="number" value={f.cost} onChange={e=>set("cost",e.target.value)} placeholder="0"/></Field>
@@ -237,7 +259,7 @@ function CategoriesPage({catTree,setCatTree,brands}){
   const I2={flex:1,padding:"8px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none"};
   const AB={padding:"8px 14px",border:"none",borderRadius:8,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB};
   const II={background:"transparent",border:"none",outline:"none",fontSize:13,color:T.offWhite,fontFamily:FB,flex:1,minWidth:0};
-  return <div style={{display:"flex",flexDirection:"column",height:"100%"}}><div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px"}}><div style={{fontFamily:FD,fontSize:20,fontWeight:700,color:T.offWhite}}>Category Tree</div></div><div style={{flex:1,overflowY:"auto",background:"#FFF",padding:20}}><div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>{tabs.map(t=>{const a=selBrand===t.id||(!catTree[selBrand]&&t.id==="generic");return <button key={t.id} onClick={()=>{setSelBrand(t.id);setSelCat(null);}} style={{padding:"6px 16px",borderRadius:20,fontSize:12.5,border:`1px solid ${a?T.lime:T.border}`,background:a?T.lime:"transparent",color:a?T.ink:T.muted,cursor:"pointer",fontFamily:FB,fontWeight:a?700:400}}>{t.label}</button>;})}</div><div style={{display:"grid",gridTemplateColumns:"1fr 1px 1fr",gap:0}}><div style={{paddingRight:20}}><div style={{fontSize:9.5,textTransform:"uppercase",letterSpacing:"1px",color:T.ghost,marginBottom:10,fontWeight:600}}>Categories</div><div style={{background:T.surface,borderRadius:10,border:`1px solid ${T.border}`,overflow:"hidden",marginBottom:12}}>{cats.length===0&&<div style={{padding:"16px 12px",fontSize:12,color:T.ghost,textAlign:"center"}}>No categories yet</div>}{cats.map(c=><div key={c} onClick={()=>setSelCat(c)} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",background:selCat===c?T.card:"transparent",cursor:"pointer",borderBottom:`1px solid ${T.border}`}}>{eCat===c?<><input autoFocus value={eCatV} onChange={e=>setECatV(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")renCat(c);if(e.key==="Escape")setECat(null);}} onBlur={()=>renCat(c)} onClick={e=>e.stopPropagation()} style={II}/><span style={{fontSize:11,color:T.lime,cursor:"pointer"}} onClick={e=>{e.stopPropagation();renCat(c);}}>✓</span></>:<><span style={{fontSize:13,color:selCat===c?T.offWhite:T.muted,fontWeight:selCat===c?500:400,flex:1}}>{c}</span><span style={{fontSize:10,color:T.ghost,background:T.bg,padding:"1px 6px",borderRadius:20}}>{(cm[c]||[]).length}</span><button onClick={e=>{e.stopPropagation();setECat(c);setECatV(c);}} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:12,padding:"0 2px",opacity:0.6}}>✎</button><button onClick={e=>{e.stopPropagation();delCat(c);}} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:14,padding:"0 2px"}}>✕</button></>}</div>)}</div><div style={{display:"flex",gap:8}}><input value={nCat} onChange={e=>setNCat(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCat()} placeholder="New category…" style={I2}/><button onClick={addCat} style={AB}>Add</button></div></div><div style={{background:T.border,alignSelf:"stretch",minHeight:400}}/><div style={{paddingLeft:20}}><div style={{fontSize:9.5,textTransform:"uppercase",letterSpacing:"1px",color:T.ghost,marginBottom:10,fontWeight:600}}>{selCat?`Subcategories — ${selCat}`:"Subcategories"}</div>{!selCat?<div style={{background:T.surface,borderRadius:10,border:`1px solid ${T.border}`,padding:"40px 20px",textAlign:"center"}}><div style={{fontSize:13,color:T.ghost}}>← Select a category</div></div>:<><div style={{background:T.surface,borderRadius:10,border:`1px solid ${T.border}`,overflow:"hidden",marginBottom:12}}>{subs.length===0&&<div style={{padding:"16px 12px",fontSize:12,color:T.ghost}}>No subcategories yet</div>}{subs.map((s,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderBottom:`1px solid ${T.border}`}}>{eSub?.cat===selCat&&eSub?.idx===i?<><input autoFocus value={eSubV} onChange={e=>setESubV(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")renSub(i);if(e.key==="Escape")setESub(null);}} onBlur={()=>renSub(i)} style={II}/><span style={{fontSize:11,color:T.lime,cursor:"pointer"}} onClick={()=>renSub(i)}>✓</span></>:<><span style={{fontSize:13,color:T.muted,flex:1}}>{s}</span>{NO_SIZE_SUBCATS.has(s)&&<span style={{fontSize:9.5,color:T.amberText,background:T.amberBg,padding:"1px 7px",borderRadius:10,fontWeight:600}}>No size</span>}<span style={{fontSize:10,color:T.ghost,background:T.bg,padding:"1px 6px",borderRadius:20}}>{i+1}</span><button onClick={()=>{setESub({cat:selCat,idx:i});setESubV(s);}} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:12,padding:"0 2px",opacity:0.6}}>✎</button><button onClick={()=>delSub(i)} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:14,padding:"0 2px"}}>✕</button></>}</div>)}</div><div style={{display:"flex",gap:8}}><input value={nSub} onChange={e=>setNSub(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addSub()} placeholder="New subcategory…" style={I2}/><button onClick={addSub} style={AB}>Add</button></div></>}</div></div></div></div>;
+  return <div style={{display:"flex",flexDirection:"column",height:"100%"}}><div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px"}}><div style={{fontFamily:FD,fontSize:20,fontWeight:700,color:T.offWhite}}>Category Tree</div></div><div style={{flex:1,overflowY:"auto",background:T.bg,padding:20}}><div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>{tabs.map(t=>{const a=selBrand===t.id||(!catTree[selBrand]&&t.id==="generic");return <button key={t.id} onClick={()=>{setSelBrand(t.id);setSelCat(null);}} style={{padding:"6px 16px",borderRadius:20,fontSize:12.5,border:`1px solid ${a?T.lime:T.border}`,background:a?T.lime:"transparent",color:a?T.ink:T.muted,cursor:"pointer",fontFamily:FB,fontWeight:a?700:400}}>{t.label}</button>;})}</div><div style={{display:"grid",gridTemplateColumns:"1fr 1px 1fr",gap:0}}><div style={{paddingRight:20}}><div style={{fontSize:9.5,textTransform:"uppercase",letterSpacing:"1px",color:T.ghost,marginBottom:10,fontWeight:600}}>Categories</div><div style={{background:T.surface,borderRadius:10,border:`1px solid ${T.border}`,overflow:"hidden",marginBottom:12}}>{cats.length===0&&<div style={{padding:"16px 12px",fontSize:12,color:T.ghost,textAlign:"center"}}>No categories yet</div>}{cats.map(c=><div key={c} onClick={()=>setSelCat(c)} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",background:selCat===c?T.card:"transparent",cursor:"pointer",borderBottom:`1px solid ${T.border}`}}>{eCat===c?<><input autoFocus value={eCatV} onChange={e=>setECatV(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")renCat(c);if(e.key==="Escape")setECat(null);}} onBlur={()=>renCat(c)} onClick={e=>e.stopPropagation()} style={II}/><span style={{fontSize:11,color:T.lime,cursor:"pointer"}} onClick={e=>{e.stopPropagation();renCat(c);}}>✓</span></>:<><span style={{fontSize:13,color:selCat===c?T.offWhite:T.muted,fontWeight:selCat===c?500:400,flex:1}}>{c}</span><span style={{fontSize:10,color:T.ghost,background:T.bg,padding:"1px 6px",borderRadius:20}}>{(cm[c]||[]).length}</span><button onClick={e=>{e.stopPropagation();setECat(c);setECatV(c);}} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:12,padding:"0 2px",opacity:0.6}}>✎</button><button onClick={e=>{e.stopPropagation();delCat(c);}} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:14,padding:"0 2px"}}>✕</button></>}</div>)}</div><div style={{display:"flex",gap:8}}><input value={nCat} onChange={e=>setNCat(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCat()} placeholder="New category…" style={I2}/><button onClick={addCat} style={AB}>Add</button></div></div><div style={{background:T.border,alignSelf:"stretch",minHeight:400}}/><div style={{paddingLeft:20}}><div style={{fontSize:9.5,textTransform:"uppercase",letterSpacing:"1px",color:T.ghost,marginBottom:10,fontWeight:600}}>{selCat?`Subcategories — ${selCat}`:"Subcategories"}</div>{!selCat?<div style={{background:T.surface,borderRadius:10,border:`1px solid ${T.border}`,padding:"40px 20px",textAlign:"center"}}><div style={{fontSize:13,color:T.ghost}}>← Select a category</div></div>:<><div style={{background:T.surface,borderRadius:10,border:`1px solid ${T.border}`,overflow:"hidden",marginBottom:12}}>{subs.length===0&&<div style={{padding:"16px 12px",fontSize:12,color:T.ghost}}>No subcategories yet</div>}{subs.map((s,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderBottom:`1px solid ${T.border}`}}>{eSub?.cat===selCat&&eSub?.idx===i?<><input autoFocus value={eSubV} onChange={e=>setESubV(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")renSub(i);if(e.key==="Escape")setESub(null);}} onBlur={()=>renSub(i)} style={II}/><span style={{fontSize:11,color:T.lime,cursor:"pointer"}} onClick={()=>renSub(i)}>✓</span></>:<><span style={{fontSize:13,color:T.muted,flex:1}}>{s}</span>{NO_SIZE_SUBCATS.has(s)&&<span style={{fontSize:9.5,color:T.amberText,background:T.amberBg,padding:"1px 7px",borderRadius:10,fontWeight:600}}>No size</span>}<span style={{fontSize:10,color:T.ghost,background:T.bg,padding:"1px 6px",borderRadius:20}}>{i+1}</span><button onClick={()=>{setESub({cat:selCat,idx:i});setESubV(s);}} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:12,padding:"0 2px",opacity:0.6}}>✎</button><button onClick={()=>delSub(i)} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:14,padding:"0 2px"}}>✕</button></>}</div>)}</div><div style={{display:"flex",gap:8}}><input value={nSub} onChange={e=>setNSub(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addSub()} placeholder="New subcategory…" style={I2}/><button onClick={addSub} style={AB}>Add</button></div></>}</div></div></div></div>;
 }
 
 // ── Jobs Page ─────────────────────────────────────────────────────────────────
@@ -251,7 +273,7 @@ function FixesPage({fixes,setFixes,items,brands}){
   const I3={width:"100%",padding:"8px 11px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none",boxSizing:"border-box"};
   const FR=({label,children})=><div style={{marginBottom:12}}><label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.9px"}}>{label}</label>{children}</div>;
   const Stars=({value,onChange})=><div style={{display:"flex",gap:4}}>{[1,2,3,4,5].map(s=><span key={s} onClick={()=>onChange(s)} style={{fontSize:22,cursor:"pointer",color:s<=value?T.lime:T.ghost}}>★</span>)}</div>;
-  return <div style={{display:"flex",flexDirection:"column",height:"100%"}}><div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10}}><div style={{fontFamily:FD,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>Jobs</div><div style={{display:"flex",border:`1px solid ${T.border}`,borderRadius:8,overflow:"hidden"}}>{[{k:"log",l:"Active"},{k:"history",l:"History"}].map((t,i)=><button key={t.k} onClick={()=>setView(t.k)} style={{padding:"6px 14px",background:view===t.k?T.lime:"transparent",border:"none",borderLeft:i>0?`1px solid ${T.border}`:"none",cursor:"pointer",fontSize:12.5,color:view===t.k?T.ink:T.muted,fontFamily:FB,fontWeight:view===t.k?700:400}}>{t.l} ({t.k==="log"?af.length:cf.length})</button>)}</div><button onClick={()=>setFormOpen(true)} style={{padding:"7px 18px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Log jobs</button></div><div style={{flex:1,overflowY:"auto",background:"#FFF",padding:"18px 20px"}}>{view==="log"&&(af.length===0?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:36}}>🧵</div><div style={{fontSize:18,fontWeight:600,color:T.ghost}}>No active jobs</div></div>:<div style={{display:"flex",flexDirection:"column",gap:10}}>{af.map(fx=><div key={fx.id} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 16px",display:"grid",gridTemplateColumns:"100px 1fr 100px 80px 80px 120px 80px",gap:12,alignItems:"center"}}><div style={{fontSize:12,color:T.muted}}>{fx.date}</div><div style={{fontSize:13,fontWeight:500,color:T.offWhite}}>{fx.notes||"—"}</div><span style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:20,background:`${sc(fx.type)}22`,color:sc(fx.type),border:`1px solid ${sc(fx.type)}44`}}>{fx.type}</span><div style={{fontSize:13,color:T.offWhite}}>{fx.pieces}</div><div style={{fontSize:11,fontWeight:600,color:gb(fx.brand)?.color||T.muted}}>{gb(fx.brand)?.name||"—"}</div><div style={{fontSize:12,color:T.muted}}>{fx.tailor||"—"}</div><button onClick={()=>{setRetId(fx.id);setRetData({returnedDate:new Date().toISOString().slice(0,10),rating:0,notes:""}); }} style={{padding:"5px 10px",border:`1px solid ${T.lime}`,borderRadius:7,background:"transparent",color:T.lime,cursor:"pointer",fontSize:12,fontFamily:FB}}>Mark returned</button></div>)}</div>)}{view==="history"&&(cf.length===0?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:36}}>📋</div><div style={{fontSize:18,fontWeight:600,color:T.ghost,marginTop:12}}>No completed fixes yet</div></div>:<div style={{display:"flex",flexDirection:"column",gap:10}}>{cf.map(fx=><div key={fx.id} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 16px"}}><div style={{fontSize:13,fontWeight:500,color:T.offWhite}}>{fx.notes||"—"}</div><div style={{fontSize:11,color:T.ghost,marginTop:4}}>{fx.date} → {fx.returnedDate} · {fx.pieces} pcs</div></div>)}</div>)}</div>
+  return <div style={{display:"flex",flexDirection:"column",height:"100%"}}><div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10}}><div style={{fontFamily:FD,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>Jobs</div><div style={{display:"flex",border:`1px solid ${T.border}`,borderRadius:8,overflow:"hidden"}}>{[{k:"log",l:"Active"},{k:"history",l:"History"}].map((t,i)=><button key={t.k} onClick={()=>setView(t.k)} style={{padding:"6px 14px",background:view===t.k?T.lime:"transparent",border:"none",borderLeft:i>0?`1px solid ${T.border}`:"none",cursor:"pointer",fontSize:12.5,color:view===t.k?T.ink:T.muted,fontFamily:FB,fontWeight:view===t.k?700:400}}>{t.l} ({t.k==="log"?af.length:cf.length})</button>)}</div><button onClick={()=>setFormOpen(true)} style={{padding:"7px 18px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Log jobs</button></div><div style={{flex:1,overflowY:"auto",background:T.bg,padding:"18px 20px"}}>{view==="log"&&(af.length===0?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:36}}>🧵</div><div style={{fontSize:18,fontWeight:600,color:T.ghost}}>No active jobs</div></div>:<div style={{display:"flex",flexDirection:"column",gap:10}}>{af.map(fx=><div key={fx.id} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 16px",display:"grid",gridTemplateColumns:"100px 1fr 100px 80px 80px 120px 80px",gap:12,alignItems:"center"}}><div style={{fontSize:12,color:T.muted}}>{fx.date}</div><div style={{fontSize:13,fontWeight:500,color:T.offWhite}}>{fx.notes||"—"}</div><span style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:20,background:`${sc(fx.type)}22`,color:sc(fx.type),border:`1px solid ${sc(fx.type)}44`}}>{fx.type}</span><div style={{fontSize:13,color:T.offWhite}}>{fx.pieces}</div><div style={{fontSize:11,fontWeight:600,color:gb(fx.brand)?.color||T.muted}}>{gb(fx.brand)?.name||"—"}</div><div style={{fontSize:12,color:T.muted}}>{fx.tailor||"—"}</div><button onClick={()=>{setRetId(fx.id);setRetData({returnedDate:new Date().toISOString().slice(0,10),rating:0,notes:""});}} style={{padding:"5px 10px",border:`1px solid ${T.lime}`,borderRadius:7,background:"transparent",color:T.lime,cursor:"pointer",fontSize:12,fontFamily:FB}}>Mark returned</button></div>)}</div>)}{view==="history"&&(cf.length===0?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:36}}>📋</div><div style={{fontSize:18,fontWeight:600,color:T.ghost,marginTop:12}}>No completed fixes yet</div></div>:<div style={{display:"flex",flexDirection:"column",gap:10}}>{cf.map(fx=><div key={fx.id} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 16px"}}><div style={{fontSize:13,fontWeight:500,color:T.offWhite}}>{fx.notes||"—"}</div><div style={{fontSize:11,color:T.ghost,marginTop:4}}>{fx.date} → {fx.returnedDate} · {fx.pieces} pcs</div></div>)}</div>)}</div>
   {formOpen&&<div onClick={()=>setFormOpen(false)} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}><div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:460,maxWidth:"96vw",maxHeight:"92vh",overflowY:"auto",padding:26}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}><div style={{fontFamily:FD,fontSize:22,fontWeight:700,color:T.lime}}>Log jobs</div><button onClick={()=>setFormOpen(false)} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:7,cursor:"pointer",fontSize:18,color:T.muted,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><FR label="Fix type"><select style={I3} value={form.type} onChange={e=>sf("type",e.target.value)}>{["Mending","Washing","Dyeing","Tailoring","Dry Clean","Other"].map(t=><option key={t}>{t}</option>)}</select></FR><FR label="Vertical"><select style={I3} value={form.brand} onChange={e=>sf("brand",e.target.value)}><option value="">— select —</option>{brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></FR></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}><FR label="Date sent"><input style={I3} type="date" value={form.date} onChange={e=>sf("date",e.target.value)}/></FR><FR label="No. of pieces"><input style={I3} type="number" min="1" value={form.pieces} onChange={e=>sf("pieces",e.target.value)}/></FR></div><FR label="Tailor / Vendor"><input style={I3} value={form.tailor} onChange={e=>sf("tailor",e.target.value)} placeholder="e.g. Rehman Tailor"/></FR><FR label="Notes"><input style={I3} value={form.notes} onChange={e=>sf("notes",e.target.value)} placeholder="e.g. 3 jeans for hem alteration"/></FR><div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20,paddingTop:18,borderTop:`1px solid ${T.border}`}}><button onClick={()=>setFormOpen(false)} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button><button onClick={sub} style={{padding:"8px 20px",border:"none",borderRadius:8,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>Save entry</button></div></div></div>}
   {retId!==null&&<div onClick={()=>setRetId(null)} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}><div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:420,maxWidth:"96vw",padding:26}}><div style={{fontFamily:FD,fontSize:22,fontWeight:700,color:T.lime,marginBottom:20}}>Mark as returned</div><FR label="Date returned"><input style={I3} type="date" value={retData.returnedDate} onChange={e=>setRetData(p=>({...p,returnedDate:e.target.value}))}/></FR><FR label="Rating"><Stars value={retData.rating} onChange={v=>setRetData(p=>({...p,rating:v}))}/></FR><FR label="Notes"><input style={I3} value={retData.notes} onChange={e=>setRetData(p=>({...p,notes:e.target.value}))} placeholder="Quality observations…"/></FR><div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20,paddingTop:18,borderTop:`1px solid ${T.border}`}}><button onClick={()=>setRetId(null)} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button><button onClick={subRet} style={{padding:"8px 20px",border:"none",borderRadius:8,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>Confirm return</button></div></div></div>}
   </div>;
@@ -340,7 +362,7 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
       </div>
 
       {view==="list"&&(
-        <div style={{flex:1,overflowY:"auto",background:"#FFF",padding:"18px 20px"}}>
+        <div style={{flex:1,overflowY:"auto",background:T.bg,padding:"18px 20px"}}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}}>
             {[
               {label:"Total bundles",val:bundles.length},
@@ -418,18 +440,16 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
       )}
 
       {view==="create"&&(
-        <div style={{flex:1,overflowY:"auto",background:"#FFF",padding:"20px 24px"}}>
+        <div style={{flex:1,overflowY:"auto",background:T.bg,padding:"20px 24px"}}>
           <div style={{maxWidth:620}}>
             {selected&&<div style={{background:T.card,border:`1px solid ${T.lime}30`,borderRadius:10,padding:"10px 16px",marginBottom:18,display:"flex",alignItems:"center",gap:10}}>
               <span style={{fontFamily:"monospace",fontSize:13,fontWeight:700,color:T.lime}}>{bundles.find(b=>b.id===selected)?.code}</span>
               <span style={{fontSize:11,color:T.ghost}}>Editing existing bundle</span>
             </div>}
-
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
               <Field label="Bundle name"><input style={INP} value={form.name} onChange={e=>sf("name",e.target.value)} placeholder="e.g. Encore Summer Drop #1"/></Field>
               <Field label="Platform"><select style={INP} value={form.platform} onChange={e=>sf("platform",e.target.value)}>{BUNDLE_PLATFORMS.map(p=><option key={p}>{p}</option>)}</select></Field>
             </div>
-
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
               <Field label="Status"><select style={INP} value={form.status} onChange={e=>sf("status",e.target.value)}>{BUNDLE_STATUSES.map(s=><option key={s}>{s}</option>)}</select></Field>
               <Field label="Bundle listing price">
@@ -439,14 +459,12 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
                 </div>
               </Field>
             </div>
-
             <Field label="Select Vertical">
               <select style={INP} value={form.brand} onChange={e=>setBrandFilter(e.target.value)}>
                 <option value="">— All verticals —</option>
                 {brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </Field>
-
             <Field label={`Pick items from inventory${form.brand?" ("+getBrand(form.brand)?.name+")":""}`}>
               <div style={{background:T.card,borderRadius:10,border:`1px solid ${T.border}`,overflow:"hidden",maxHeight:240,overflowY:"auto"}}>
                 {brandItems.length===0?(
@@ -476,7 +494,6 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
                 )}
               </div>
             </Field>
-
             {form.skus.length>0&&(
               <div style={{background:T.card,borderRadius:10,border:`1px solid ${T.border}`,overflow:"hidden",marginBottom:14}}>
                 <div style={{padding:"8px 14px",borderBottom:`1px solid ${T.border}`,fontSize:10,textTransform:"uppercase",letterSpacing:"0.9px",color:T.ghost,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -501,11 +518,9 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
                 })}
               </div>
             )}
-
             <Field label="Notes / description">
               <textarea style={{...INP,height:72,resize:"vertical",lineHeight:1.5}} value={form.notes} onChange={e=>sf("notes",e.target.value)} placeholder="Bundle description, listing notes, special instructions…"/>
             </Field>
-
             <div style={{display:"flex",justifyContent:"flex-end",gap:8,paddingTop:18,borderTop:`1px solid ${T.border}`}}>
               <button onClick={()=>{setView("list");setSelected(null);setForm(blankForm);}} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
               <button onClick={saveBundle} disabled={!form.name.trim()||form.skus.length===0}
@@ -523,7 +538,7 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
         const sym=SYMS[b.currency||"PKR"]||"₨";
         const bBrand=getBrand(b.brand);
         return(
-          <div style={{flex:1,overflowY:"auto",background:"#FFF",padding:"20px 24px"}}>
+          <div style={{flex:1,overflowY:"auto",background:T.bg,padding:"20px 24px"}}>
             <div style={{maxWidth:600}}>
               <div style={{background:T.card,borderRadius:14,border:`1px solid ${T.border}`,padding:"20px 22px",marginBottom:18}}>
                 <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10}}>
@@ -546,7 +561,6 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
                   </div>
                 </div>
               </div>
-
               <div style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,overflow:"hidden",marginBottom:18}}>
                 <div style={{padding:"10px 16px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                   <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:"0.9px",color:T.ghost,fontWeight:600}}>Items in bundle</span>
@@ -570,12 +584,10 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
                   );
                 })}
               </div>
-
               {b.notes&&<div style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,padding:"14px 16px",marginBottom:18}}>
                 <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:"0.9px",color:T.ghost,fontWeight:600,marginBottom:8}}>Notes</div>
                 <div style={{fontSize:13,color:T.muted,lineHeight:1.6}}>{b.notes}</div>
               </div>}
-
               <div style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,padding:"14px 16px"}}>
                 <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:"0.9px",color:T.ghost,fontWeight:600,marginBottom:10}}>Update status</div>
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -601,7 +613,7 @@ function ConversionPage({rates,setRates}){
   const[local,setLocal]=useState({...rates});
   const pairs=[{from:"GBP",symbol:"£",label:"British Pound"},{from:"USD",symbol:"$",label:"US Dollar"},{from:"EUR",symbol:"€",label:"Euro"}];
   const save=()=>{setRates(local);setSaved(true);setTimeout(()=>setSaved(false),2000);};
-  return <div style={{display:"flex",flexDirection:"column",height:"100%"}}><div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10}}><div style={{fontFamily:FD,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>Currency Conversion</div>{saved&&<span style={{fontSize:12,color:T.lime}}>✓ Rates saved</span>}<button onClick={save} style={{padding:"7px 18px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>Save rates</button></div><div style={{flex:1,overflowY:"auto",background:"#FFF",padding:"28px 24px"}}><div style={{maxWidth:500}}><p style={{fontSize:13,color:T.ghost,marginBottom:24,lineHeight:1.6}}>Set the exchange rates used to automatically convert sold prices to PKR. Applied whenever an item is sold in a foreign currency.</p>{pairs.map(({from,symbol,label})=><div key={from} style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,padding:"18px 20px",marginBottom:14}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}><div style={{fontSize:15,fontWeight:700,color:T.offWhite}}>{symbol} {from} <span style={{fontSize:11,color:T.ghost,fontWeight:400}}>— {label}</span></div><div style={{fontSize:11,color:T.ghost}}>→ PKR</div></div><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{display:"flex",alignItems:"center",gap:8,background:T.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${T.border}`,flex:1}}><span style={{fontSize:16,fontWeight:700,color:T.lime}}>{symbol}1</span><span style={{fontSize:18,color:T.ghost}}>=</span><span style={{fontSize:13,color:T.ghost}}>₨</span><input type="number" min="1" value={local[from]||""} onChange={e=>setLocal(p=>({...p,[from]:e.target.value}))} placeholder="e.g. 350" style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:18,fontWeight:700,color:T.offWhite,fontFamily:FB,width:80}}/></div></div>{local[from]>0&&<div style={{marginTop:12,display:"flex",gap:10,flexWrap:"wrap"}}>{[1,10,50,100].map(a=><div key={a} style={{background:T.surface,borderRadius:8,padding:"6px 12px",fontSize:11,color:T.muted}}>{symbol}{a} = <span style={{color:T.lime,fontWeight:600}}>₨{(a*parseFloat(local[from])).toLocaleString()}</span></div>)}</div>}</div>)}<div style={{background:`${T.lime}10`,border:`1px solid ${T.lime}30`,borderRadius:10,padding:"14px 16px",marginTop:8}}><div style={{fontSize:11,color:T.lime,fontWeight:600,marginBottom:6}}>💡 How it works</div><div style={{fontSize:12,color:T.ghost,lineHeight:1.7}}>When you enter a sold price in GBP, USD, or EUR, Reloop auto-converts to PKR using your saved rate for profit calculations.</div></div></div></div></div>;
+  return <div style={{display:"flex",flexDirection:"column",height:"100%"}}><div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10}}><div style={{fontFamily:FD,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>Currency Conversion</div>{saved&&<span style={{fontSize:12,color:T.lime}}>✓ Rates saved</span>}<button onClick={save} style={{padding:"7px 18px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>Save rates</button></div><div style={{flex:1,overflowY:"auto",background:T.bg,padding:"28px 24px"}}><div style={{maxWidth:500}}><p style={{fontSize:13,color:T.ghost,marginBottom:24,lineHeight:1.6}}>Set the exchange rates used to automatically convert sold prices to PKR. Applied whenever an item is sold in a foreign currency.</p>{pairs.map(({from,symbol,label})=><div key={from} style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,padding:"18px 20px",marginBottom:14}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}><div style={{fontSize:15,fontWeight:700,color:T.offWhite}}>{symbol} {from} <span style={{fontSize:11,color:T.ghost,fontWeight:400}}>— {label}</span></div><div style={{fontSize:11,color:T.ghost}}>→ PKR</div></div><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{display:"flex",alignItems:"center",gap:8,background:T.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${T.border}`,flex:1}}><span style={{fontSize:16,fontWeight:700,color:T.lime}}>{symbol}1</span><span style={{fontSize:18,color:T.ghost}}>=</span><span style={{fontSize:13,color:T.ghost}}>₨</span><input type="number" min="1" value={local[from]||""} onChange={e=>setLocal(p=>({...p,[from]:e.target.value}))} placeholder="e.g. 350" style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:18,fontWeight:700,color:T.offWhite,fontFamily:FB,width:80}}/></div></div>{local[from]>0&&<div style={{marginTop:12,display:"flex",gap:10,flexWrap:"wrap"}}>{[1,10,50,100].map(a=><div key={a} style={{background:T.surface,borderRadius:8,padding:"6px 12px",fontSize:11,color:T.muted}}>{symbol}{a} = <span style={{color:T.lime,fontWeight:600}}>₨{(a*parseFloat(local[from])).toLocaleString()}</span></div>)}</div>}</div>)}<div style={{background:`${T.lime}10`,border:`1px solid ${T.lime}30`,borderRadius:10,padding:"14px 16px",marginTop:8}}><div style={{fontSize:11,color:T.lime,fontWeight:600,marginBottom:6}}>💡 How it works</div><div style={{fontSize:12,color:T.ghost,lineHeight:1.7}}>When you enter a sold price in GBP, USD, or EUR, Reloop auto-converts to PKR using your saved rate for profit calculations.</div></div></div></div></div>;
 }
 
 function EditableTagline({value,bold,italic,color,onChange}){
@@ -689,6 +701,10 @@ export default function App(){
   const[bundles,setBundles]=useState([]);
   const[loaded,setLoaded]=useState(false);
 
+  // ── Collapsible sidebar sections ──────────────────────────────────────────
+  const[verticalsOpen,setVerticalsOpen]=useState(true);
+  const[modulesOpen,setModulesOpen]=useState(true);
+
   const[aBrand,setABrand]=useState("all");
   const[aStat,setAStat]=useState("all");
   const[q,setQ]=useState("");
@@ -719,7 +735,6 @@ export default function App(){
         if(d.rates)          setRates(d.rates);
         if(d.bundles)        setBundles(d.bundles);
       } else {
-        // Nothing in Supabase yet — persist the defaults immediately
         sbSet({ brands:initBrands, items:initItems, nid:7, catTree:{encore:{...BRAND_CATS.encore},generic:{...GENERIC_CATS}}, fixes:[], rates:DEFAULT_RATES, bundles:[] });
       }
       setLoaded(true);
@@ -734,7 +749,6 @@ export default function App(){
 
   const saveBrands = next => {
     setBrands(next);
-    // Use setTimeout to let React flush state before we read it
     setTimeout(() => {
       sbSet({ brands:next, items, nid, catTree, fixes, rates, bundles });
     }, 100);
@@ -785,62 +799,112 @@ export default function App(){
   const sizeLabel=it=>{if(!it.sizeMin&&!it.sizeMax)return"—";if(it.sizeMin===it.sizeMax||!it.sizeMax)return it.sizeMin||it.sizeMax;return`${it.sizeMin}–${it.sizeMax}`;};
 
   return(
-    <div onClick={()=>setColorPickerId(null)} style={{fontFamily:FB,display:"flex",height:640,background:T.bg,borderRadius:16,overflow:"hidden",position:"relative",border:`1px solid ${T.border}`,width:"100%"}}>
+    // ── Root: full viewport, no border-radius, no extra margin ──────────────
+    <div
+      onClick={()=>setColorPickerId(null)}
+      style={{
+        fontFamily:FB,
+        display:"flex",
+        height:"100vh",
+        width:"100vw",
+        background:T.bg,
+        overflow:"hidden",
+        position:"fixed",
+        top:0, left:0,
+      }}
+    >
 
-      {/* SIDEBAR */}
-      <aside style={{width:218,flexShrink:0,background:T.surface,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column"}}>
-        <div style={{padding:"20px 18px 14px",borderBottom:`1px solid ${T.border}`}}>
+      {/* SIDEBAR — full height, no gap */}
+      <aside style={{
+        width:218,
+        flexShrink:0,
+        background:T.surface,
+        borderRight:`1px solid ${T.border}`,
+        display:"flex",
+        flexDirection:"column",
+        height:"100%",
+        overflow:"hidden",
+      }}>
+        {/* Logo + user block */}
+        <div style={{padding:"20px 18px 14px",borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
           <div style={{lineHeight:1}}>
             <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:32,fontWeight:400,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Re</span>
             <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:32,fontWeight:700,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Loop</span>
           </div>
           <div style={{fontSize:10.5,color:T.ghost,marginTop:4}}>Inventory Management Platform</div>
           <div style={{marginTop:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:isAdmin?`${T.lime}22`:T.cobaltBg,color:isAdmin?T.lime:T.cobaltText,fontWeight:600,border:`1px solid ${isAdmin?T.lime:T.cobaltText}44`}}>{isAdmin?"Admin":"Staff"}</span>
+            <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:isAdmin?`${T.lime}22`:T.cobaltBg,color:isAdmin?T.lime:T.cobaltText,fontWeight:600,border:`1px solid ${isAdmin?T.lime:T.cobaltText}44`}}>{isAdmin?"Admin":"Ninja 🥷🏻"}</span>
             <button onClick={()=>{localStorage.removeItem("rl_auth");localStorage.removeItem("rl_role");window.location.reload();}} style={{fontSize:10,color:T.ghost,background:"none",border:`1px solid ${T.border}`,borderRadius:6,padding:"2px 8px",cursor:"pointer",fontFamily:FB}}>Sign out</button>
           </div>
         </div>
 
-        <div style={{padding:"14px 14px 10px",overflowY:"auto",flex:1}}>
-          <div style={{fontSize:9.5,textTransform:"uppercase",letterSpacing:"1.2px",color:T.ghost,marginBottom:9,fontWeight:600}}>Verticals</div>
-          {[{id:"all",name:"All brands",color:T.ghost},...brands].map(b=>(
-            <div key={b.id} style={{position:"relative",marginBottom:2}}>
-              {renamingId===b.id
-                ?<div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:8,background:T.card,border:`1px solid ${T.lime}60`}}><div style={{width:7,height:7,borderRadius:"50%",background:b.color,flexShrink:0}}/><input autoFocus value={renameVal} onChange={e=>setRenameVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")commitRename();if(e.key==="Escape")setRenamingId(null);}} onBlur={commitRename} style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:12.5,color:T.offWhite,fontFamily:FB,minWidth:0}}/><span style={{fontSize:10,color:T.lime,cursor:"pointer"}} onClick={commitRename}>✓</span></div>
-                :<button onClick={()=>{setColorPickerId(null);setABrand(b.id);setActivePage("inventory");}} onDoubleClick={b.id!=="all"?e=>startRename(e,b):undefined}
-                  style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",borderRadius:8,border:"none",background:(aBrand===b.id&&activePage==="inventory")?T.card:"transparent",cursor:"pointer",width:"100%",textAlign:"left",fontSize:12.5,color:(aBrand===b.id&&activePage==="inventory")?T.offWhite:T.muted,fontWeight:(aBrand===b.id&&activePage==="inventory")?500:400,fontFamily:FB}}>
-                  <div onClick={b.id!=="all"?e=>{e.stopPropagation();setColorPickerId(colorPickerId===b.id?null:b.id);}:undefined} style={{width:10,height:10,borderRadius:"50%",background:b.color,flexShrink:0,cursor:b.id!=="all"?"pointer":"default",outline:colorPickerId===b.id?`2px solid ${T.offWhite}`:"none",outlineOffset:1}}/>
-                  <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.name}</span>
-                  {b.id!=="all"&&<span onClick={e=>startRename(e,b)} style={{opacity:0,fontSize:11,color:T.ghost,cursor:"pointer",padding:"0 2px"}} onMouseEnter={e=>e.currentTarget.style.opacity="1"} onMouseLeave={e=>e.currentTarget.style.opacity="0"}>✎</span>}
-                  <span style={{flexShrink:0,fontSize:10,color:T.ghost,background:T.card,padding:"1px 6px",borderRadius:20}}>{b.id==="all"?items.length:items.filter(i=>i.brand===b.id).length}</span>
-                </button>}
-              {colorPickerId===b.id&&<div onClick={e=>e.stopPropagation()} style={{position:"absolute",left:10,top:"calc(100% + 6px)",zIndex:200,background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",display:"flex",flexWrap:"wrap",gap:8,width:174,boxShadow:"0 8px 24px rgba(0,0,0,0.4)"}}><div style={{width:"100%",fontSize:9.5,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:2,fontWeight:600}}>Pick colour</div>{PALETTE.map(c=><div key={c} onClick={()=>recolorBrand(b.id,c)} style={{width:22,height:22,borderRadius:"50%",background:c,cursor:"pointer",outline:b.color===c?`2px solid ${T.white}`:"2px solid transparent",outlineOffset:2}} onMouseEnter={e=>e.currentTarget.style.transform="scale(1.2)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}/>)}</div>}
-            </div>
-          ))}
-          <button onClick={()=>setAddBrandOpen(true)} style={{display:"flex",alignItems:"center",gap:7,padding:"6px 10px",borderRadius:7,background:"transparent",border:`1px dashed ${T.border}`,cursor:"pointer",width:"100%",fontSize:12,color:T.ghost,fontFamily:FB,marginTop:8}}>
-            <span style={{color:T.lime,fontWeight:700,fontSize:14}}>+</span> Add brand
-          </button>
+        {/* Scrollable nav */}
+        <div style={{padding:"14px 14px 16px",overflowY:"auto",flex:1}}>
 
-          <div style={{fontSize:9.5,textTransform:"uppercase",letterSpacing:"1.2px",color:T.ghost,marginBottom:9,fontWeight:600,marginTop:16}}>Modules</div>
-          {[{icon:"🗂",label:"Inventory",page:"inventory"},{icon:"🗃️",label:"Category Tree",page:"categories"},{icon:"🧵",label:"Jobs",page:"fixes"},{icon:"📦",label:"Bundles",page:"bundles"},{icon:"💱",label:"Conversion",page:"conversion"},{icon:"🧾",label:"Sales ↗",page:null},{icon:"📊",label:"Analytics ↗",page:null},{icon:"🤝",label:"Suppliers ↗",page:null}].map(n=>(
-            <button key={n.label} onClick={n.page?()=>setActivePage(n.page):undefined}
-              style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",borderRadius:8,border:"none",background:activePage===n.page?T.card:"transparent",cursor:n.page?"pointer":"default",width:"100%",textAlign:"left",fontSize:12.5,color:activePage===n.page?T.lime:T.muted,fontFamily:FB,marginBottom:2,fontWeight:activePage===n.page?500:400}}>
-              <span style={{fontSize:14}}>{n.icon}</span>{n.label}
-              {activePage===n.page&&<span style={{marginLeft:"auto",width:6,height:6,borderRadius:"50%",background:T.lime,display:"inline-block"}}/>}
-            </button>
-          ))}
+          {/* ── VERTICALS section ── */}
+          <div style={{marginBottom: verticalsOpen ? 10 : 6}}>
+            <SectionHeader label="Verticals" collapsed={!verticalsOpen} onToggle={()=>setVerticalsOpen(o=>!o)}/>
+            {verticalsOpen && (
+              <div>
+                {[{id:"all",name:"All brands",color:T.ghost},...brands].map(b=>(
+                  <div key={b.id} style={{position:"relative",marginBottom:2}}>
+                    {renamingId===b.id
+                      ?<div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:8,background:T.card,border:`1px solid ${T.lime}60`}}><div style={{width:7,height:7,borderRadius:"50%",background:b.color,flexShrink:0}}/><input autoFocus value={renameVal} onChange={e=>setRenameVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")commitRename();if(e.key==="Escape")setRenamingId(null);}} onBlur={commitRename} style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:12.5,color:T.offWhite,fontFamily:FB,minWidth:0}}/><span style={{fontSize:10,color:T.lime,cursor:"pointer"}} onClick={commitRename}>✓</span></div>
+                      :<button onClick={()=>{setColorPickerId(null);setABrand(b.id);setActivePage("inventory");}} onDoubleClick={b.id!=="all"?e=>startRename(e,b):undefined}
+                        style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",borderRadius:8,border:"none",background:(aBrand===b.id&&activePage==="inventory")?T.card:"transparent",cursor:"pointer",width:"100%",textAlign:"left",fontSize:12.5,color:(aBrand===b.id&&activePage==="inventory")?T.offWhite:T.muted,fontWeight:(aBrand===b.id&&activePage==="inventory")?500:400,fontFamily:FB}}>
+                        <div onClick={b.id!=="all"?e=>{e.stopPropagation();setColorPickerId(colorPickerId===b.id?null:b.id);}:undefined} style={{width:10,height:10,borderRadius:"50%",background:b.color,flexShrink:0,cursor:b.id!=="all"?"pointer":"default",outline:colorPickerId===b.id?`2px solid ${T.offWhite}`:"none",outlineOffset:1}}/>
+                        <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.name}</span>
+                        {b.id!=="all"&&<span onClick={e=>startRename(e,b)} style={{opacity:0,fontSize:11,color:T.ghost,cursor:"pointer",padding:"0 2px"}} onMouseEnter={e=>e.currentTarget.style.opacity="1"} onMouseLeave={e=>e.currentTarget.style.opacity="0"}>✎</span>}
+                        <span style={{flexShrink:0,fontSize:10,color:T.ghost,background:T.card,padding:"1px 6px",borderRadius:20}}>{b.id==="all"?items.length:items.filter(i=>i.brand===b.id).length}</span>
+                      </button>}
+                    {colorPickerId===b.id&&<div onClick={e=>e.stopPropagation()} style={{position:"absolute",left:10,top:"calc(100% + 6px)",zIndex:200,background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",display:"flex",flexWrap:"wrap",gap:8,width:174,boxShadow:"0 8px 24px rgba(0,0,0,0.4)"}}><div style={{width:"100%",fontSize:9.5,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:2,fontWeight:600}}>Pick colour</div>{PALETTE.map(c=><div key={c} onClick={()=>recolorBrand(b.id,c)} style={{width:22,height:22,borderRadius:"50%",background:c,cursor:"pointer",outline:b.color===c?`2px solid ${T.white}`:"2px solid transparent",outlineOffset:2}} onMouseEnter={e=>e.currentTarget.style.transform="scale(1.2)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}/>)}</div>}
+                  </div>
+                ))}
+                <button onClick={()=>setAddBrandOpen(true)} style={{display:"flex",alignItems:"center",gap:7,padding:"6px 10px",borderRadius:7,background:"transparent",border:`1px dashed ${T.border}`,cursor:"pointer",width:"100%",fontSize:12,color:T.ghost,fontFamily:FB,marginTop:8}}>
+                  <span style={{color:T.lime,fontWeight:700,fontSize:14}}>+</span> Add brand
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── MODULES section ── */}
+          <div style={{marginTop: verticalsOpen ? 6 : 2}}>
+            <SectionHeader label="Modules" collapsed={!modulesOpen} onToggle={()=>setModulesOpen(o=>!o)}/>
+            {modulesOpen && (
+              <div>
+                {[
+                  {icon:"🗂",label:"Inventory",page:"inventory"},
+                  {icon:"🗃️",label:"Category Tree",page:"categories"},
+                  {icon:"🧵",label:"Jobs",page:"fixes"},
+                  {icon:"📦",label:"Bundles",page:"bundles"},
+                  {icon:"💱",label:"Conversion",page:"conversion"},
+                  {icon:"🧾",label:"Sales ↗",page:null},
+                  {icon:"📊",label:"Analytics ↗",page:null},
+                  {icon:"🤝",label:"Suppliers ↗",page:null},
+                ].map(n=>(
+                  <button key={n.label} onClick={n.page?()=>setActivePage(n.page):undefined}
+                    style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",borderRadius:8,border:"none",background:activePage===n.page?T.card:"transparent",cursor:n.page?"pointer":"default",width:"100%",textAlign:"left",fontSize:12.5,color:activePage===n.page?T.lime:T.muted,fontFamily:FB,marginBottom:2,fontWeight:activePage===n.page?500:400}}>
+                    <span style={{fontSize:14}}>{n.icon}</span>{n.label}
+                    {activePage===n.page&&<span style={{marginLeft:"auto",width:6,height:6,borderRadius:"50%",background:T.lime,display:"inline-block"}}/>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
         </div>
       </aside>
 
       {/* MAIN */}
-      <main style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,background:T.bg}}>
+      <main style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,background:T.bg,height:"100%",overflow:"hidden"}}>
         {activePage==="categories"?<CategoriesPage catTree={catTree} setCatTree={setCatTree} brands={brands}/>
         :activePage==="fixes"?<FixesPage fixes={fixes} setFixes={setFixes} items={items} brands={brands}/>
         :activePage==="bundles"?<BundlesPage items={items} bundles={bundles} setBundles={setBundles} brands={brands}/>
         :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);sbSet({brands,items,nid,catTree,fixes,rates:r,bundles});}}/>
         :(
           <>
-            <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10}}>
+            {/* Top bar */}
+            <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
               <div style={{flex:1,display:"flex",alignItems:"center",gap:10}}>
                 <div>
                   <div style={{fontFamily:FD,fontSize:20,fontWeight:700,color:T.offWhite,lineHeight:1.1}}>{curBrand?curBrand.name:"All Inventory"}</div>
@@ -855,7 +919,8 @@ export default function App(){
               <button onClick={()=>setAddItemOpen(true)} style={{padding:"7px 20px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Add item</button>
             </div>
 
-            <div style={{padding:"18px 20px",flex:1,overflowY:"auto",background:"#FFF"}}>
+            {/* Scrollable content */}
+            <div style={{padding:"18px 20px",flex:1,overflowY:"auto",background:T.bg}}>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}}>
                 {[{label:"Total pieces",val:stats.total,sub:`${stats.avail} available`,fin:false},{label:"Inventory value",val:`₨${stats.val.toLocaleString()}`,sub:"at cost price",fin:true},{label:"Sold",val:stats.sold,sub:"items",fin:false},{label:"Profit realised",val:`₨${stats.profit.toLocaleString()}`,sub:"from sold",accent:stats.profit>=0?T.profit:T.loss,fin:true}].map(s=>(
                   <div key={s.label} style={{background:T.card,borderRadius:12,padding:"14px 16px",border:`1px solid ${T.border}`}}>
@@ -905,7 +970,7 @@ export default function App(){
                           <TCell w={COLS[1].w}><span style={{fontSize:11,fontWeight:600,color:bc}}>{b?.name}</span></TCell>
                           <TCell w={COLS[2].w}><span style={{fontSize:12,color:T.muted}}>{it.category}</span></TCell>
                           <TCell w={COLS[3].w}><span style={{fontSize:12,color:T.muted}}>{it.subcategory||"—"}</span></TCell>
-                          <TCell w={COLS[4].w}>{(it.qty||1)>1?<span style={{fontSize:11,fontWeight:700,color:T.cobaltText,background:T.cobaltBg,padding:"2px 6px",borderRadius:6}}>×{it.qty}</span>:<span style={{fontSize:12,color:T.ghost}}>1</span>}</TCell>
+                          <TCell w={COLS[4].w}><span style={{fontSize:12,fontWeight:600,color:(it.qty||1)>1?T.cobaltText:T.ghost}}>{it.qty||1}</span></TCell>
                           <TCell w={COLS[5].w}>{sizeLabel(it)==="—"?<span style={{fontSize:12,color:T.ghost}}>—</span>:<span style={{fontSize:11,fontWeight:600,color:T.cobaltText,background:T.cobaltBg,padding:"2px 8px",borderRadius:20}}>{sizeLabel(it)}</span>}</TCell>
                           <TCell w={COLS[6].w}>{it.grade?<span style={{fontSize:12,fontWeight:700,color:T.lime,background:`${T.lime}18`,padding:"2px 8px",borderRadius:6,border:`1px solid ${T.lime}30`}}>{it.grade}</span>:<span style={{color:T.ghost,fontSize:12}}>—</span>}</TCell>
                           <TCell w={COLS[7].w}><span style={{fontSize:11,color:T.ghost,fontFamily:"monospace",letterSpacing:"0.3px"}}>{it.sku||"—"}</span></TCell>
@@ -941,7 +1006,7 @@ export default function App(){
           <div style={{position:"absolute",top:0,right:0,width:292,height:"100%",background:T.surface,borderLeft:`1px solid ${T.border}`,zIndex:50,overflowY:"auto"}}>
             <div style={{padding:"18px 18px 16px",borderBottom:`1px solid ${T.border}`,background:T.card}}>
               <div style={{display:"flex",justifyContent:"flex-end",gap:5,marginBottom:12}}>
-                <IconBtn title="Edit" onClick={()=>setEditItem(it)}/><IconBtn title="Delete" danger onClick={()=>delItem(it.id)}/><IconBtn title="Close" onClick={()=>setDetail(null)}/>
+                <IconBtn title="Edit" onClick={()=>setEditItem(it)}/><IconBtn title="Delete" danger onClick={()=>delItem(it.id)}/><button onClick={()=>setDetail(null)} title="Close" style={{padding:"5px 7px",border:`1px solid ${T.border}`,borderRadius:6,background:"transparent",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",color:T.muted,fontSize:14,lineHeight:1,fontFamily:FB}} onMouseEnter={e=>{e.currentTarget.style.borderColor=T.lime;e.currentTarget.style.color=T.lime;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.muted;}}>✕</button>
               </div>
               <div style={{display:"inline-block",fontSize:9.5,textTransform:"uppercase",letterSpacing:"1px",padding:"3px 9px",borderRadius:20,background:`${bc}25`,color:bc,marginBottom:7,fontWeight:700,border:`1px solid ${bc}40`}}>{b?.name}</div>
               <div style={{fontFamily:FD,fontSize:18,fontWeight:700,color:T.offWhite,lineHeight:1.25,marginBottom:8}}>{it.name}</div>
@@ -952,7 +1017,7 @@ export default function App(){
               {it.status==="sold"&&<div style={{textAlign:"right"}}><div style={{fontSize:9.5,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:3}}>Profit</div><div style={{fontSize:18,fontWeight:700,color:prof>=0?T.profit:T.loss}}>{isAdmin?(prof>=0?"+":"")+"₨"+prof.toLocaleString():"*****"}</div>{isAdmin&&<div style={{fontSize:10,color:T.ghost}}>{mg}%</div>}</div>}
             </div>
             <div style={{padding:"12px 16px"}}>
-              {[["SKU",it.sku||"—"],(it.qty||1)>1&&["Qty",it.qty],["Category",it.category],["Subcat",it.subcategory||"—"],["Size",sizeLabel(it)],it.grade&&["Grade",it.grade],it.notes&&["Notes",it.notes],it.status==="reserved"&&it.reservedFor&&["Reserved for",it.reservedFor],it.status==="reserved"&&it.reservedPlatform&&["Via",it.reservedPlatform]].filter(Boolean).map(([k,v])=>(
+              {[["SKU",it.sku||"—"],it.inventoryDate&&["Inventoried",it.inventoryDate],(it.qty||1)>1&&["Qty",it.qty],["Category",it.category],["Subcat",it.subcategory||"—"],["Size",sizeLabel(it)],it.grade&&["Grade",it.grade],it.notes&&["Notes",it.notes],it.status==="reserved"&&it.reservedFor&&["Reserved for",it.reservedFor],it.status==="reserved"&&it.reservedPlatform&&["Via",it.reservedPlatform]].filter(Boolean).map(([k,v])=>(
                 <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${T.border}`}}>
                   <span style={{fontSize:11.5,color:T.ghost}}>{k}</span>
                   <span style={{fontSize:12.5,fontWeight:500,color:T.offWhite,textAlign:"right",maxWidth:160}}>{v}</span>
