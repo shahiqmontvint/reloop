@@ -652,17 +652,25 @@ function LoginScreen({onLogin}){
   const[pass,setPass]=useState("");
   const[err,setErr]=useState(false);
   const[show,setShow]=useState(false);
+  useEffect(()=>{
+    if(!document.getElementById("rl-font")){
+      const l=document.createElement("link");
+      l.id="rl-font";l.rel="stylesheet";
+      l.href="https://fonts.googleapis.com/css2?family=Lato:wght@100;700&family=Google+Sans:wght@400;500;700&display=swap";
+      document.head.appendChild(l);
+    }
+  },[]);
   const submit=()=>{
     const u=USERS[user.trim()];
     if(u&&pass===u.password){onLogin(user.trim(),u.role);}
     else{setErr(true);setTimeout(()=>setErr(false),2500);}
   };
-  return <div style={{fontFamily:FB,display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg}}>
+  return <div style={{fontFamily:FB,display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",width:"100vw",background:T.bg,position:"fixed",top:0,left:0,margin:0,padding:0,boxSizing:"border-box"}}>
     <div style={{background:T.surface,borderRadius:20,border:`1px solid ${T.border}`,padding:"40px 36px",width:380,boxShadow:"0 24px 60px rgba(0,0,0,0.5)"}}>
       <div style={{textAlign:"center",marginBottom:32}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:8}}>
           <div style={{lineHeight:1}}>
-            <span style={{fontFamily:"'Lato',sans-serif",fontSize:40,fontWeight:300,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Re</span>
+            <span style={{fontFamily:"'Lato',sans-serif",fontSize:40,fontWeight:100,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Re</span>
             <span style={{fontFamily:"'Lato',sans-serif",fontSize:40,fontWeight:700,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Loop</span>
           </div>
           <img src="https://res.cloudinary.com/daw3s99fs/image/upload/f_auto,q_auto/WhatsApp_Image_2026-06-08_at_19.43.43-removebg-preview_fcadkj" alt="ReLoop icon" style={{width:44,height:44,objectFit:"contain",flexShrink:0}}/>
@@ -692,7 +700,7 @@ export default function App(){
   const isAdmin=role==="admin";
   if(!authed)return <LoginScreen onLogin={(u,r)=>{localStorage.setItem("rl_auth","1");localStorage.setItem("rl_role",r);setAuthed(true);setRole(r);}}/>;
   useEffect(()=>{
-    const l=document.createElement("link");l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;700&family=Google+Sans:wght@400;500;700&display=swap";document.head.appendChild(l);
+    if(!document.getElementById("rl-font")){const l=document.createElement("link");l.id="rl-font";l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family=Lato:wght@100;700&family=Google+Sans:wght@400;500;700&display=swap";document.head.appendChild(l);}
   },[]);
 
   const[brands,setBrands]=useState(initBrands);
@@ -835,7 +843,7 @@ export default function App(){
         <div style={{padding:"20px 18px 14px",borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:8,lineHeight:1}}>
             <div>
-              <span style={{fontFamily:"'Lato',sans-serif",fontSize:32,fontWeight:300,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Re</span>
+              <span style={{fontFamily:"'Lato',sans-serif",fontSize:32,fontWeight:100,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Re</span>
               <span style={{fontFamily:"'Lato',sans-serif",fontSize:32,fontWeight:700,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Loop</span>
             </div>
             <img src="https://res.cloudinary.com/daw3s99fs/image/upload/f_auto,q_auto/WhatsApp_Image_2026-06-08_at_19.43.43-removebg-preview_fcadkj" alt="ReLoop icon" style={{width:36,height:36,objectFit:"contain",flexShrink:0}}/>
