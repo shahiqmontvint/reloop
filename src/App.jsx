@@ -922,15 +922,15 @@ function AttendancePage({ attendance, setAttendance, isAdmin }) {
 const CONV_PLATFORMS_ALL = ["All","Fleek","Instagram (B2C)","Instagram (B2B)","Vinted","Depop","Offline"];
 const CONV_PLATFORMS_SELL = ["Fleek","Instagram (B2C)","Instagram (B2B)","Vinted","Depop","Offline"];
 
-function RateEntryModal({ onSave, onClose }) {
+function RateEntryModal({ onSave, onClose, initial }) {
   const today = new Date().toISOString().slice(0,10);
-  const [dateFrom, setDateFrom] = useState(today);
-  const [dateTo, setDateTo] = useState(today);
-  const [platform, setPlatform] = useState("Fleek");
-  const [gbp, setGbp] = useState("");
-  const [usd, setUsd] = useState("");
-  const [eur, setEur] = useState("");
-  const [notes, setNotes] = useState("");
+  const [dateFrom, setDateFrom] = useState(initial?.dateFrom || today);
+  const [dateTo, setDateTo] = useState(initial?.dateTo || today);
+  const [platform, setPlatform] = useState(initial?.platform || "Fleek");
+  const [gbp, setGbp] = useState(initial?.rates?.GBP || "");
+  const [usd, setUsd] = useState(initial?.rates?.USD || "");
+  const [eur, setEur] = useState(initial?.rates?.EUR || "");
+  const [notes, setNotes] = useState(initial?.notes || "");
 
   const canSave = (gbp||usd||eur) && dateFrom && dateTo && platform;
 
@@ -941,7 +941,7 @@ function RateEntryModal({ onSave, onClose }) {
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}>
       <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:500,maxWidth:"96vw",maxHeight:"92vh",overflowY:"auto",padding:28}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:22}}>
-          <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.lime}}>Log past exchange rate</div>
+          <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.lime}}>{initial?"Edit rate entry":"Log past exchange rate"}</div>
           <button onClick={onClose} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:7,cursor:"pointer",fontSize:18,color:T.muted,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
         </div>
 
@@ -992,7 +992,7 @@ function RateEntryModal({ onSave, onClose }) {
           <button onClick={onClose} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
           <button onClick={()=>{if(!canSave)return;onSave({dateFrom,dateTo,platform,rates:{GBP:gbp?parseFloat(gbp):null,USD:usd?parseFloat(usd):null,EUR:eur?parseFloat(eur):null},notes});}} disabled={!canSave}
             style={{padding:"8px 22px",border:"none",borderRadius:8,background:canSave?T.lime:T.border,color:canSave?T.ink:T.ghost,cursor:canSave?"pointer":"not-allowed",fontSize:13,fontWeight:700,fontFamily:FB}}>
-            Save entry
+            {initial?"Save changes":"Save entry"}
           </button>
         </div>
       </div>
@@ -1006,6 +1006,7 @@ function ConversionPage({ rates, setRates, rateHistory, setRateHistory }) {
   const [filterPlatform, setFilterPlatform] = useState("All");
   const [view, setView] = useState("current");
   const [addingPast, setAddingPast] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [sortDir, setSortDir] = useState(-1); // -1 = newest first
@@ -1031,6 +1032,11 @@ function ConversionPage({ rates, setRates, rateHistory, setRateHistory }) {
   const savePastEntry = entry => {
     setRateHistory([{ id:Date.now(), ...entry }, ...history]);
     setAddingPast(false);
+  };
+
+  const saveEditedEntry = entry => {
+    setRateHistory(history.map(h => h.id===editingEntry.id ? { ...h, ...entry } : h));
+    setEditingEntry(null);
   };
 
   const deleteEntry = id => setRateHistory(history.filter(h=>h.id!==id));
@@ -1135,7 +1141,7 @@ function ConversionPage({ rates, setRates, rateHistory, setRateHistory }) {
             </div>
             :<div style={{background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,overflow:"hidden"}}>
               {/* Table header */}
-              <div style={{display:"grid",gridTemplateColumns:"120px 120px 130px 1fr 1fr 1fr 160px 44px",padding:"10px 16px",borderBottom:`1px solid ${T.border}`,background:T.card}}>
+              <div style={{display:"grid",gridTemplateColumns:"120px 120px 130px 1fr 1fr 1fr 160px 80px",padding:"10px 16px",borderBottom:`1px solid ${T.border}`,background:T.card}}>
                 {["From","To","Platform","£ GBP","$ USD","€ EUR","Notes",""].map((h,i)=>(
                   <div key={i} style={{fontSize:10,textTransform:"uppercase",letterSpacing:"0.9px",color:T.ghost,fontWeight:600}}>{h}</div>
                 ))}
@@ -1145,7 +1151,7 @@ function ConversionPage({ rates, setRates, rateHistory, setRateHistory }) {
                 const isToday=h.dateTo===new Date().toISOString().slice(0,10)&&h.dateFrom===h.dateTo;
                 return(
                   <div key={h.id}
-                    style={{display:"grid",gridTemplateColumns:"120px 120px 130px 1fr 1fr 1fr 160px 44px",padding:"12px 16px",borderBottom:isLast?"none":`1px solid ${T.border}`,alignItems:"center",background:isToday?`${T.lime}06`:"transparent"}}
+                    style={{display:"grid",gridTemplateColumns:"120px 120px 130px 1fr 1fr 1fr 160px 80px",padding:"12px 16px",borderBottom:isLast?"none":`1px solid ${T.border}`,alignItems:"center",background:isToday?`${T.lime}06`:"transparent"}}
                     onMouseEnter={e=>e.currentTarget.style.background=T.card}
                     onMouseLeave={e=>e.currentTarget.style.background=isToday?`${T.lime}06`:"transparent"}>
                     <div style={{fontSize:12,color:T.muted}}>{h.dateFrom}</div>
@@ -1165,8 +1171,9 @@ function ConversionPage({ rates, setRates, rateHistory, setRateHistory }) {
                       </div>
                     ))}
                     <div style={{fontSize:11,color:T.ghost,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",paddingRight:8}}>{h.notes||"—"}</div>
-                    <div style={{display:"flex",justifyContent:"center"}}>
-                      <button onClick={()=>deleteEntry(h.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:14,padding:"0 4px"}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color=T.ghost}>✕</button>
+                    <div style={{display:"flex",justifyContent:"center",gap:5}}>
+                      <button onClick={()=>setEditingEntry(h)} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer",color:T.ghost,fontSize:12,padding:"3px 7px"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=T.lime;e.currentTarget.style.color=T.lime;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.ghost;}}>✎</button>
+                      <button onClick={()=>deleteEntry(h.id)} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer",color:T.ghost,fontSize:12,padding:"3px 7px"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=T.rougeText;e.currentTarget.style.color=T.rougeText;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.ghost;}}>✕</button>
                     </div>
                   </div>
                 );
@@ -1176,6 +1183,7 @@ function ConversionPage({ rates, setRates, rateHistory, setRateHistory }) {
       </div>
 
       {addingPast&&<RateEntryModal onSave={savePastEntry} onClose={()=>setAddingPast(false)}/>}
+      {editingEntry&&<RateEntryModal initial={editingEntry} onSave={saveEditedEntry} onClose={()=>setEditingEntry(null)}/>}
     </div>
   );
 }
