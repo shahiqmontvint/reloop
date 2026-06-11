@@ -949,10 +949,13 @@ export default function App(){
 
               {filtered.length===0
                 ?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:40,marginBottom:12}}>🏷️</div><div style={{fontSize:22,fontWeight:700,color:T.ghost}}>Nothing here yet</div></div>
-                :<div style={{background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,overflow:"hidden"}}>
-                  {/* Header — outside scroll, always spans full visible width */}
-                  <div ref={headerScrollRef} style={{overflowX:"hidden",background:T.card,borderRadius:"12px 12px 0 0",borderBottom:`1px solid ${T.border}`}}>
-                    <div style={{display:"flex",alignItems:"center",padding:"0 8px",height:40,width:TOTAL_W+16}}>
+                :<div style={{background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,overflow:"hidden",position:"relative"}}>
+                  {/* Full-width header background strip — sits behind everything */}
+                  <div style={{position:"absolute",top:0,left:0,right:0,height:40,background:T.card,borderRadius:"12px 12px 0 0",borderBottom:`1px solid ${T.border}`,zIndex:1,pointerEvents:"none"}}/>
+                  {/* Single scroll container — header + body scroll together */}
+                  <div style={{overflowX:"auto"}}>
+                  <div style={{width:TOTAL_W+16}}>
+                    <div style={{display:"flex",alignItems:"center",padding:"0 8px",height:40,position:"relative",zIndex:2}}>
                       {COLS.map(col=>(
                         <TCell key={col.key} w={col.w} left={col.key==="name"||col.key==="notes"}>
                           <div onClick={col.key!=="actions"?()=>handleSort(col.key):undefined}
@@ -962,10 +965,6 @@ export default function App(){
                         </TCell>
                       ))}
                     </div>
-                  </div>
-                  {/* Body — scrolls horizontally */}
-                  <div ref={bodyScrollRef} onScroll={syncHeaderScroll} style={{overflowX:"auto"}}>
-                  <div style={{width:TOTAL_W+16}}>
                     {filtered.map((it,idx)=>{
                       const b=gb(it.brand),bc=b?.color||T.lime;
                       const pricePKR=toPKR(it.price,it.currency);
