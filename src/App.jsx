@@ -1209,7 +1209,7 @@ const PBCard = ({title,emoji,children}) => (
   </div>
 );
 
-const CURRENCIES = [{code:"GBP",sym:"£"},{code:"USD",sym:"$"},{code:"EUR",sym:"€"},{code:"PKR",sym:"₨"}];
+const PB_CURRENCIES = [{code:"GBP",sym:"£"},{code:"USD",sym:"$"},{code:"EUR",sym:"€"},{code:"PKR",sym:"₨"}];
 const pbFmt    = (n,d=2) => n!=null&&!isNaN(n)?n.toFixed(d):null;
 const pbFmtPKR = n => n!=null&&!isNaN(n)?`₨${Math.round(n).toLocaleString()}`:null;
 const pbFmtCur = (n,sym,d=2) => n!=null&&!isNaN(n)?`${sym}${parseFloat(n).toFixed(d)}`:null;
@@ -1237,7 +1237,7 @@ function PBSoldCalc({ gbpRate, usdRate, eurRate }) {
   };
   const r = calc();
 
-  const inSym = CURRENCIES.find(c=>c.code===inCur)?.sym||"₨";
+  const inSym = PB_CURRENCIES.find(c=>c.code===inCur)?.sym||"₨";
 
   return (
     <PBCard title="Price (Sold) Calculator" emoji="🏷️">
@@ -1246,7 +1246,7 @@ function PBSoldCalc({ gbpRate, usdRate, eurRate }) {
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
             <PBLabel>Bought Price ✏️</PBLabel>
             <select style={PB_SEL} value={inCur} onChange={e=>setInCur(e.target.value)}>
-              {CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
+              {PB_CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
             </select>
           </div>
           <input type="number" value={boughtPKR} onChange={e=>setBoughtPKR(e.target.value)} placeholder={`e.g. ${inCur==="PKR"?"1900":"5.50"}`} style={PB_INP_GREEN}/>
@@ -1273,7 +1273,7 @@ function PBProfitCalc({ gbpRate, usdRate, eurRate }) {
   const [shipMode,  setShipMode]  = useState("excluding");
 
   const toRatePKR = cur => cur==="PKR"?1:cur==="GBP"?gbpRate:cur==="USD"?usdRate:eurRate;
-  const sym = CURRENCIES.find(c=>c.code===soldCur)?.sym||"£";
+  const sym = PB_CURRENCIES.find(c=>c.code===soldCur)?.sym||"£";
 
   const calc = () => {
     const soldV     = parseFloat(soldVal)||0;
@@ -1301,7 +1301,7 @@ function PBProfitCalc({ gbpRate, usdRate, eurRate }) {
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
             <PBLabel>Sold Price ✏️</PBLabel>
             <select style={PB_SEL} value={soldCur} onChange={e=>setSoldCur(e.target.value)}>
-              {CURRENCIES.filter(c=>c.code!=="PKR").map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
+              {PB_CURRENCIES.filter(c=>c.code!=="PKR").map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
             </select>
           </div>
           <input type="number" value={soldVal} onChange={e=>setSoldVal(e.target.value)} placeholder={`e.g. ${soldCur==="GBP"?"8.22":soldCur==="USD"?"10.50":"9.80"}`} style={PB_INP_GREEN}/>
@@ -1369,7 +1369,7 @@ function PBBoughtCalc({ gbpRate, usdRate, eurRate }) {
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
             <PBLabel>Selling Price (Avg) ✏️</PBLabel>
             <select style={PB_SEL} value={selCur} onChange={e=>setSelCur(e.target.value)}>
-              {CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
+              {PB_CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
             </select>
           </div>
           <input type="number" value={sellingVal} onChange={e=>setSellingVal(e.target.value)} placeholder={`e.g. ${selCur==="PKR"?"1500":"4.20"}`} style={PB_INP_GREEN}/>
