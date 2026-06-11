@@ -827,9 +827,12 @@ export default function App(){
       }}>
         {/* Logo + user block */}
         <div style={{padding:"20px 18px 14px",borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
-          <div style={{lineHeight:1}}>
-            <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:32,fontWeight:400,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Re</span>
-            <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:32,fontWeight:700,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Loop</span>
+          <div style={{display:"flex",alignItems:"center",gap:8,lineHeight:1}}>
+            <div>
+              <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:32,fontWeight:400,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Re</span>
+              <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:32,fontWeight:700,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Loop</span>
+            </div>
+            <img src="https://res.cloudinary.com/daw3s99fs/image/upload/f_auto,q_auto/WhatsApp_Image_2026-06-08_at_19.43.43-removebg-preview_fcadkj" alt="ReLoop icon" style={{width:36,height:36,objectFit:"contain",flexShrink:0}}/>
           </div>
           <div style={{fontSize:10.5,color:T.ghost,marginTop:4}}>Inventory Management Platform</div>
           <div style={{marginTop:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -868,7 +871,7 @@ export default function App(){
           </div>
 
           {/* ── MODULES section ── */}
-          <div style={{marginTop: verticalsOpen ? 6 : 2}}>
+          <div style={{marginTop: verticalsOpen ? 18 : 6}}>
             <SectionHeader label="Modules" collapsed={!modulesOpen} onToggle={()=>setModulesOpen(o=>!o)}/>
             {modulesOpen && (
               <div>
@@ -945,7 +948,7 @@ export default function App(){
                 ?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:40,marginBottom:12}}>🏷️</div><div style={{fontSize:22,fontWeight:700,color:T.ghost}}>Nothing here yet</div></div>
                 :<div style={{background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,overflowX:"auto"}}>
                   <div style={{minWidth:TOTAL_W}}>
-                    <div style={{display:"flex",alignItems:"center",padding:"0 8px",borderBottom:`1px solid ${T.border}`,background:T.card,borderRadius:"12px 12px 0 0",height:40,minWidth:TOTAL_W}}>
+                    <div style={{display:"flex",alignItems:"center",padding:"0 8px",borderBottom:`1px solid ${T.border}`,background:T.card,borderRadius:"12px 12px 0 0",height:40,width:TOTAL_W}}>
                       {COLS.map(col=>(
                         <TCell key={col.key} w={col.w} left={col.key==="name"||col.key==="notes"}>
                           <div onClick={col.key!=="actions"?()=>handleSort(col.key):undefined}
