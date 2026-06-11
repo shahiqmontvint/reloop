@@ -662,8 +662,8 @@ function LoginScreen({onLogin}){
       <div style={{textAlign:"center",marginBottom:32}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:8}}>
           <div style={{lineHeight:1}}>
-            <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:40,fontWeight:300,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Re</span>
-            <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:40,fontWeight:700,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Loop</span>
+            <span style={{fontFamily:"'Lato',sans-serif",fontSize:40,fontWeight:300,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Re</span>
+            <span style={{fontFamily:"'Lato',sans-serif",fontSize:40,fontWeight:700,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Loop</span>
           </div>
           <img src="https://res.cloudinary.com/daw3s99fs/image/upload/f_auto,q_auto/WhatsApp_Image_2026-06-08_at_19.43.43-removebg-preview_fcadkj" alt="ReLoop icon" style={{width:44,height:44,objectFit:"contain",flexShrink:0}}/>
         </div>
@@ -692,7 +692,7 @@ export default function App(){
   const isAdmin=role==="admin";
   if(!authed)return <LoginScreen onLogin={(u,r)=>{localStorage.setItem("rl_auth","1");localStorage.setItem("rl_role",r);setAuthed(true);setRole(r);}}/>;
   useEffect(()=>{
-    const l=document.createElement("link");l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;700&family=Google+Sans:wght@400;500;700&display=swap";document.head.appendChild(l);
+    const l=document.createElement("link");l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;700&family=Google+Sans:wght@400;500;700&display=swap";document.head.appendChild(l);
   },[]);
 
   const[brands,setBrands]=useState(initBrands);
@@ -835,8 +835,8 @@ export default function App(){
         <div style={{padding:"20px 18px 14px",borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:8,lineHeight:1}}>
             <div>
-              <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:32,fontWeight:300,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Re</span>
-              <span style={{fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontSize:32,fontWeight:700,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Loop</span>
+              <span style={{fontFamily:"'Lato',sans-serif",fontSize:32,fontWeight:300,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Re</span>
+              <span style={{fontFamily:"'Lato',sans-serif",fontSize:32,fontWeight:700,color:T.lime,letterSpacing:"1.5px",textTransform:"uppercase"}}>Loop</span>
             </div>
             <img src="https://res.cloudinary.com/daw3s99fs/image/upload/f_auto,q_auto/WhatsApp_Image_2026-06-08_at_19.43.43-removebg-preview_fcadkj" alt="ReLoop icon" style={{width:36,height:36,objectFit:"contain",flexShrink:0}}/>
           </div>
