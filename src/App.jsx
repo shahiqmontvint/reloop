@@ -68,14 +68,7 @@ function nextSku(bid,bn,cat,sub,items){const nums=items.filter(i=>i.brand===bid&
 function shuffleSku(bn,cat,sub,items,cur){const used=new Set(items.map(i=>{const m=i.sku?.match(/(\d{3})$/);return m?parseInt(m[1]):null;}).filter(Boolean));const cm=cur?.match(/(\d{3})$/);if(cm)used.add(parseInt(cm[1]));let a=0,n;do{n=Math.floor(Math.random()*899)+100;a++;}while(used.has(n)&&a<200);return buildSku(bn,cat||"",sub||"",n);}
 
 const initBrands=[{id:"encore",name:"Encore",tagline:"Y2K — Womenswear",color:"#C8F135",emoji:"🏷️"},{id:"montvint",name:"MontVint",tagline:"Menswear",color:"#A8D020",emoji:"✨"},{id:"tbd",name:"Coming Soon",tagline:"New brand",color:"#7EB8F0",emoji:"🌿"}];
-const initItems=[
-  {id:1,brand:"encore",name:"Levi's Low-Rise Jeans",category:"Bottoms",subcategory:"Low-Rise Jeans",grade:"B",sizeMin:"30",sizeMax:"32",cost:1200,price:3500,status:"available",sku:"ENC-001",notes:"Classic blue wash"},
-  {id:2,brand:"encore",name:"Crop Knit Top",category:"Tops",subcategory:"Knit Top",grade:"A",sizeMin:"S",sizeMax:"M",cost:800,price:2800,status:"listed",sku:"ENC-002",notes:"Cream, barely worn"},
-  {id:3,brand:"montvint",name:"90s Windbreaker",category:"Outerwear",subcategory:"Windbreaker",grade:"AB",sizeMin:"M",sizeMax:"L",cost:2000,price:5500,status:"available",sku:"MV-001",notes:"Nike ACG, navy/teal"},
-  {id:4,brand:"montvint",name:"Silk Slip Dress",category:"Dresses",subcategory:"Slip Dress",grade:"A",sizeMin:"S",sizeMax:"S",cost:1500,price:4200,status:"reserved",sku:"MV-002",notes:"Calvin Klein 90s"},
-  {id:5,brand:"encore",name:"Faux Fur Coat",category:"Outerwear",subcategory:"Faux Fur Coat",grade:"C",sizeMin:"M",sizeMax:"L",cost:500,price:1800,status:"sold",sku:"ENC-003",notes:"Cream, minor wear"},
-  {id:6,brand:"montvint",name:"Metallica Band Tee",category:"Tops",subcategory:"T-Shirt",grade:"B",sizeMin:"L",sizeMax:"XL",cost:600,price:2200,status:"available",sku:"MV-003",notes:"2003 tour shirt"},
-];
+const initItems=[];
 
 const COLS=[
   {key:"name",    label:"Item",     w:160},
@@ -678,7 +671,10 @@ export default function App(){
 
   const saveBrands = next => {
     setBrands(next);
-    sbSet({ brands:next, items, nid, catTree, fixes, rates, bundles });
+    // Use setTimeout to let React flush state before we read it
+    setTimeout(() => {
+      sbSet({ brands:next, items, nid, catTree, fixes, rates, bundles });
+    }, 100);
   };
 
   const toPKR=(amount,currency)=>{if(!amount)return 0;if(currency==="PKR"||!currency)return amount;return Math.round(amount*(rates[currency]||1));};
@@ -817,7 +813,7 @@ export default function App(){
                 ?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:40,marginBottom:12}}>🏷️</div><div style={{fontSize:22,fontWeight:700,color:T.ghost}}>Nothing here yet</div></div>
                 :<div style={{background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,overflowX:"auto"}}>
                   <div style={{minWidth:TOTAL_W}}>
-                    <div style={{display:"flex",alignItems:"center",padding:"0 8px",borderBottom:`1px solid ${T.border}`,background:T.card,borderRadius:"12px 12px 0 0",height:40}}>
+                    <div style={{display:"flex",alignItems:"center",padding:"0 8px",borderBottom:`1px solid ${T.border}`,background:T.card,borderRadius:"12px 12px 0 0",height:40,minWidth:TOTAL_W}}>
                       {COLS.map(col=>(
                         <TCell key={col.key} w={col.w} left={col.key==="name"||col.key==="notes"}>
                           <div onClick={col.key!=="actions"?()=>handleSort(col.key):undefined}
