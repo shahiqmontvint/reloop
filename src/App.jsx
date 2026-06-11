@@ -1,3 +1,5 @@
+// @ts-nocheck
+import { createClient } from '@supabase/supabase-js'
 import { useState, useMemo, useEffect } from "react";
 
 const T = {
@@ -93,6 +95,28 @@ const COLS=[
 ];
 const TOTAL_W = COLS.reduce((s,c)=>s+c.w,0);
 const GRID_COLS = COLS.map(c=>`${c.w}px`).join(" ");
+
+// ── Supabase client ───────────────────────────────────────────────────────────
+const sb = createClient(
+  'https://fxdkedbaqylijoxgzzhy.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4ZGtlZGJhcXlsaWpveGd6emh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwOTEzNzcsImV4cCI6MjA5NjY2NzM3N30.UnD0tJdicn0ZseU1mpT__aa1kGzwObj4NZAHYchAWR8'
+);
+
+const STORE_KEY = 'reloop-data';
+
+async function sbGet() {
+  try {
+    const { data, error } = await sb.from('kv_store').select('value').eq('key', STORE_KEY).single();
+    if (error || !data) return null;
+    return JSON.parse(data.value);
+  } catch (_) { return null; }
+}
+
+async function sbSet(payload) {
+  try {
+    await sb.from('kv_store').upsert({ key: STORE_KEY, value: JSON.stringify(payload) }, { onConflict: 'key' });
+  } catch (_) {}
+}
 
 // ── Shared UI ─────────────────────────────────────────────────────────────────
 function StatusPill({status}){const s=STCOL[status]||{};return <span style={{background:s.bg,color:s.color,fontSize:10,fontFamily:FB,fontWeight:700,padding:"3px 10px",borderRadius:20,letterSpacing:"0.4px",whiteSpace:"nowrap",display:"inline-block",border:`1px solid ${s.color}50`}}>{STLBL[status]}</span>;}
@@ -308,7 +332,6 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      {/* Header */}
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10}}>
         <div style={{fontFamily:FD,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>
           {view==="create"?(selected?"Edit Bundle":"New Bundle"):view==="detail"&&detailBundle?detailBundle.code:"Bundles"}
@@ -323,10 +346,8 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
         {(view==="create"||view==="detail")&&<button onClick={()=>{setView("list");setSelected(null);setForm(blankForm);}} style={{padding:"7px 16px",border:`1px solid ${T.border}`,borderRadius:9,background:"transparent",color:T.muted,cursor:"pointer",fontSize:13,fontFamily:FB}}>← Back</button>}
       </div>
 
-      {/* LIST VIEW */}
       {view==="list"&&(
         <div style={{flex:1,overflowY:"auto",background:"#FFF",padding:"18px 20px"}}>
-          {/* Stats */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}}>
             {[
               {label:"Total bundles",val:bundles.length},
@@ -339,11 +360,11 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
             </div>)}
           </div>
 
-          {/* Filters */}
           <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
             <select value={filterBrand} onChange={e=>setFilterBrand(e.target.value)} style={{padding:"5px 10px",borderRadius:20,fontSize:12,border:`1px solid ${T.border}`,background:T.card,color:T.muted,fontFamily:FB,cursor:"pointer",outline:"none"}}>
               <option value="all">All verticals</option>
-              {brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}            </select>
+              {brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
             <select value={filterPlat} onChange={e=>setFilterPlat(e.target.value)} style={{padding:"5px 10px",borderRadius:20,fontSize:12,border:`1px solid ${T.border}`,background:T.card,color:T.muted,fontFamily:FB,cursor:"pointer",outline:"none"}}>
               <option value="all">All platforms</option>
               {BUNDLE_PLATFORMS.map(p=><option key={p}>{p}</option>)}
@@ -403,7 +424,6 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
         </div>
       )}
 
-      {/* CREATE / EDIT VIEW */}
       {view==="create"&&(
         <div style={{flex:1,overflowY:"auto",background:"#FFF",padding:"20px 24px"}}>
           <div style={{maxWidth:620}}>
@@ -412,13 +432,11 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
               <span style={{fontSize:11,color:T.ghost}}>Editing existing bundle</span>
             </div>}
 
-            {/* Row 1: Name + Platform */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
               <Field label="Bundle name"><input style={INP} value={form.name} onChange={e=>sf("name",e.target.value)} placeholder="e.g. Encore Summer Drop #1"/></Field>
               <Field label="Platform"><select style={INP} value={form.platform} onChange={e=>sf("platform",e.target.value)}>{BUNDLE_PLATFORMS.map(p=><option key={p}>{p}</option>)}</select></Field>
             </div>
 
-            {/* Row 2: Status + Price */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
               <Field label="Status"><select style={INP} value={form.status} onChange={e=>sf("status",e.target.value)}>{BUNDLE_STATUSES.map(s=><option key={s}>{s}</option>)}</select></Field>
               <Field label="Bundle listing price">
@@ -429,7 +447,6 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
               </Field>
             </div>
 
-            {/* Vertical selector */}
             <Field label="Select Vertical">
               <select style={INP} value={form.brand} onChange={e=>setBrandFilter(e.target.value)}>
                 <option value="">— All verticals —</option>
@@ -437,8 +454,7 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
               </select>
             </Field>
 
-            {/* Inventory picker — shown as a filterable list */}
-                          <Field label={`Pick items from inventory${form.brand?" ("+getBrand(form.brand)?.name+")":""}`}>
+            <Field label={`Pick items from inventory${form.brand?" ("+getBrand(form.brand)?.name+")":""}`}>
               <div style={{background:T.card,borderRadius:10,border:`1px solid ${T.border}`,overflow:"hidden",maxHeight:240,overflowY:"auto"}}>
                 {brandItems.length===0?(
                   <div style={{padding:"20px",textAlign:"center",fontSize:12,color:T.ghost}}>No items found{form.brand?" in this vertical":""}</div>
@@ -468,7 +484,6 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
               </div>
             </Field>
 
-            {/* Selected SKUs with qty */}
             {form.skus.length>0&&(
               <div style={{background:T.card,borderRadius:10,border:`1px solid ${T.border}`,overflow:"hidden",marginBottom:14}}>
                 <div style={{padding:"8px 14px",borderBottom:`1px solid ${T.border}`,fontSize:10,textTransform:"uppercase",letterSpacing:"0.9px",color:T.ghost,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -509,7 +524,6 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
         </div>
       )}
 
-      {/* DETAIL VIEW */}
       {view==="detail"&&detailBundle&&(()=>{
         const b=detailBundle;
         const sc=BUNDLE_STATUS_COL[b.status]||{};
@@ -636,12 +650,34 @@ export default function App(){
   const[reserveModal,setReserveModal]=useState(null);
   const[reserveData,setReserveData]=useState({name:"",platform:""});
 
-  useEffect(()=>{(async()=>{try{const r=await window.storage.get("reloop-data");if(r?.value){const d=JSON.parse(r.value);if(d.brands?.length)setBrands(d.brands);if(d.items?.length)setItems(d.items);if(d.nid)setNid(d.nid);if(d.catTree)setCatTree(d.catTree);          if(d.fixes)setFixes(d.fixes);if(d.rates)setRates(d.rates);if(d.bundles)setBundles(d.bundles);}}catch(_){}setLoaded(true);})();},[]);
+  // ── Load from Supabase on mount ───────────────────────────────────────────
+  useEffect(()=>{
+    (async()=>{
+      const d = await sbGet();
+      if(d){
+        if(d.brands?.length) setBrands(d.brands);
+        if(d.items?.length)  setItems(d.items);
+        if(d.nid)            setNid(d.nid);
+        if(d.catTree)        setCatTree(d.catTree);
+        if(d.fixes)          setFixes(d.fixes);
+        if(d.rates)          setRates(d.rates);
+        if(d.bundles)        setBundles(d.bundles);
+      }
+      setLoaded(true);
+    })();
+  },[]);
 
-  const persist=()=>window.storage.set("reloop-data",JSON.stringify({brands,items,nid,catTree,fixes,rates})).catch(()=>{});
-  useEffect(()=>{if(!loaded)return;persist();},[brands,items,nid,catTree,fixes,rates,loaded]);
+  // ── Persist to Supabase whenever state changes ────────────────────────────
+  const persist = (overrides={}) => {
+    sbSet({ brands, items, nid, catTree, fixes, rates, bundles, ...overrides });
+  };
+  useEffect(()=>{ if(!loaded) return; persist(); },[brands,items,nid,catTree,fixes,rates,bundles,loaded]);
 
-  const saveBrands=next=>{setBrands(next);window.storage.set("reloop-data",JSON.stringify({brands:next,items,nid,catTree,fixes,rates})).catch(()=>{});};
+  const saveBrands = next => {
+    setBrands(next);
+    sbSet({ brands:next, items, nid, catTree, fixes, rates, bundles });
+  };
+
   const toPKR=(amount,currency)=>{if(!amount)return 0;if(currency==="PKR"||!currency)return amount;return Math.round(amount*(rates[currency]||1));};
 
   useEffect(()=>{if(!loaded)return;setSavedTick(true);const t=setTimeout(()=>setSavedTick(false),1800);return()=>clearTimeout(t);},[brands,items]);
@@ -730,7 +766,8 @@ export default function App(){
         {activePage==="categories"?<CategoriesPage catTree={catTree} setCatTree={setCatTree} brands={brands}/>
         :activePage==="fixes"?<FixesPage fixes={fixes} setFixes={setFixes} items={items} brands={brands}/>
         :activePage==="bundles"?<BundlesPage items={items} bundles={bundles} setBundles={setBundles} brands={brands}/>
-        :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);window.storage.set("reloop-data",JSON.stringify({brands,items,nid,catTree,fixes,rates:r,bundles})).catch(()=>{}); }}/>        :(
+        :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);sbSet({brands,items,nid,catTree,fixes,rates:r,bundles});}}/>
+        :(
           <>
             <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10}}>
               <div style={{flex:1,display:"flex",alignItems:"center",gap:10}}>
@@ -772,7 +809,6 @@ export default function App(){
                 ?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:40,marginBottom:12}}>🏷️</div><div style={{fontSize:22,fontWeight:700,color:T.ghost}}>Nothing here yet</div></div>
                 :<div style={{background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,overflowX:"auto"}}>
                   <div style={{minWidth:TOTAL_W}}>
-                    {/* Header */}
                     <div style={{display:"flex",alignItems:"center",padding:"0 8px",borderBottom:`1px solid ${T.border}`,background:T.card,borderRadius:"12px 12px 0 0",height:40}}>
                       {COLS.map(col=>(
                         <TCell key={col.key} w={col.w} left={col.key==="name"||col.key==="notes"}>
@@ -783,7 +819,6 @@ export default function App(){
                         </TCell>
                       ))}
                     </div>
-                    {/* Rows */}
                     {filtered.map((it,idx)=>{
                       const b=gb(it.brand),bc=b?.color||T.lime;
                       const pricePKR=toPKR(it.price,it.currency);
