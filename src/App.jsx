@@ -608,6 +608,294 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
 }
 
 // ── Conversion Page ───────────────────────────────────────────────────────────
+// ── Attendance & Roles Page ───────────────────────────────────────────────────
+const ROLES_LIST = ["Admin","Manager","Inventory Staff","Packer","Sales","Other"];
+const ABSENCE_REASONS = ["Sick","No Show","Personal","Holiday","Late","Other"];
+
+function AttendancePage({ attendance, setAttendance }) {
+  const [view, setView] = useState("log"); // log | team | history
+  const [memberForm, setMemberForm] = useState(false);
+  const [absenceForm, setAbsenceForm] = useState(false);
+  const [mf, setMf] = useState({ name:"", role:"Inventory Staff", phone:"", notes:"" });
+  const [af, setAf] = useState({ memberId:"", date:new Date().toISOString().slice(0,10), reason:"Sick", notes:"" });
+  const [editMember, setEditMember] = useState(null);
+  const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0,7));
+  const smf = (k,v) => setMf(p=>({...p,[k]:v}));
+  const saf = (k,v) => setAf(p=>({...p,[k]:v}));
+
+  const members = attendance?.members || [];
+  const absences = attendance?.absences || [];
+
+  const saveTeam = next => setAttendance(p=>({...p, members:next}));
+  const saveAbsences = next => setAttendance(p=>({...p, absences:next}));
+
+  const addMember = () => {
+    if (!mf.name.trim()) return;
+    if (editMember) {
+      saveTeam(members.map(m=>m.id===editMember?{...m,...mf}:m));
+      setEditMember(null);
+    } else {
+      saveTeam([...members, { id:Date.now(), ...mf }]);
+    }
+    setMf({ name:"", role:"Inventory Staff", phone:"", notes:"" });
+    setMemberForm(false);
+  };
+
+  const deleteMember = id => {
+    saveTeam(members.filter(m=>m.id!==id));
+    saveAbsences(absences.filter(a=>a.memberId!==id));
+  };
+
+  const openEditMember = m => {
+    setMf({ name:m.name, role:m.role, phone:m.phone||"", notes:m.notes||"" });
+    setEditMember(m.id);
+    setMemberForm(true);
+  };
+
+  const addAbsence = () => {
+    if (!af.memberId || !af.date) return;
+    saveAbsences([...absences, { id:Date.now(), ...af }]);
+    setAf({ memberId:"", date:new Date().toISOString().slice(0,10), reason:"Sick", notes:"" });
+    setAbsenceForm(false);
+  };
+
+  const deleteAbsence = id => saveAbsences(absences.filter(a=>a.id!==id));
+
+  const getMember = id => members.find(m=>m.id===id)||{};
+
+  const filteredAbsences = absences.filter(a => a.date?.startsWith(filterMonth));
+
+  const absenteeStats = members.map(m => ({
+    ...m,
+    total: absences.filter(a=>a.memberId===m.id).length,
+    thisMonth: absences.filter(a=>a.memberId===m.id&&a.date?.startsWith(filterMonth)).length,
+  })).sort((a,b)=>b.total-a.total);
+
+  const ROLE_COLORS = {
+    "Admin":"#C8F135","Manager":"#7EB8F0","Inventory Staff":"#7ECB7E",
+    "Packer":"#F0C060","Sales":"#C070F0","Other":"#9B8FBB"
+  };
+  const rc = r => ROLE_COLORS[r]||T.muted;
+
+  const I3={width:"100%",padding:"9px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none",boxSizing:"border-box"};
+  const FR=({label,children})=><div style={{marginBottom:13}}><label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontFamily:FB}}>{label}</label>{children}</div>;
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      {/* Header */}
+      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>Attendance & Roles</div>
+        <div style={{display:"flex",border:`1px solid ${T.border}`,borderRadius:8,overflow:"hidden"}}>
+          {[{k:"log",l:"Log"},{k:"team",l:"Team"},{k:"history",l:"History"}].map((t,i)=>(
+            <button key={t.k} onClick={()=>setView(t.k)} style={{padding:"6px 14px",background:view===t.k?T.lime:"transparent",border:"none",borderLeft:i>0?`1px solid ${T.border}`:"none",cursor:"pointer",fontSize:12.5,color:view===t.k?T.ink:T.muted,fontFamily:FB,fontWeight:view===t.k?700:400}}>{t.l}</button>
+          ))}
+        </div>
+        {view==="log"&&<button onClick={()=>setAbsenceForm(true)} style={{padding:"7px 16px",border:"none",borderRadius:9,background:T.rougeText,color:T.white,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Mark absent</button>}
+        {view==="team"&&<button onClick={()=>{setMf({name:"",role:"Inventory Staff",phone:"",notes:""});setEditMember(null);setMemberForm(true);}} style={{padding:"7px 16px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Add member</button>}
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",background:T.bg,padding:"18px 20px"}}>
+
+        {/* ── LOG VIEW ── */}
+        {view==="log"&&(<>
+          {/* Stats row */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
+            {[
+              {label:"Team size", val:members.length},
+              {label:"Absences this month", val:filteredAbsences.length, accent:T.rougeText},
+              {label:"Most absent", val:absenteeStats[0]?.name?.split(" ")[0]||"—", sub:absenteeStats[0]?`${absenteeStats[0].total} total`:""},
+              {label:"Present today", val:members.length - absences.filter(a=>a.date===new Date().toISOString().slice(0,10)).length},
+            ].map(s=>(
+              <div key={s.label} style={{background:T.card,borderRadius:12,padding:"14px 16px",border:`1px solid ${T.border}`}}>
+                <div style={{fontSize:9.5,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600}}>{s.label}</div>
+                <div style={{fontSize:24,fontWeight:700,color:s.accent||T.lime}}>{s.val}</div>
+                {s.sub&&<div style={{fontSize:10.5,color:T.ghost,marginTop:2}}>{s.sub}</div>}
+              </div>
+            ))}
+          </div>
+
+          {/* Month filter */}
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+            <label style={{fontSize:11,color:T.ghost,fontFamily:FB}}>Showing</label>
+            <input type="month" value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}
+              style={{padding:"5px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.card,color:T.offWhite,fontSize:12,fontFamily:FB,outline:"none"}}/>
+            <span style={{fontSize:11.5,color:T.ghost}}>{filteredAbsences.length} absence{filteredAbsences.length!==1?"s":""}</span>
+          </div>
+
+          {/* Absence list */}
+          {filteredAbsences.length===0
+            ?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:36,marginBottom:12}}>✅</div><div style={{fontSize:18,fontWeight:600,color:T.ghost}}>No absences this month</div></div>
+            :<div style={{background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,overflow:"hidden"}}>
+              <div style={{display:"grid",gridTemplateColumns:"140px 110px 110px 1fr 44px",padding:"10px 16px",borderBottom:`1px solid ${T.border}`,background:T.card}}>
+                {["Name","Date","Reason","Notes",""].map((h,i)=><div key={i} style={{fontSize:10,textTransform:"uppercase",letterSpacing:"0.9px",color:T.ghost,fontWeight:600}}>{h}</div>)}
+              </div>
+              {[...filteredAbsences].sort((a,b)=>b.date.localeCompare(a.date)).map((ab,idx)=>{
+                const m=getMember(ab.memberId);
+                const isLast=idx===filteredAbsences.length-1;
+                return(
+                  <div key={ab.id} style={{display:"grid",gridTemplateColumns:"140px 110px 110px 1fr 44px",padding:"12px 16px",borderBottom:isLast?"none":`1px solid ${T.border}`,alignItems:"center"}}>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:500,color:T.offWhite}}>{m.name||"Unknown"}</div>
+                      <div style={{fontSize:10,color:rc(m.role),marginTop:2,fontWeight:600}}>{m.role||"—"}</div>
+                    </div>
+                    <div style={{fontSize:12,color:T.muted}}>{ab.date}</div>
+                    <div><span style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:20,background:T.rougeBg,color:T.rougeText,border:`1px solid ${T.rougeText}44`}}>{ab.reason}</span></div>
+                    <div style={{fontSize:12,color:T.ghost,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{ab.notes||"—"}</div>
+                    <div style={{display:"flex",justifyContent:"center"}}>
+                      <button onClick={()=>deleteAbsence(ab.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:16,padding:"0 4px"}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color=T.ghost}>✕</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>}
+        </>)}
+
+        {/* ── TEAM VIEW ── */}
+        {view==="team"&&(<>
+          {members.length===0
+            ?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:36,marginBottom:12}}>👥</div><div style={{fontSize:18,fontWeight:600,color:T.ghost,marginBottom:6}}>No team members yet</div><div style={{fontSize:13,color:T.ghost,marginBottom:20}}>Add your first team member to start tracking attendance</div><button onClick={()=>{setMf({name:"",role:"Inventory Staff",phone:"",notes:""});setEditMember(null);setMemberForm(true);}} style={{padding:"9px 22px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Add first member</button></div>
+            :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
+              {absenteeStats.map(m=>(
+                <div key={m.id} style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,padding:"16px 18px"}}>
+                  <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10}}>
+                    <div style={{width:38,height:38,borderRadius:"50%",background:`${rc(m.role)}22`,border:`2px solid ${rc(m.role)}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:700,color:rc(m.role),flexShrink:0}}>
+                      {m.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{display:"flex",gap:5}}>
+                      <button onClick={()=>openEditMember(m)} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer",color:T.ghost,fontSize:12,padding:"3px 7px"}} onMouseEnter={e=>e.currentTarget.style.borderColor=T.lime} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>✎</button>
+                      <button onClick={()=>deleteMember(m.id)} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer",color:T.ghost,fontSize:12,padding:"3px 7px"}} onMouseEnter={e=>e.currentTarget.style.borderColor=T.rougeText} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>✕</button>
+                    </div>
+                  </div>
+                  <div style={{fontSize:15,fontWeight:700,color:T.offWhite,marginBottom:3}}>{m.name}</div>
+                  <div style={{display:"inline-block",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20,background:`${rc(m.role)}18`,color:rc(m.role),border:`1px solid ${rc(m.role)}44`,marginBottom:10}}>{m.role}</div>
+                  {m.phone&&<div style={{fontSize:11,color:T.ghost,marginBottom:6}}>📞 {m.phone}</div>}
+                  <div style={{display:"flex",gap:8,marginTop:8,paddingTop:8,borderTop:`1px solid ${T.border}`}}>
+                    <div style={{textAlign:"center",flex:1}}>
+                      <div style={{fontSize:18,fontWeight:700,color:m.total>0?T.rougeText:T.lime}}>{m.total}</div>
+                      <div style={{fontSize:9.5,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.8px"}}>Total</div>
+                    </div>
+                    <div style={{width:1,background:T.border}}/>
+                    <div style={{textAlign:"center",flex:1}}>
+                      <div style={{fontSize:18,fontWeight:700,color:m.thisMonth>0?T.amberText:T.lime}}>{m.thisMonth}</div>
+                      <div style={{fontSize:9.5,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.8px"}}>This month</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>}
+        </>)}
+
+        {/* ── HISTORY VIEW ── */}
+        {view==="history"&&(<>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+            <label style={{fontSize:11,color:T.ghost,fontFamily:FB}}>Filter month</label>
+            <input type="month" value={filterMonth} onChange={e=>setFilterMonth(e.target.value)}
+              style={{padding:"5px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.card,color:T.offWhite,fontSize:12,fontFamily:FB,outline:"none"}}/>
+          </div>
+          {members.length===0
+            ?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:36}}>📋</div><div style={{fontSize:18,fontWeight:600,color:T.ghost,marginTop:12}}>No team members added yet</div></div>
+            :<div style={{background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,overflow:"hidden"}}>
+              <div style={{display:"grid",gridTemplateColumns:"160px repeat(7,1fr)",padding:"10px 16px",borderBottom:`1px solid ${T.border}`,background:T.card}}>
+                <div style={{fontSize:10,textTransform:"uppercase",letterSpacing:"0.9px",color:T.ghost,fontWeight:600}}>Member</div>
+                {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=><div key={d} style={{fontSize:10,textTransform:"uppercase",letterSpacing:"0.9px",color:T.ghost,fontWeight:600,textAlign:"center"}}>{d}</div>)}
+              </div>
+              {members.map((m,idx)=>{
+                const memberAbs=absences.filter(a=>a.memberId===m.id&&a.date?.startsWith(filterMonth));
+                const absDates=new Set(memberAbs.map(a=>a.date));
+                const isLast=idx===members.length-1;
+                // Get all dates in the month
+                const [yr,mo]=filterMonth.split("-").map(Number);
+                const daysInMonth=new Date(yr,mo,0).getDate();
+                const days=Array.from({length:daysInMonth},(_,i)=>{
+                  const d=new Date(yr,mo-1,i+1);
+                  const ds=d.toISOString().slice(0,10);
+                  return{date:ds,dow:d.getDay(),day:i+1};
+                });
+                const weeks=[];let week=[];
+                // pad start
+                const firstDow=(days[0].dow+6)%7;
+                for(let i=0;i<firstDow;i++)week.push(null);
+                days.forEach(d=>{week.push(d);if(week.length===7){weeks.push(week);week=[];}});
+                if(week.length>0){while(week.length<7)week.push(null);weeks.push(week);}
+                return(
+                  <div key={m.id} style={{borderBottom:isLast?"none":`1px solid ${T.border}`,padding:"12px 16px"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                      <div style={{width:24,height:24,borderRadius:"50%",background:`${rc(m.role)}22`,border:`1.5px solid ${rc(m.role)}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:rc(m.role)}}>{m.name.charAt(0).toUpperCase()}</div>
+                      <span style={{fontSize:13,fontWeight:500,color:T.offWhite}}>{m.name}</span>
+                      <span style={{fontSize:10,color:rc(m.role),fontWeight:600}}>{m.role}</span>
+                      {memberAbs.length>0&&<span style={{marginLeft:"auto",fontSize:11,color:T.rougeText,fontWeight:600}}>{memberAbs.length} absence{memberAbs.length!==1?"s":""}</span>}
+                    </div>
+                    <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+                      {days.map(d=>{
+                        const absent=absDates.has(d.date);
+                        const isToday=d.date===new Date().toISOString().slice(0,10);
+                        const reason=memberAbs.find(a=>a.date===d.date)?.reason;
+                        return(
+                          <div key={d.date} title={absent?`${d.date}: ${reason}`:d.date}
+                            style={{width:22,height:22,borderRadius:5,fontSize:9,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",cursor:"default",
+                              background:absent?T.rougeBg:isToday?`${T.lime}22`:T.bg,
+                              color:absent?T.rougeText:isToday?T.lime:T.ghost,
+                              border:`1px solid ${absent?T.rougeText+"60":isToday?T.lime+"60":T.border}`}}>
+                            {d.day}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>}
+        </>)}
+      </div>
+
+      {/* ── ADD MEMBER MODAL ── */}
+      {memberForm&&<div onClick={()=>{setMemberForm(false);setEditMember(null);}} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}>
+        <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:440,maxWidth:"96vw",padding:26}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+            <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.lime}}>{editMember?"Edit member":"Add team member"}</div>
+            <button onClick={()=>{setMemberForm(false);setEditMember(null);}} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:7,cursor:"pointer",fontSize:18,color:T.muted,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <FR label="Full name"><input style={I3} value={mf.name} onChange={e=>smf("name",e.target.value)} placeholder="e.g. Sara Ahmed"/></FR>
+            <FR label="Role"><select style={I3} value={mf.role} onChange={e=>smf("role",e.target.value)}>{ROLES_LIST.map(r=><option key={r}>{r}</option>)}</select></FR>
+          </div>
+          <FR label="Phone (optional)"><input style={I3} value={mf.phone} onChange={e=>smf("phone",e.target.value)} placeholder="e.g. 0300-1234567"/></FR>
+          <FR label="Notes"><input style={I3} value={mf.notes} onChange={e=>smf("notes",e.target.value)} placeholder="Any extra info…"/></FR>
+          <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20,paddingTop:18,borderTop:`1px solid ${T.border}`}}>
+            <button onClick={()=>{setMemberForm(false);setEditMember(null);}} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
+            <button onClick={addMember} style={{padding:"8px 20px",border:"none",borderRadius:8,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>{editMember?"Save changes":"Add member"}</button>
+          </div>
+        </div>
+      </div>}
+
+      {/* ── MARK ABSENT MODAL ── */}
+      {absenceForm&&<div onClick={()=>setAbsenceForm(false)} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}>
+        <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:440,maxWidth:"96vw",padding:26}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+            <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.rougeText}}>🚫 Mark absence</div>
+            <button onClick={()=>setAbsenceForm(false)} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:7,cursor:"pointer",fontSize:18,color:T.muted,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+          </div>
+          <FR label="Team member">
+            <select style={I3} value={af.memberId} onChange={e=>saf("memberId",e.target.value)}>
+              <option value="">— select member —</option>
+              {members.map(m=><option key={m.id} value={m.id}>{m.name} ({m.role})</option>)}
+            </select>
+          </FR>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <FR label="Date"><input style={I3} type="date" value={af.date} onChange={e=>saf("date",e.target.value)}/></FR>
+            <FR label="Reason"><select style={I3} value={af.reason} onChange={e=>saf("reason",e.target.value)}>{ABSENCE_REASONS.map(r=><option key={r}>{r}</option>)}</select></FR>
+          </div>
+          <FR label="Notes (optional)"><input style={I3} value={af.notes} onChange={e=>saf("notes",e.target.value)} placeholder="Any details…"/></FR>
+          <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20,paddingTop:18,borderTop:`1px solid ${T.border}`}}>
+            <button onClick={()=>setAbsenceForm(false)} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
+            <button onClick={addAbsence} disabled={!af.memberId} style={{padding:"8px 20px",border:"none",borderRadius:8,background:!af.memberId?T.border:T.rougeText,color:!af.memberId?T.ghost:T.white,cursor:!af.memberId?"not-allowed":"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>Mark absent</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
 function ConversionPage({rates,setRates}){
   const[saved,setSaved]=useState(false);
   const[local,setLocal]=useState({...rates});
@@ -710,6 +998,7 @@ export default function App(){
   const[fixes,setFixes]=useState([]);
   const[rates,setRates]=useState(DEFAULT_RATES);
   const[bundles,setBundles]=useState([]);
+  const[attendance,setAttendance]=useState({members:[],absences:[]});
   const[loaded,setLoaded]=useState(false);
 
   // ── Collapsible sidebar sections ──────────────────────────────────────────
@@ -745,6 +1034,7 @@ export default function App(){
         if(d.fixes)          setFixes(d.fixes);
         if(d.rates)          setRates(d.rates);
         if(d.bundles)        setBundles(d.bundles);
+        if(d.attendance)     setAttendance(d.attendance);
       } else {
         sbSet({ brands:initBrands, items:initItems, nid:7, catTree:{encore:{...BRAND_CATS.encore},generic:{...GENERIC_CATS}}, fixes:[], rates:DEFAULT_RATES, bundles:[] });
       }
@@ -754,9 +1044,9 @@ export default function App(){
 
   // ── Persist to Supabase whenever state changes ────────────────────────────
   const persist = (overrides={}) => {
-    sbSet({ brands, items, nid, catTree, fixes, rates, bundles, ...overrides });
+    sbSet({ brands, items, nid, catTree, fixes, rates, bundles, attendance, ...overrides });
   };
-  useEffect(()=>{ if(!loaded) return; persist(); },[brands,items,nid,catTree,fixes,rates,bundles,loaded]);
+  useEffect(()=>{ if(!loaded) return; persist(); },[brands,items,nid,catTree,fixes,rates,bundles,attendance,loaded]);
 
   const saveBrands = next => {
     setBrands(next);
@@ -895,6 +1185,7 @@ export default function App(){
                   {icon:"🧵",label:"Jobs",page:"fixes"},
                   {icon:"📦",label:"Bundles",page:"bundles"},
                   {icon:"💱",label:"Conversion",page:"conversion"},
+                  {icon:"🗓️",label:"Attendance",page:"attendance"},
                   {icon:"🧾",label:"Sales ↗",page:null},
                   {icon:"📊",label:"Analytics ↗",page:null},
                   {icon:"🤝",label:"Suppliers ↗",page:null},
@@ -917,7 +1208,8 @@ export default function App(){
         {activePage==="categories"?<CategoriesPage catTree={catTree} setCatTree={setCatTree} brands={brands}/>
         :activePage==="fixes"?<FixesPage fixes={fixes} setFixes={setFixes} items={items} brands={brands}/>
         :activePage==="bundles"?<BundlesPage items={items} bundles={bundles} setBundles={setBundles} brands={brands}/>
-        :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);sbSet({brands,items,nid,catTree,fixes,rates:r,bundles});}}/>
+        :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);sbSet({brands,items,nid,catTree,fixes,rates:r,bundles,attendance});}}/>
+        :activePage==="attendance"?<AttendancePage attendance={attendance} setAttendance={a=>{setAttendance(a);sbSet({brands,items,nid,catTree,fixes,rates,bundles,attendance:a});}}/>
         :(
           <>
             {/* Top bar */}
