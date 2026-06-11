@@ -712,7 +712,12 @@ export default function App(){
 
   const saveNewItem=d=>{setItems(p=>[...p,{id:nid,...d}]);setNid(n=>n+1);setAddItemOpen(false);};
   const saveEdit=d=>{setItems(p=>p.map(i=>i.id===editItem.id?{...i,...d}:i));setEditItem(null);if(detail?.id===editItem.id)setDetail(prev=>({...prev,...d}));};
-  const delItem=id=>{setItems(p=>p.filter(i=>i.id!==id));if(detail?.id===id)setDetail(null);};
+  const delItem=id=>{
+    const next=items.filter(i=>i.id!==id);
+    setItems(next);
+    if(detail?.id===id)setDetail(null);
+    sbSet({brands,items:next,nid,catTree,fixes,rates,bundles});
+  };
   const chStatus=(id,s)=>{setItems(p=>p.map(i=>i.id===id?{...i,status:s}:i));setDetail(prev=>prev?.id===id?{...prev,status:s}:prev);};
   const handleStatusChange=(id,ns)=>{if(ns==="reserved"){setReserveModal(id);setReserveData({name:"",platform:""});}else chStatus(id,ns);};
   const submitReserve=()=>{if(!reserveModal)return;setItems(p=>p.map(i=>i.id===reserveModal?{...i,status:"reserved",reservedFor:reserveData.name,reservedPlatform:reserveData.platform}:i));setDetail(prev=>prev?.id===reserveModal?{...prev,status:"reserved",reservedFor:reserveData.name,reservedPlatform:reserveData.platform}:prev);setReserveModal(null);};
