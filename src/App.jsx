@@ -604,18 +604,29 @@ function ConversionPage({rates,setRates}){
   return <div style={{display:"flex",flexDirection:"column",height:"100%"}}><div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10}}><div style={{fontFamily:FD,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>Currency Conversion</div>{saved&&<span style={{fontSize:12,color:T.lime}}>✓ Rates saved</span>}<button onClick={save} style={{padding:"7px 18px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>Save rates</button></div><div style={{flex:1,overflowY:"auto",background:"#FFF",padding:"28px 24px"}}><div style={{maxWidth:500}}><p style={{fontSize:13,color:T.ghost,marginBottom:24,lineHeight:1.6}}>Set the exchange rates used to automatically convert sold prices to PKR. Applied whenever an item is sold in a foreign currency.</p>{pairs.map(({from,symbol,label})=><div key={from} style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,padding:"18px 20px",marginBottom:14}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}><div style={{fontSize:15,fontWeight:700,color:T.offWhite}}>{symbol} {from} <span style={{fontSize:11,color:T.ghost,fontWeight:400}}>— {label}</span></div><div style={{fontSize:11,color:T.ghost}}>→ PKR</div></div><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{display:"flex",alignItems:"center",gap:8,background:T.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${T.border}`,flex:1}}><span style={{fontSize:16,fontWeight:700,color:T.lime}}>{symbol}1</span><span style={{fontSize:18,color:T.ghost}}>=</span><span style={{fontSize:13,color:T.ghost}}>₨</span><input type="number" min="1" value={local[from]||""} onChange={e=>setLocal(p=>({...p,[from]:e.target.value}))} placeholder="e.g. 350" style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:18,fontWeight:700,color:T.offWhite,fontFamily:FB,width:80}}/></div></div>{local[from]>0&&<div style={{marginTop:12,display:"flex",gap:10,flexWrap:"wrap"}}>{[1,10,50,100].map(a=><div key={a} style={{background:T.surface,borderRadius:8,padding:"6px 12px",fontSize:11,color:T.muted}}>{symbol}{a} = <span style={{color:T.lime,fontWeight:600}}>₨{(a*parseFloat(local[from])).toLocaleString()}</span></div>)}</div>}</div>)}<div style={{background:`${T.lime}10`,border:`1px solid ${T.lime}30`,borderRadius:10,padding:"14px 16px",marginTop:8}}><div style={{fontSize:11,color:T.lime,fontWeight:600,marginBottom:6}}>💡 How it works</div><div style={{fontSize:12,color:T.ghost,lineHeight:1.7}}>When you enter a sold price in GBP, USD, or EUR, Reloop auto-converts to PKR using your saved rate for profit calculations.</div></div></div></div></div>;
 }
 
-function EditableTagline({value,onChange}){
-  const[e,setE]=useState(false);const[v,setV]=useState(value);
-  const[bold,setBold]=useState(false);const[italic,setItalic]=useState(true);
-  const commit=()=>{if(v.trim())onChange(v.trim());setE(false);};
-  const fw=bold?"700":"400";const fs=italic?"italic":"normal";
-  if(e)return <div style={{display:"flex",alignItems:"center",gap:6,marginTop:3}}>
-    <button onClick={()=>setBold(b=>!b)} style={{padding:"2px 7px",borderRadius:5,border:`1px solid ${bold?T.lime:T.border}`,background:bold?`${T.lime}22`:"transparent",color:bold?T.lime:T.ghost,cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:FB}}>B</button>
-    <button onClick={()=>setItalic(i=>!i)} style={{padding:"2px 7px",borderRadius:5,border:`1px solid ${italic?T.lime:T.border}`,background:italic?`${T.lime}22`:"transparent",color:italic?T.lime:T.ghost,cursor:"pointer",fontSize:12,fontStyle:"italic",fontFamily:FB}}>I</button>
-    <input autoFocus value={v} onChange={x=>setV(x.target.value)} onBlur={commit} onKeyDown={x=>{if(x.key==="Enter")commit();if(x.key==="Escape"){setV(value);setE(false);}}} style={{fontSize:12,color:T.white,background:"transparent",border:"none",borderBottom:`1px solid ${T.lime}`,outline:"none",fontFamily:FB,fontStyle:fs,fontWeight:fw,width:200,padding:"1px 0"}}/>
-    <span style={{fontSize:10,color:T.lime,cursor:"pointer"}} onClick={commit}>✓</span>
+function EditableTagline({value,bold,italic,color,onChange}){
+  const[e,setE]=useState(false);
+  const[v,setV]=useState(value);
+  const[b,setB]=useState(!!bold);
+  const[it,setIt]=useState(italic!==false?true:false);
+  const[col,setCol]=useState(color||T.white);
+  const fw=b?"700":"400";const fs=it?"italic":"normal";
+  const tc=color||T.white;
+  const commit=()=>{if(v.trim())onChange(v.trim(),b,it,col);setE(false);};
+  const openEdit=()=>{setV(value);setB(!!bold);setIt(italic!==false);setCol(color||T.white);setE(true);};
+  const TPAL=["#FFFFFF","#F0EBF8","#C8F135","#7EB8F0","#7ECB7E","#F0C060","#F07070","#C070F0","#70F0D0","#FF6B9D","#FFA500","#FFD700"];
+  if(e)return <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:3}}>
+    <div style={{display:"flex",alignItems:"center",gap:6}}>
+      <button onMouseDown={ev=>{ev.preventDefault();setB(x=>!x);}} style={{padding:"2px 8px",borderRadius:5,border:`1px solid ${b?T.lime:T.border}`,background:b?`${T.lime}22`:"transparent",color:b?T.lime:T.ghost,cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:FB,flexShrink:0}}>B</button>
+      <button onMouseDown={ev=>{ev.preventDefault();setIt(x=>!x);}} style={{padding:"2px 8px",borderRadius:5,border:`1px solid ${it?T.lime:T.border}`,background:it?`${T.lime}22`:"transparent",color:it?T.lime:T.ghost,cursor:"pointer",fontSize:12,fontStyle:"italic",fontFamily:FB,flexShrink:0}}>I</button>
+      <input autoFocus value={v} onChange={x=>setV(x.target.value)} onBlur={()=>setTimeout(commit,150)} onKeyDown={x=>{if(x.key==="Enter")commit();if(x.key==="Escape")setE(false);}} style={{fontSize:12,color:col,background:"transparent",border:"none",borderBottom:`1px solid ${T.lime}`,outline:"none",fontFamily:FB,fontStyle:fs,fontWeight:fw,width:200,padding:"1px 0"}}/>
+      <span style={{fontSize:10,color:T.lime,cursor:"pointer",flexShrink:0}} onMouseDown={ev=>{ev.preventDefault();commit();}}>✓</span>
+    </div>
+    <div style={{display:"flex",gap:5,flexWrap:"wrap",paddingLeft:2}}>
+      {TPAL.map(c=><div key={c} onMouseDown={ev=>{ev.preventDefault();setCol(c);}} style={{width:16,height:16,borderRadius:"50%",background:c,cursor:"pointer",outline:col===c?`2px solid ${T.lime}`:"2px solid transparent",outlineOffset:2,flexShrink:0}}/>)}
+    </div>
   </div>;
-  return <div onClick={()=>{setV(value);setE(true);}} style={{fontSize:12,color:T.white,marginTop:3,fontStyle:fs,fontWeight:fw,cursor:"text",display:"inline-flex",alignItems:"center",gap:5}}>{value}<span style={{fontSize:9,opacity:0.4}}>✎</span></div>;
+  return <div onClick={openEdit} style={{fontSize:12,color:tc,marginTop:3,fontStyle:fs,fontWeight:fw,cursor:"text",display:"inline-flex",alignItems:"center",gap:5}}>{value}<span style={{fontSize:9,opacity:0.4}}>✎</span></div>;
 }
 
 // ── Main App ──────────────────────────────────────────────────────────────────
@@ -784,7 +795,7 @@ export default function App(){
               <div style={{flex:1,display:"flex",alignItems:"center",gap:10}}>
                 <div>
                   <div style={{fontFamily:FD,fontSize:20,fontWeight:700,color:T.offWhite,lineHeight:1.1}}>{curBrand?curBrand.name:"All Inventory"}</div>
-                  {curBrand&&<EditableTagline value={curBrand.tagline} onChange={v=>saveBrands(brands.map(b=>b.id===curBrand.id?{...b,tagline:v}:b))}/>}
+                  {curBrand&&<EditableTagline value={curBrand.tagline} bold={curBrand.taglineBold} italic={curBrand.taglineItalic} color={curBrand.taglineColor} onChange={(v,b,it,c)=>saveBrands(brands.map(br=>br.id===curBrand.id?{...br,tagline:v,taglineBold:b,taglineItalic:it,taglineColor:c}:br))}/>}
                 </div>
                 {savedTick&&<span style={{fontSize:11,color:T.lime,display:"flex",alignItems:"center",gap:4}}>✓ Saved</span>}
               </div>
