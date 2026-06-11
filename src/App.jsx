@@ -609,7 +609,7 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
 
 // ── Conversion Page ───────────────────────────────────────────────────────────
 // ── Attendance & Roles Page ───────────────────────────────────────────────────
-const ROLES_LIST = ["Admin","Manager","Inventory Staff","Packer","Sales","Other"];
+const DEFAULT_ROLES = ["Admin","Manager","Inventory Staff","Packer","Sales","Other"];
 const ABSENCE_REASONS = ["Sick","No Show","Personal","Holiday","Late","Other"];
 
 // ── Attendance Modals (extracted to prevent focus loss on re-render) ──────────
@@ -618,27 +618,70 @@ const rca = r => ROLE_COLORS_A[r]||T.muted;
 const I3s = {width:"100%",padding:"9px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none",boxSizing:"border-box"};
 const FRa = ({label,children}) => <div style={{marginBottom:13}}><label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontFamily:FB}}>{label}</label>{children}</div>;
 
-function MemberModal({ editId, onSave, onClose }) {
+function MemberModal({ editId, roles, onAddRole, onRemoveRole, onSave, onClose }) {
   const [name, setName] = useState("");
-  const [role, setRole] = useState("Inventory Staff");
+  const [role, setRole] = useState(roles[0]||"");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [newRole, setNewRole] = useState("");
+  const [managingRoles, setManagingRoles] = useState(false);
+
+  // Keep selected role valid if roles change
+  useEffect(()=>{ if(!roles.includes(role)) setRole(roles[0]||""); },[roles]);
+
   return (
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}>
-      <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:440,maxWidth:"96vw",padding:26}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:460,maxWidth:"96vw",padding:26}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
           <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.lime}}>{editId?"Edit member":"Add team member"}</div>
           <button onClick={onClose} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:7,cursor:"pointer",fontSize:18,color:T.muted,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
         </div>
+
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <FRa label="Full name"><input style={I3s} value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Sara Ahmed" autoFocus/></FRa>
-          <FRa label="Role"><select style={I3s} value={role} onChange={e=>setRole(e.target.value)}>{ROLES_LIST.map(r=><option key={r}>{r}</option>)}</select></FRa>
+          <FRa label="Full name">
+            <input style={I3s} value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Sara Ahmed" autoFocus/>
+          </FRa>
+          <FRa label={
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <span>Role</span>
+              <button onClick={()=>setManagingRoles(o=>!o)} style={{fontSize:9.5,color:managingRoles?T.lime:T.ghost,background:"none",border:`1px solid ${managingRoles?T.lime:T.border}`,borderRadius:5,padding:"1px 7px",cursor:"pointer",fontFamily:FB,fontWeight:600}}>
+                {managingRoles?"← Done":"⚙ Manage"}
+              </button>
+            </div>
+          }>
+            {!managingRoles
+              ? <select style={I3s} value={role} onChange={e=>setRole(e.target.value)}>
+                  {roles.map(r=><option key={r}>{r}</option>)}
+                </select>
+              : <div style={{background:T.bg,borderRadius:8,border:`1px solid ${T.border}`,padding:"8px 10px",maxHeight:160,overflowY:"auto"}}>
+                  {roles.map(r=>(
+                    <div key={r} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"4px 0",borderBottom:`1px solid ${T.border}`}}>
+                      <span style={{fontSize:12.5,color:T.offWhite}}>{r}</span>
+                      {roles.length>1&&<button onClick={()=>onRemoveRole(r)} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:14,lineHeight:1,padding:"0 2px"}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color=T.ghost}>✕</button>}
+                    </div>
+                  ))}
+                  <div style={{display:"flex",gap:6,marginTop:8}}>
+                    <input
+                      value={newRole}
+                      onChange={e=>setNewRole(e.target.value)}
+                      onKeyDown={e=>{if(e.key==="Enter"&&newRole.trim()){onAddRole(newRole.trim());setNewRole("");}}}
+                      placeholder="New role…"
+                      style={{...I3s,flex:1,padding:"6px 10px",fontSize:12}}
+                    />
+                    <button
+                      onClick={()=>{if(newRole.trim()){onAddRole(newRole.trim());setNewRole("");}}}
+                      style={{padding:"6px 12px",border:"none",borderRadius:7,background:T.lime,color:T.ink,cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:FB,flexShrink:0}}>Add</button>
+                  </div>
+                </div>}
+          </FRa>
         </div>
+
         <FRa label="Phone (optional)"><input style={I3s} value={phone} onChange={e=>setPhone(e.target.value)} placeholder="e.g. 0300-1234567"/></FRa>
         <FRa label="Notes"><input style={I3s} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Any extra info…"/></FRa>
+
         <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20,paddingTop:18,borderTop:`1px solid ${T.border}`}}>
           <button onClick={onClose} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
-          <button onClick={()=>{if(!name.trim())return;onSave({name,role,phone,notes});}} style={{padding:"8px 20px",border:"none",borderRadius:8,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>{editId?"Save changes":"Add member"}</button>
+          <button onClick={()=>{if(!name.trim())return;onSave({name,role:role||roles[0],phone,notes});}} style={{padding:"8px 20px",border:"none",borderRadius:8,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>{editId?"Save changes":"Add member"}</button>
         </div>
       </div>
     </div>
@@ -687,6 +730,7 @@ function AttendancePage({ attendance, setAttendance, isAdmin }) {
 
   const [members, setMembers] = useState(()=>attendance?.members||[]);
   const [absences, setAbsences] = useState(()=>attendance?.absences||[]);
+  const [roles, setRoles] = useState(()=>attendance?.roles||DEFAULT_ROLES);
 
   // Sync initial load from Supabase (only fires when lengths change, not on local edits)
   const prevLenRef = useRef({m:0,a:0});
@@ -695,11 +739,12 @@ function AttendancePage({ attendance, setAttendance, isAdmin }) {
     if(ml!==prevLenRef.current.m||al!==prevLenRef.current.a){
       setMembers(attendance?.members||[]);
       setAbsences(attendance?.absences||[]);
+      if(attendance?.roles) setRoles(attendance.roles);
       prevLenRef.current={m:ml,a:al};
     }
   },[attendance?.members?.length, attendance?.absences?.length]);
 
-  const flush = (m,a) => setAttendance({members:m, absences:a});
+  const flush = (m,a,r) => setAttendance({members:m, absences:a, roles:r||roles});
 
   const handleAddMember = data => {
     let next;
@@ -708,25 +753,33 @@ function AttendancePage({ attendance, setAttendance, isAdmin }) {
     } else {
       next = [...members, {id:Date.now(),...data}];
     }
-    setMembers(next); flush(next, absences);
+    setMembers(next); flush(next, absences, roles);
     setMemberForm(false); setEditMember(null);
   };
 
   const handleAddAbsence = data => {
     const next = [...absences, {id:Date.now(),...data}];
-    setAbsences(next); flush(members, next);
+    setAbsences(next); flush(members, next, roles);
     setAbsenceForm(false);
   };
 
   const deleteMember = id => {
     const nm=members.filter(m=>m.id!==id);
     const na=absences.filter(a=>String(a.memberId)!==String(id));
-    setMembers(nm); setAbsences(na); flush(nm,na);
+    setMembers(nm); setAbsences(na); flush(nm,na,roles);
   };
 
   const deleteAbsence = id => {
     const next=absences.filter(a=>a.id!==id);
-    setAbsences(next); flush(members,next);
+    setAbsences(next); flush(members,next,roles);
+  };
+
+  const handleAddRole = r => {
+    if(!r||roles.includes(r)) return;
+    const next=[...roles,r]; setRoles(next); flush(members,absences,next);
+  };
+  const handleRemoveRole = r => {
+    const next=roles.filter(x=>x!==r); setRoles(next); flush(members,absences,next);
   };
 
   const getMember = id => members.find(m=>String(m.id)===String(id))||{};
@@ -860,18 +913,271 @@ function AttendancePage({ attendance, setAttendance, isAdmin }) {
         </>)}
       </div>
 
-      {isAdmin&&memberForm&&<MemberModal editId={editMember} onSave={handleAddMember} onClose={()=>{setMemberForm(false);setEditMember(null);}}/>}
+      {isAdmin&&memberForm&&<MemberModal editId={editMember} roles={roles} onAddRole={handleAddRole} onRemoveRole={handleRemoveRole} onSave={handleAddMember} onClose={()=>{setMemberForm(false);setEditMember(null);}}/>}
       {absenceForm&&<AbsenceModal members={members} onSave={handleAddAbsence} onClose={()=>setAbsenceForm(false)}/>}
     </div>
   );
 }
 
-function ConversionPage({rates,setRates}){
-  const[saved,setSaved]=useState(false);
-  const[local,setLocal]=useState({...rates});
-  const pairs=[{from:"GBP",symbol:"£",label:"British Pound"},{from:"USD",symbol:"$",label:"US Dollar"},{from:"EUR",symbol:"€",label:"Euro"}];
-  const save=()=>{setRates(local);setSaved(true);setTimeout(()=>setSaved(false),2000);};
-  return <div style={{display:"flex",flexDirection:"column",height:"100%"}}><div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10}}><div style={{fontFamily:FD,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>Currency Conversion</div>{saved&&<span style={{fontSize:12,color:T.lime}}>✓ Rates saved</span>}<button onClick={save} style={{padding:"7px 18px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>Save rates</button></div><div style={{flex:1,overflowY:"auto",background:T.bg,padding:"28px 24px"}}><div style={{maxWidth:500}}><p style={{fontSize:13,color:T.ghost,marginBottom:24,lineHeight:1.6}}>Set the exchange rates used to automatically convert sold prices to PKR. Applied whenever an item is sold in a foreign currency.</p>{pairs.map(({from,symbol,label})=><div key={from} style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,padding:"18px 20px",marginBottom:14}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}><div style={{fontSize:15,fontWeight:700,color:T.offWhite}}>{symbol} {from} <span style={{fontSize:11,color:T.ghost,fontWeight:400}}>— {label}</span></div><div style={{fontSize:11,color:T.ghost}}>→ PKR</div></div><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{display:"flex",alignItems:"center",gap:8,background:T.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${T.border}`,flex:1}}><span style={{fontSize:16,fontWeight:700,color:T.lime}}>{symbol}1</span><span style={{fontSize:18,color:T.ghost}}>=</span><span style={{fontSize:13,color:T.ghost}}>₨</span><input type="number" min="1" value={local[from]||""} onChange={e=>setLocal(p=>({...p,[from]:e.target.value}))} placeholder="e.g. 350" style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:18,fontWeight:700,color:T.offWhite,fontFamily:FB,width:80}}/></div></div>{local[from]>0&&<div style={{marginTop:12,display:"flex",gap:10,flexWrap:"wrap"}}>{[1,10,50,100].map(a=><div key={a} style={{background:T.surface,borderRadius:8,padding:"6px 12px",fontSize:11,color:T.muted}}>{symbol}{a} = <span style={{color:T.lime,fontWeight:600}}>₨{(a*parseFloat(local[from])).toLocaleString()}</span></div>)}</div>}</div>)}<div style={{background:`${T.lime}10`,border:`1px solid ${T.lime}30`,borderRadius:10,padding:"14px 16px",marginTop:8}}><div style={{fontSize:11,color:T.lime,fontWeight:600,marginBottom:6}}>💡 How it works</div><div style={{fontSize:12,color:T.ghost,lineHeight:1.7}}>When you enter a sold price in GBP, USD, or EUR, Reloop auto-converts to PKR using your saved rate for profit calculations.</div></div></div></div></div>;
+const CONV_PLATFORMS_ALL = ["All","Fleek","Instagram (B2C)","Instagram (B2B)","Vinted","Depop","Offline"];
+const CONV_PLATFORMS_SELL = ["Fleek","Instagram (B2C)","Instagram (B2B)","Vinted","Depop","Offline"];
+
+function RateEntryModal({ onSave, onClose }) {
+  const today = new Date().toISOString().slice(0,10);
+  const [dateFrom, setDateFrom] = useState(today);
+  const [dateTo, setDateTo] = useState(today);
+  const [platform, setPlatform] = useState("Fleek");
+  const [gbp, setGbp] = useState("");
+  const [usd, setUsd] = useState("");
+  const [eur, setEur] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const canSave = (gbp||usd||eur) && dateFrom && dateTo && platform;
+
+  const IS = {width:"100%",padding:"9px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none",boxSizing:"border-box"};
+  const FRL = ({label,children}) => <div style={{marginBottom:13}}><label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontFamily:FB}}>{label}</label>{children}</div>;
+
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:500,maxWidth:"96vw",maxHeight:"92vh",overflowY:"auto",padding:28}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:22}}>
+          <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.lime}}>Log past exchange rate</div>
+          <button onClick={onClose} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:7,cursor:"pointer",fontSize:18,color:T.muted,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+        </div>
+
+        {/* Date range */}
+        <div style={{background:T.card,borderRadius:10,padding:"14px 16px",border:`1px solid ${T.border}`,marginBottom:16}}>
+          <div style={{fontSize:11,color:T.lime,fontWeight:600,marginBottom:12,textTransform:"uppercase",letterSpacing:"0.8px"}}>📅 Date range this rate applied</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 36px 1fr",gap:8,alignItems:"center"}}>
+            <FRL label="From"><input style={IS} type="date" value={dateFrom} onChange={e=>{setDateFrom(e.target.value);if(e.target.value>dateTo)setDateTo(e.target.value);}}/></FRL>
+            <div style={{fontSize:18,color:T.ghost,textAlign:"center",paddingTop:16}}>→</div>
+            <FRL label="To"><input style={IS} type="date" value={dateTo} min={dateFrom} onChange={e=>setDateTo(e.target.value)}/></FRL>
+          </div>
+          {dateFrom!==dateTo&&<div style={{fontSize:11,color:T.cobaltText,marginTop:4,background:T.cobaltBg,padding:"4px 10px",borderRadius:8,display:"inline-block"}}>
+            Range: {Math.round((new Date(dateTo)-new Date(dateFrom))/(1000*60*60*24)+1)} days
+          </div>}
+        </div>
+
+        {/* Platform */}
+        <FRL label="Selling platform">
+          <select style={IS} value={platform} onChange={e=>setPlatform(e.target.value)}>
+            {CONV_PLATFORMS_SELL.map(p=><option key={p}>{p}</option>)}
+          </select>
+        </FRL>
+
+        {/* Rates */}
+        <div style={{background:T.card,borderRadius:10,padding:"14px 16px",border:`1px solid ${T.border}`,marginBottom:14}}>
+          <div style={{fontSize:11,color:T.lime,fontWeight:600,marginBottom:12,textTransform:"uppercase",letterSpacing:"0.8px"}}>💱 Exchange rates → PKR</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+            {[{c:"GBP",s:"£",v:gbp,set:setGbp},{c:"USD",s:"$",v:usd,set:setUsd},{c:"EUR",s:"€",v:eur,set:setEur}].map(({c,s,v,set})=>(
+              <div key={c}>
+                <label style={{fontSize:10,color:T.ghost,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px"}}>{s} {c}</label>
+                <div style={{display:"flex",alignItems:"center",gap:6,background:T.surface,borderRadius:8,padding:"8px 10px",border:`1px solid ${v?T.lime:T.border}`}}>
+                  <span style={{fontSize:13,fontWeight:700,color:T.lime,flexShrink:0}}>{s}1 =</span>
+                  <span style={{fontSize:11,color:T.ghost,flexShrink:0}}>₨</span>
+                  <input type="number" min="1" value={v} onChange={e=>set(e.target.value)} placeholder="—"
+                    style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:15,fontWeight:700,color:T.offWhite,fontFamily:FB,width:0,minWidth:0}}/>
+                </div>
+                {v>0&&<div style={{fontSize:10,color:T.ghost,marginTop:4}}>£100 = ₨{(100*parseFloat(v)).toLocaleString()}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <FRL label="Notes (optional)">
+          <input style={IS} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="e.g. Post-budget rate spike, Eid season…"/>
+        </FRL>
+
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20,paddingTop:18,borderTop:`1px solid ${T.border}`}}>
+          <button onClick={onClose} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
+          <button onClick={()=>{if(!canSave)return;onSave({dateFrom,dateTo,platform,rates:{GBP:gbp?parseFloat(gbp):null,USD:usd?parseFloat(usd):null,EUR:eur?parseFloat(eur):null},notes});}} disabled={!canSave}
+            style={{padding:"8px 22px",border:"none",borderRadius:8,background:canSave?T.lime:T.border,color:canSave?T.ink:T.ghost,cursor:canSave?"pointer":"not-allowed",fontSize:13,fontWeight:700,fontFamily:FB}}>
+            Save entry
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConversionPage({ rates, setRates, rateHistory, setRateHistory }) {
+  const [saved, setSaved] = useState(false);
+  const [local, setLocal] = useState({...rates});
+  const [filterPlatform, setFilterPlatform] = useState("All");
+  const [view, setView] = useState("current");
+  const [addingPast, setAddingPast] = useState(false);
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+  const [sortDir, setSortDir] = useState(-1); // -1 = newest first
+
+  const pairs = [{from:"GBP",symbol:"£",label:"British Pound"},{from:"USD",symbol:"$",label:"US Dollar"},{from:"EUR",symbol:"€",label:"Euro"}];
+  const history = rateHistory || [];
+
+  const saveCurrentRates = () => {
+    const entry = {
+      id: Date.now(),
+      dateFrom: new Date().toISOString().slice(0,10),
+      dateTo: new Date().toISOString().slice(0,10),
+      platform: "All",
+      rates: { GBP: parseFloat(local.GBP)||null, USD: parseFloat(local.USD)||null, EUR: parseFloat(local.EUR)||null },
+      notes: "Current rates snapshot",
+    };
+    setRates(local);
+    setRateHistory([entry, ...history]);
+    setSaved(true);
+    setTimeout(()=>setSaved(false), 2000);
+  };
+
+  const savePastEntry = entry => {
+    setRateHistory([{ id:Date.now(), ...entry }, ...history]);
+    setAddingPast(false);
+  };
+
+  const deleteEntry = id => setRateHistory(history.filter(h=>h.id!==id));
+
+  const filteredHistory = history
+    .filter(h => filterPlatform==="All" || h.platform===filterPlatform || h.platform==="All")
+    .filter(h => !filterDateFrom || h.dateTo >= filterDateFrom)
+    .filter(h => !filterDateTo || h.dateFrom <= filterDateTo)
+    .sort((a,b) => sortDir * b.dateFrom.localeCompare(a.dateFrom));
+
+  const IS2 = {padding:"6px 10px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,fontSize:12,fontFamily:FB,color:T.offWhite,outline:"none"};
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      {/* Header */}
+      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <div style={{fontFamily:FD,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>Currency Conversion</div>
+        <div style={{display:"flex",border:`1px solid ${T.border}`,borderRadius:8,overflow:"hidden"}}>
+          {[{k:"current",l:"Live Rates"},{k:"history",l:`History (${history.length})`}].map((t,i)=>(
+            <button key={t.k} onClick={()=>setView(t.k)} style={{padding:"6px 14px",background:view===t.k?T.lime:"transparent",border:"none",borderLeft:i>0?`1px solid ${T.border}`:"none",cursor:"pointer",fontSize:12.5,color:view===t.k?T.ink:T.muted,fontFamily:FB,fontWeight:view===t.k?700:400}}>{t.l}</button>
+          ))}
+        </div>
+        {saved&&<span style={{fontSize:12,color:T.lime}}>✓ Saved</span>}
+        {view==="history"&&<button onClick={()=>setAddingPast(true)} style={{padding:"7px 16px",border:`1px solid ${T.lime}`,borderRadius:9,background:"transparent",color:T.lime,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Log past rate</button>}
+        {view==="current"&&<button onClick={saveCurrentRates} style={{padding:"7px 18px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>Save rates</button>}
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",background:T.bg,padding:"20px 24px"}}>
+
+        {/* ── LIVE RATES ── */}
+        {view==="current"&&(
+          <div style={{maxWidth:540}}>
+            <p style={{fontSize:13,color:T.ghost,marginBottom:20,lineHeight:1.6}}>
+              Set your current exchange rates. Hit <strong style={{color:T.lime}}>Save rates</strong> to apply them and log a snapshot to history.
+            </p>
+            {pairs.map(({from,symbol,label})=>(
+              <div key={from} style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,padding:"18px 20px",marginBottom:14}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+                  <div style={{fontSize:15,fontWeight:700,color:T.offWhite}}>{symbol} {from} <span style={{fontSize:11,color:T.ghost,fontWeight:400}}>— {label}</span></div>
+                  <div style={{fontSize:11,color:T.ghost}}>→ PKR</div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8,background:T.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${T.border}`}}>
+                  <span style={{fontSize:16,fontWeight:700,color:T.lime}}>{symbol}1</span>
+                  <span style={{fontSize:18,color:T.ghost}}>=</span>
+                  <span style={{fontSize:13,color:T.ghost}}>₨</span>
+                  <input type="number" min="1" value={local[from]||""} onChange={e=>setLocal(p=>({...p,[from]:e.target.value}))} placeholder="e.g. 350"
+                    style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:18,fontWeight:700,color:T.offWhite,fontFamily:FB,width:80}}/>
+                </div>
+                {local[from]>0&&<div style={{marginTop:10,display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {[1,10,50,100].map(a=><div key={a} style={{background:T.surface,borderRadius:8,padding:"5px 10px",fontSize:11,color:T.muted}}>
+                    {symbol}{a} = <span style={{color:T.lime,fontWeight:600}}>₨{(a*parseFloat(local[from])).toLocaleString()}</span>
+                  </div>)}
+                </div>}
+              </div>
+            ))}
+            <div style={{background:`${T.lime}10`,border:`1px solid ${T.lime}30`,borderRadius:10,padding:"14px 16px",marginTop:4}}>
+              <div style={{fontSize:11,color:T.lime,fontWeight:600,marginBottom:6}}>💡 Tip</div>
+              <div style={{fontSize:12,color:T.ghost,lineHeight:1.7}}>To log rates for a specific platform or past date range, switch to the <strong style={{color:T.offWhite}}>History</strong> tab and click <strong style={{color:T.offWhite}}>+ Log past rate</strong>.</div>
+            </div>
+          </div>
+        )}
+
+        {/* ── HISTORY ── */}
+        {view==="history"&&(<>
+          {/* Filters */}
+          <div style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,padding:"14px 18px",marginBottom:18,display:"flex",flexWrap:"wrap",gap:14,alignItems:"flex-end"}}>
+            <div>
+              <div style={{fontSize:10,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600}}>Platform</div>
+              <select value={filterPlatform} onChange={e=>setFilterPlatform(e.target.value)} style={{...IS2,minWidth:140}}>
+                {CONV_PLATFORMS_ALL.map(p=><option key={p}>{p}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600}}>Date from</div>
+              <input type="date" value={filterDateFrom} onChange={e=>setFilterDateFrom(e.target.value)} style={IS2}/>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600}}>Date to</div>
+              <input type="date" value={filterDateTo} onChange={e=>setFilterDateTo(e.target.value)} style={IS2}/>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600}}>Sort</div>
+              <select value={sortDir} onChange={e=>setSortDir(Number(e.target.value))} style={IS2}>
+                <option value={-1}>Newest first</option>
+                <option value={1}>Oldest first</option>
+              </select>
+            </div>
+            {(filterPlatform!=="All"||filterDateFrom||filterDateTo)&&
+              <button onClick={()=>{setFilterPlatform("All");setFilterDateFrom("");setFilterDateTo("");}}
+                style={{padding:"6px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",color:T.ghost,cursor:"pointer",fontSize:12,fontFamily:FB}}>
+                Clear filters
+              </button>}
+            <span style={{fontSize:11.5,color:T.ghost,marginLeft:"auto"}}>{filteredHistory.length} entr{filteredHistory.length!==1?"ies":"y"}</span>
+          </div>
+
+          {filteredHistory.length===0
+            ?<div style={{textAlign:"center",padding:"60px 20px"}}>
+              <div style={{fontSize:36,marginBottom:12}}>📈</div>
+              <div style={{fontSize:18,fontWeight:600,color:T.ghost}}>No rate history yet</div>
+              <div style={{fontSize:13,color:T.ghost,marginTop:6,marginBottom:20}}>Log past rates to build a historical record</div>
+              <button onClick={()=>setAddingPast(true)} style={{padding:"9px 22px",border:`1px solid ${T.lime}`,borderRadius:9,background:"transparent",color:T.lime,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Log past rate</button>
+            </div>
+            :<div style={{background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,overflow:"hidden"}}>
+              {/* Table header */}
+              <div style={{display:"grid",gridTemplateColumns:"120px 120px 130px 1fr 1fr 1fr 160px 44px",padding:"10px 16px",borderBottom:`1px solid ${T.border}`,background:T.card}}>
+                {["From","To","Platform","£ GBP","$ USD","€ EUR","Notes",""].map((h,i)=>(
+                  <div key={i} style={{fontSize:10,textTransform:"uppercase",letterSpacing:"0.9px",color:T.ghost,fontWeight:600}}>{h}</div>
+                ))}
+              </div>
+              {filteredHistory.map((h,idx)=>{
+                const isLast=idx===filteredHistory.length-1;
+                const isToday=h.dateTo===new Date().toISOString().slice(0,10)&&h.dateFrom===h.dateTo;
+                return(
+                  <div key={h.id}
+                    style={{display:"grid",gridTemplateColumns:"120px 120px 130px 1fr 1fr 1fr 160px 44px",padding:"12px 16px",borderBottom:isLast?"none":`1px solid ${T.border}`,alignItems:"center",background:isToday?`${T.lime}06`:"transparent"}}
+                    onMouseEnter={e=>e.currentTarget.style.background=T.card}
+                    onMouseLeave={e=>e.currentTarget.style.background=isToday?`${T.lime}06`:"transparent"}>
+                    <div style={{fontSize:12,color:T.muted}}>{h.dateFrom}</div>
+                    <div style={{display:"flex",alignItems:"center",gap:5}}>
+                      <span style={{fontSize:12,color:T.muted}}>{h.dateTo}</span>
+                      {isToday&&<span style={{fontSize:9,color:T.lime,fontWeight:700,background:`${T.lime}22`,padding:"1px 5px",borderRadius:10}}>TODAY</span>}
+                      {h.dateFrom!==h.dateTo&&<span style={{fontSize:9,color:T.cobaltText,background:T.cobaltBg,padding:"1px 5px",borderRadius:10}}>
+                        {Math.round((new Date(h.dateTo)-new Date(h.dateFrom))/(1000*60*60*24)+1)}d
+                      </span>}
+                    </div>
+                    <div>
+                      <span style={{fontSize:11,fontWeight:600,padding:"2px 8px",borderRadius:20,background:T.cobaltBg,color:T.cobaltText,border:`1px solid ${T.cobaltText}44`}}>{h.platform}</span>
+                    </div>
+                    {["GBP","USD","EUR"].map(c=>(
+                      <div key={c} style={{fontSize:13,fontWeight:600,color:h.rates[c]?T.lime:T.ghost}}>
+                        {h.rates[c]?`₨${parseFloat(h.rates[c]).toLocaleString()}`:"—"}
+                      </div>
+                    ))}
+                    <div style={{fontSize:11,color:T.ghost,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",paddingRight:8}}>{h.notes||"—"}</div>
+                    <div style={{display:"flex",justifyContent:"center"}}>
+                      <button onClick={()=>deleteEntry(h.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:14,padding:"0 4px"}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color=T.ghost}>✕</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>}
+        </>)}
+      </div>
+
+      {addingPast&&<RateEntryModal onSave={savePastEntry} onClose={()=>setAddingPast(false)}/>}
+    </div>
+  );
 }
 
 function EditableTagline({value,bold,italic,color,onChange}){
@@ -967,6 +1273,7 @@ export default function App(){
   const[catTree,setCatTree]=useState({encore:{...BRAND_CATS.encore},generic:{...GENERIC_CATS}});
   const[fixes,setFixes]=useState([]);
   const[rates,setRates]=useState(DEFAULT_RATES);
+  const[rateHistory,setRateHistory]=useState([]);
   const[bundles,setBundles]=useState([]);
   const[attendance,setAttendance]=useState({members:[],absences:[]});
   const[loaded,setLoaded]=useState(false);
@@ -1003,6 +1310,7 @@ export default function App(){
         if(d.catTree)        setCatTree(d.catTree);
         if(d.fixes)          setFixes(d.fixes);
         if(d.rates)          setRates(d.rates);
+        if(d.rateHistory)    setRateHistory(d.rateHistory);
         if(d.bundles)        setBundles(d.bundles);
         if(d.attendance)     setAttendance(d.attendance);
       } else {
@@ -1014,9 +1322,9 @@ export default function App(){
 
   // ── Persist to Supabase whenever state changes ────────────────────────────
   const persist = (overrides={}) => {
-    sbSet({ brands, items, nid, catTree, fixes, rates, bundles, attendance, ...overrides });
+    sbSet({ brands, items, nid, catTree, fixes, rates, rateHistory, bundles, attendance, ...overrides });
   };
-  useEffect(()=>{ if(!loaded) return; persist(); },[brands,items,nid,catTree,fixes,rates,bundles,attendance,loaded]);
+  useEffect(()=>{ if(!loaded) return; persist(); },[brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,loaded]);
 
   const saveBrands = next => {
     setBrands(next);
@@ -1178,7 +1486,7 @@ export default function App(){
         {activePage==="categories"?<CategoriesPage catTree={catTree} setCatTree={setCatTree} brands={brands}/>
         :activePage==="fixes"?<FixesPage fixes={fixes} setFixes={setFixes} items={items} brands={brands}/>
         :activePage==="bundles"?<BundlesPage items={items} bundles={bundles} setBundles={setBundles} brands={brands}/>
-        :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);sbSet({brands,items,nid,catTree,fixes,rates:r,bundles,attendance});}}/>
+        :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);sbSet({brands,items,nid,catTree,fixes,rates:r,rateHistory,bundles,attendance});}} rateHistory={rateHistory} setRateHistory={rh=>{setRateHistory(rh);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory:rh,bundles,attendance});}}/>
         :activePage==="attendance"?<AttendancePage attendance={attendance} isAdmin={isAdmin} setAttendance={a=>{setAttendance(a);sbSet({brands,items,nid,catTree,fixes,rates,bundles,attendance:a});}}/>
         :(
           <>
