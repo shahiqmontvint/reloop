@@ -612,7 +612,7 @@ function BundlesPage({ items, bundles, setBundles, brands }) {
 const ROLES_LIST = ["Admin","Manager","Inventory Staff","Packer","Sales","Other"];
 const ABSENCE_REASONS = ["Sick","No Show","Personal","Holiday","Late","Other"];
 
-function AttendancePage({ attendance, setAttendance }) {
+function AttendancePage({ attendance, setAttendance, isAdmin }) {
   const [view, setView] = useState("log"); // log | team | history
   const [memberForm, setMemberForm] = useState(false);
   const [absenceForm, setAbsenceForm] = useState(false);
@@ -623,27 +623,41 @@ function AttendancePage({ attendance, setAttendance }) {
   const smf = (k,v) => setMf(p=>({...p,[k]:v}));
   const saf = (k,v) => setAf(p=>({...p,[k]:v}));
 
-  const members = attendance?.members || [];
-  const absences = attendance?.absences || [];
+  // Local copies — only flush to parent on explicit save to avoid re-render/focus loss
+  const [members, setMembers] = useState(attendance?.members || []);
+  const [absences, setAbsences] = useState(attendance?.absences || []);
 
-  const saveTeam = next => setAttendance(p=>({...p, members:next}));
-  const saveAbsences = next => setAttendance(p=>({...p, absences:next}));
+  // Sync from parent when attendance prop changes (e.g. Supabase load)
+  useEffect(() => {
+    setMembers(attendance?.members || []);
+    setAbsences(attendance?.absences || []);
+  }, [attendance?.members?.length, attendance?.absences?.length]);
+
+  const flush = (nextMembers, nextAbsences) => {
+    setAttendance({ members: nextMembers, absences: nextAbsences });
+  };
+
+  const saveTeam = next => { setMembers(next); flush(next, absences); };
+  const saveAbsences = next => { setAbsences(next); flush(members, next); };
 
   const addMember = () => {
     if (!mf.name.trim()) return;
+    let next;
     if (editMember) {
-      saveTeam(members.map(m=>m.id===editMember?{...m,...mf}:m));
+      next = members.map(m=>m.id===editMember?{...m,...mf}:m);
       setEditMember(null);
     } else {
-      saveTeam([...members, { id:Date.now(), ...mf }]);
+      next = [...members, { id:Date.now(), ...mf }];
     }
+    saveTeam(next);
     setMf({ name:"", role:"Inventory Staff", phone:"", notes:"" });
     setMemberForm(false);
   };
 
   const deleteMember = id => {
-    saveTeam(members.filter(m=>m.id!==id));
-    saveAbsences(absences.filter(a=>a.memberId!==id));
+    const nextM = members.filter(m=>m.id!==id);
+    const nextA = absences.filter(a=>String(a.memberId)!==String(id));
+    setMembers(nextM); setAbsences(nextA); flush(nextM, nextA);
   };
 
   const openEditMember = m => {
@@ -654,21 +668,23 @@ function AttendancePage({ attendance, setAttendance }) {
 
   const addAbsence = () => {
     if (!af.memberId || !af.date) return;
-    saveAbsences([...absences, { id:Date.now(), ...af }]);
+    const next = [...absences, { id:Date.now(), ...af, memberId: Number(af.memberId) }];
+    saveAbsences(next);
     setAf({ memberId:"", date:new Date().toISOString().slice(0,10), reason:"Sick", notes:"" });
     setAbsenceForm(false);
   };
 
   const deleteAbsence = id => saveAbsences(absences.filter(a=>a.id!==id));
 
-  const getMember = id => members.find(m=>m.id===id)||{};
+  // Loose comparison to handle string/number ID mismatch from JSON parse
+  const getMember = id => members.find(m=>String(m.id)===String(id))||{};
 
   const filteredAbsences = absences.filter(a => a.date?.startsWith(filterMonth));
 
   const absenteeStats = members.map(m => ({
     ...m,
-    total: absences.filter(a=>a.memberId===m.id).length,
-    thisMonth: absences.filter(a=>a.memberId===m.id&&a.date?.startsWith(filterMonth)).length,
+    total: absences.filter(a=>String(a.memberId)===String(m.id)).length,
+    thisMonth: absences.filter(a=>String(a.memberId)===String(m.id)&&a.date?.startsWith(filterMonth)).length,
   })).sort((a,b)=>b.total-a.total);
 
   const ROLE_COLORS = {
@@ -691,7 +707,7 @@ function AttendancePage({ attendance, setAttendance }) {
           ))}
         </div>
         {view==="log"&&<button onClick={()=>setAbsenceForm(true)} style={{padding:"7px 16px",border:"none",borderRadius:9,background:T.rougeText,color:T.white,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Mark absent</button>}
-        {view==="team"&&<button onClick={()=>{setMf({name:"",role:"Inventory Staff",phone:"",notes:""});setEditMember(null);setMemberForm(true);}} style={{padding:"7px 16px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Add member</button>}
+        {view==="team"&&isAdmin&&<button onClick={()=>{setMf({name:"",role:"Inventory Staff",phone:"",notes:""});setEditMember(null);setMemberForm(true);}} style={{padding:"7px 16px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Add member</button>}
       </div>
 
       <div style={{flex:1,overflowY:"auto",background:T.bg,padding:"18px 20px"}}>
@@ -742,7 +758,7 @@ function AttendancePage({ attendance, setAttendance }) {
                     <div><span style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:20,background:T.rougeBg,color:T.rougeText,border:`1px solid ${T.rougeText}44`}}>{ab.reason}</span></div>
                     <div style={{fontSize:12,color:T.ghost,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{ab.notes||"—"}</div>
                     <div style={{display:"flex",justifyContent:"center"}}>
-                      <button onClick={()=>deleteAbsence(ab.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:16,padding:"0 4px"}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color=T.ghost}>✕</button>
+                      {isAdmin&&<button onClick={()=>deleteAbsence(ab.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:16,padding:"0 4px"}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color=T.ghost}>✕</button>}
                     </div>
                   </div>
                 );
@@ -753,7 +769,7 @@ function AttendancePage({ attendance, setAttendance }) {
         {/* ── TEAM VIEW ── */}
         {view==="team"&&(<>
           {members.length===0
-            ?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:36,marginBottom:12}}>👥</div><div style={{fontSize:18,fontWeight:600,color:T.ghost,marginBottom:6}}>No team members yet</div><div style={{fontSize:13,color:T.ghost,marginBottom:20}}>Add your first team member to start tracking attendance</div><button onClick={()=>{setMf({name:"",role:"Inventory Staff",phone:"",notes:""});setEditMember(null);setMemberForm(true);}} style={{padding:"9px 22px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Add first member</button></div>
+            ?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:36,marginBottom:12}}>👥</div><div style={{fontSize:18,fontWeight:600,color:T.ghost,marginBottom:6}}>No team members yet</div><div style={{fontSize:13,color:T.ghost,marginBottom:20}}>{isAdmin?"Add your first team member to start tracking attendance":"No team members have been added yet."}</div>{isAdmin&&<button onClick={()=>{setMf({name:"",role:"Inventory Staff",phone:"",notes:""});setEditMember(null);setMemberForm(true);}} style={{padding:"9px 22px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Add first member</button>}</div>
             :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
               {absenteeStats.map(m=>(
                 <div key={m.id} style={{background:T.card,borderRadius:12,border:`1px solid ${T.border}`,padding:"16px 18px"}}>
@@ -762,8 +778,8 @@ function AttendancePage({ attendance, setAttendance }) {
                       {m.name.charAt(0).toUpperCase()}
                     </div>
                     <div style={{display:"flex",gap:5}}>
-                      <button onClick={()=>openEditMember(m)} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer",color:T.ghost,fontSize:12,padding:"3px 7px"}} onMouseEnter={e=>e.currentTarget.style.borderColor=T.lime} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>✎</button>
-                      <button onClick={()=>deleteMember(m.id)} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer",color:T.ghost,fontSize:12,padding:"3px 7px"}} onMouseEnter={e=>e.currentTarget.style.borderColor=T.rougeText} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>✕</button>
+                      {isAdmin&&<button onClick={()=>openEditMember(m)} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer",color:T.ghost,fontSize:12,padding:"3px 7px"}} onMouseEnter={e=>e.currentTarget.style.borderColor=T.lime} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>✎</button>}
+                      {isAdmin&&<button onClick={()=>deleteMember(m.id)} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer",color:T.ghost,fontSize:12,padding:"3px 7px"}} onMouseEnter={e=>e.currentTarget.style.borderColor=T.rougeText} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>✕</button>}
                     </div>
                   </div>
                   <div style={{fontSize:15,fontWeight:700,color:T.offWhite,marginBottom:3}}>{m.name}</div>
@@ -800,7 +816,7 @@ function AttendancePage({ attendance, setAttendance }) {
                 {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=><div key={d} style={{fontSize:10,textTransform:"uppercase",letterSpacing:"0.9px",color:T.ghost,fontWeight:600,textAlign:"center"}}>{d}</div>)}
               </div>
               {members.map((m,idx)=>{
-                const memberAbs=absences.filter(a=>a.memberId===m.id&&a.date?.startsWith(filterMonth));
+                const memberAbs=absences.filter(a=>String(a.memberId)===String(m.id)&&a.date?.startsWith(filterMonth));
                 const absDates=new Set(memberAbs.map(a=>a.date));
                 const isLast=idx===members.length-1;
                 // Get all dates in the month
@@ -849,7 +865,7 @@ function AttendancePage({ attendance, setAttendance }) {
       </div>
 
       {/* ── ADD MEMBER MODAL ── */}
-      {memberForm&&<div onClick={()=>{setMemberForm(false);setEditMember(null);}} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}>
+      {isAdmin&&memberForm&&<div onClick={()=>{setMemberForm(false);setEditMember(null);}} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}>
         <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:440,maxWidth:"96vw",padding:26}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
             <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.lime}}>{editMember?"Edit member":"Add team member"}</div>
@@ -1209,7 +1225,7 @@ export default function App(){
         :activePage==="fixes"?<FixesPage fixes={fixes} setFixes={setFixes} items={items} brands={brands}/>
         :activePage==="bundles"?<BundlesPage items={items} bundles={bundles} setBundles={setBundles} brands={brands}/>
         :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);sbSet({brands,items,nid,catTree,fixes,rates:r,bundles,attendance});}}/>
-        :activePage==="attendance"?<AttendancePage attendance={attendance} setAttendance={a=>{setAttendance(a);sbSet({brands,items,nid,catTree,fixes,rates,bundles,attendance:a});}}/>
+        :activePage==="attendance"?<AttendancePage attendance={attendance} isAdmin={isAdmin} setAttendance={a=>{setAttendance(a);sbSet({brands,items,nid,catTree,fixes,rates,bundles,attendance:a});}}/>
         :(
           <>
             {/* Top bar */}
@@ -1257,7 +1273,7 @@ export default function App(){
                   <div style={{position:"absolute",top:0,left:0,right:0,height:40,background:T.card,borderRadius:"12px 12px 0 0",borderBottom:`1px solid ${T.border}`,zIndex:1,pointerEvents:"none"}}/>
                   {/* Single scroll container — header + body scroll together */}
                   <div style={{overflowX:"auto"}}>
-                  <div style={{width:TOTAL_W+16}}>
+                  <div style={{width:"100%",minWidth:TOTAL_W+16}}>
                     <div style={{display:"flex",alignItems:"center",padding:"0 8px",height:40,position:"relative",zIndex:2}}>
                       {COLS.map(col=>(
                         <TCell key={col.key} w={col.w} left={col.key==="name"||col.key==="notes"}>
@@ -1278,7 +1294,7 @@ export default function App(){
                         <div key={it.id} onClick={()=>setDetail(it)}
                           onMouseEnter={e=>{if(detail?.id!==it.id)e.currentTarget.style.background=T.card;}}
                           onMouseLeave={e=>{if(detail?.id!==it.id)e.currentTarget.style.background="transparent";}}
-                          style={{display:"flex",alignItems:"center",padding:"0 8px",borderBottom:isLast?"none":`1px solid ${T.border}`,cursor:"pointer",background:detail?.id===it.id?T.cardHov:"transparent",transition:"background 0.12s",minHeight:52,width:TOTAL_W+16,boxSizing:"border-box"}}>
+                          style={{display:"flex",alignItems:"center",padding:"0 8px",borderBottom:isLast?"none":`1px solid ${T.border}`,cursor:"pointer",background:detail?.id===it.id?T.cardHov:"transparent",transition:"background 0.12s",minHeight:52,minWidth:TOTAL_W+16,width:"100%",boxSizing:"border-box"}}>
                           <TCell w={COLS[0].w} left><span style={{fontSize:13,fontWeight:500,color:T.offWhite,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.name}</span></TCell>
                           <TCell w={COLS[1].w}><span style={{fontSize:11,fontWeight:600,color:bc}}>{b?.name}</span></TCell>
                           <TCell w={COLS[2].w}><span style={{fontSize:12,color:T.muted}}>{it.category}</span></TCell>
