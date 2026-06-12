@@ -1436,21 +1436,25 @@ function AIAssistant({ context, systemPrompt, placeholder }) {
 
     try {
       const contextBlock = context ? `\n\nCurrent page context:\n${context}` : "";
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/.netlify/functions/ai", {
         method:"POST",
         headers:{ "Content-Type":"application/json" },
         body: JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:1000,
           system: systemPrompt + contextBlock,
           messages: newMessages,
         }),
       });
+      if (!response.ok) {
+        const errData = await response.json().catch(()=>({error:"Unknown error"}));
+        setMessages(prev => [...prev, { role:"assistant", content:`Error: ${errData.error || response.statusText}` }]);
+        setLoading(false);
+        return;
+      }
       const data = await response.json();
-      const reply = data.content?.map(b => b.text||"").join("") || "Sorry, I couldn't get a response.";
+      const reply = data.content || "Sorry, I couldn't get a response.";
       setMessages(prev => [...prev, { role:"assistant", content: reply }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role:"assistant", content:"Connection error. Please try again." }]);
+      setMessages(prev => [...prev, { role:"assistant", content:`Connection error: ${err.message}` }]);
     }
     setLoading(false);
   };
@@ -1874,6 +1878,19 @@ Be concise and direct. Give concrete numbers and actionable insights. Respond in
   );
 }
 
+// ── Access Denied ─────────────────────────────────────────────────────────────
+function AccessDenied() {
+  return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",background:T.bg}}>
+      <div style={{textAlign:"center",padding:"40px 20px"}}>
+        <div style={{fontSize:48,marginBottom:16}}>🔒</div>
+        <div style={{fontFamily:FD,fontSize:22,fontWeight:700,color:T.offWhite,marginBottom:8}}>Access Restricted</div>
+        <div style={{fontSize:13,color:T.ghost,lineHeight:1.6}}>This page is only available to Admin users.<br/>Contact your administrator if you need access.</div>
+      </div>
+    </div>
+  );
+}
+
 function EditableTagline({value,bold,italic,color,onChange}){
   const[e,setE]=useState(false);
   const[v,setV]=useState(value);
@@ -2160,12 +2177,12 @@ export default function App(){
                   {icon:"📦",label:"Bundles",page:"bundles"},
                   {icon:"💱",label:"Conversion",page:"conversion"},
                   {icon:"🗓️",label:"Attendance",page:"attendance"},
-                  {icon:"📋",label:"Order Working",page:"orders"},
-                  {icon:"🤖",label:"Profit Bot",page:"profitbot"},
-                  {icon:"🧾",label:"Sales ↗",page:null},
-                  {icon:"📊",label:"Analytics ↗",page:null},
-                  {icon:"🤝",label:"Suppliers ↗",page:null},
-                ].map(n=>(
+                  {icon:"📋",label:"Order Working",page:"orders",adminOnly:true},
+                  {icon:"🤖",label:"Profit Bot",page:"profitbot",adminOnly:true},
+                  {icon:"🧾",label:"Sales ↗",page:null,adminOnly:true},
+                  {icon:"📊",label:"Analytics ↗",page:null,adminOnly:true},
+                  {icon:"🤝",label:"Suppliers ↗",page:null,adminOnly:true},
+                ].filter(n=>!n.adminOnly||isAdmin).map(n=>(
                   <button key={n.label} onClick={n.page?()=>setActivePage(n.page):undefined}
                     style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",borderRadius:8,border:"none",background:activePage===n.page?T.card:"transparent",cursor:n.page?"pointer":"default",width:"100%",textAlign:"left",fontSize:12.5,color:activePage===n.page?T.lime:T.muted,fontFamily:FB,marginBottom:2,fontWeight:activePage===n.page?500:400}}>
                     <span style={{fontSize:14}}>{n.icon}</span>{n.label}
@@ -2186,8 +2203,8 @@ export default function App(){
         :activePage==="bundles"?<BundlesPage items={items} bundles={bundles} setBundles={setBundles} brands={brands}/>
         :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);sbSet({brands,items,nid,catTree,fixes,rates:r,rateHistory,bundles,attendance});}} rateHistory={rateHistory} setRateHistory={rh=>{setRateHistory(rh);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory:rh,bundles,attendance});}}/>
         :activePage==="attendance"?<AttendancePage attendance={attendance} isAdmin={isAdmin} setAttendance={a=>{setAttendance(a);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance:a,orders});}}/>
-        :activePage==="orders"?<OrderWorkingPage orders={orders} setOrders={o=>{setOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders:o});}}/>
-        :activePage==="profitbot"?<ProfitBotPage rates={rates}/>
+        :activePage==="orders"?(isAdmin?<OrderWorkingPage orders={orders} setOrders={o=>{setOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders:o});}}/>:<AccessDenied/>)
+        :activePage==="profitbot"?(isAdmin?<ProfitBotPage rates={rates}/>:<AccessDenied/>)
         :(
           <>
             {/* Top bar */}
