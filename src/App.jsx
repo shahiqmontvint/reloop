@@ -1277,6 +1277,7 @@ function PBProfitCalc({ gbpRate, usdRate, eurRate }) {
   const [commPct,   setCommPct]   = useState("");
   const [boughtPKR, setBoughtPKR] = useState("");
   const [shipPKR,   setShipPKR]   = useState("");
+  const [shipCur,   setShipCur]   = useState("PKR");
   const [shipMode,  setShipMode]  = useState("excluding");
 
   const toRatePKR = cur => cur==="PKR"?1:cur==="GBP"?gbpRate:cur==="USD"?usdRate:eurRate;
@@ -1286,7 +1287,8 @@ function PBProfitCalc({ gbpRate, usdRate, eurRate }) {
     const soldV     = parseFloat(soldVal)||0;
     const comm      = parseFloat(commPct)||0;
     const boughtV   = parseFloat(boughtPKR)||0;
-    const ship      = parseFloat(shipPKR)||0;
+    const shipRaw   = parseFloat(shipPKR)||0;
+    const ship      = shipRaw * toRatePKR(shipCur);
     if (!soldV) return null;
     const soldPKR   = soldV * toRatePKR(soldCur);
     const boughtGBP = boughtV/gbpRate;
@@ -1329,8 +1331,13 @@ function PBProfitCalc({ gbpRate, usdRate, eurRate }) {
           <input type="number" value={boughtPKR} onChange={e=>setBoughtPKR(e.target.value)} placeholder="e.g. 1850" style={PB_INP_GREEN}/>
         </div>
         <div>
-          <PBLabel>Est. Shipping (₨) ✏️</PBLabel>
-          <input type="number" value={shipPKR} onChange={e=>setShipPKR(e.target.value)} placeholder="e.g. 250" style={PB_INP_GREEN}/>
+          <PBLabel>Est. Shipping ✏️</PBLabel>
+          <div style={{display:"flex",alignItems:"center",gap:0,background:"#C8F13510",border:"2px solid #C8F135",borderRadius:9,overflow:"hidden",height:46,boxSizing:"border-box"}}>
+            <select style={{...PB_SEL,border:"none",borderRight:"1px solid #C8F13540",borderRadius:0,background:"#C8F13518",flexShrink:0,alignSelf:"stretch",padding:"0 10px",minWidth:80}} value={shipCur} onChange={e=>setShipCur(e.target.value)}>
+              {PB_CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
+            </select>
+            <input type="number" value={shipPKR} onChange={e=>setShipPKR(e.target.value)} placeholder={`e.g. ${shipCur==="PKR"?"250":"0.70"}`} style={{...PB_INP_GREEN,border:"none",borderRadius:0,flex:1,background:"transparent",height:"100%",alignSelf:"stretch"}}/>
+          </div>
         </div>
       </div>
       {shipPKR&&<div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,padding:"10px 14px",background:"#261C3A",borderRadius:9,border:"1px solid #3D2F5A"}}>
