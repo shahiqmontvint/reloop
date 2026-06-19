@@ -2013,6 +2013,9 @@ export default function App(){
   const[aBrand,setABrand]=useState("all");
   const[aStat,setAStat]=useState("all");
   const[q,setQ]=useState("");
+  const[exportOpen,setExportOpen]=useState(false);
+  const[exportDateFrom,setExportDateFrom]=useState("");
+  const[exportDateTo,setExportDateTo]=useState("");
   const[sortCol,setSortCol]=useState(null);
   const[sortDir,setSortDir]=useState(1);
   const[addItemOpen,setAddItemOpen]=useState(false);
@@ -2236,6 +2239,201 @@ export default function App(){
                 <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",fontSize:13,color:T.ghost,pointerEvents:"none"}}>⌕</span>
                 <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search items…" style={{padding:"7px 12px 7px 30px",border:`1px solid ${T.border}`,borderRadius:9,background:T.card,fontSize:12.5,fontFamily:FB,color:T.offWhite,width:200,outline:"none"}}/>
               </div>
+              {/* ── Export buttons ── */}
+              {(()=>{
+                const btnBase = {padding:"7px 12px",border:`1px solid ${T.border}`,background:T.card,color:T.muted,cursor:"pointer",fontSize:12.5,fontFamily:FB,display:"flex",alignItems:"center",gap:5};
+                return (
+                  <div style={{display:"flex",border:`1px solid ${T.border}`,borderRadius:9,overflow:"hidden"}}>
+                    <button onClick={()=>setExportOpen(true)} style={{...btnBase,borderRadius:0,border:"none",borderRight:`1px solid ${T.border}`}} onMouseEnter={e=>{e.currentTarget.style.color=T.lime;e.currentTarget.style.background=T.surface;}} onMouseLeave={e=>{e.currentTarget.style.color=T.muted;e.currentTarget.style.background=T.card;}}>↓ CSV</button>
+                    <button onClick={()=>setExportOpen("pdf")} style={{...btnBase,borderRadius:0,border:"none"}} onMouseEnter={e=>{e.currentTarget.style.color=T.lime;e.currentTarget.style.background=T.surface;}} onMouseLeave={e=>{e.currentTarget.style.color=T.muted;e.currentTarget.style.background=T.card;}}>↓ PDF</button>
+                  </div>
+                );
+              })()}
+
+              {/* ── Export modal ── */}
+              {exportOpen&&(()=>{
+                const fmt = exportOpen==="pdf"?"pdf":"csv";
+                const IS2={width:"100%",padding:"9px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none",boxSizing:"border-box"};
+                const dateFrom = exportDateFrom;
+                const dateTo   = exportDateTo;
+                const exportFiltered = filtered.filter(it=>{
+                  if(!it.inventoryDate) return !dateFrom && !dateTo; // include undated items only if no filter set
+                  if(dateFrom && it.inventoryDate < dateFrom) return false;
+                  if(dateTo   && it.inventoryDate > dateTo)   return false;
+                  return true;
+                });
+                const totalCount  = exportFiltered.length;
+                const totalQtyE   = exportFiltered.reduce((s,i)=>s+(i.qty||1),0);
+                const totalCostE  = exportFiltered.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
+                return (
+                  <div onClick={()=>setExportOpen(false)} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:400}}>
+                    <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:440,maxWidth:"96vw",padding:26}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+                        <div style={{fontFamily:FB,fontSize:18,fontWeight:700,color:T.lime}}>Export {fmt.toUpperCase()}</div>
+                        <button onClick={()=>setExportOpen(false)} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:7,cursor:"pointer",fontSize:16,color:T.muted,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                      </div>
+
+                      {/* Date range */}
+                      <div style={{background:T.card,borderRadius:10,padding:"14px 16px",border:`1px solid ${T.border}`,marginBottom:16}}>
+                        <div style={{fontSize:11,color:T.lime,fontWeight:600,marginBottom:12}}>📅 Filter by date added (optional)</div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 28px 1fr",gap:8,alignItems:"center"}}>
+                          <div>
+                            <div style={{fontSize:10,color:T.ghost,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.8px"}}>From</div>
+                            <input type="date" value={exportDateFrom} onChange={e=>setExportDateFrom(e.target.value)} style={IS2}/>
+                          </div>
+                          <div style={{fontSize:16,color:T.ghost,textAlign:"center",paddingTop:18}}>→</div>
+                          <div>
+                            <div style={{fontSize:10,color:T.ghost,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.8px"}}>To</div>
+                            <input type="date" value={exportDateTo} min={exportDateFrom} onChange={e=>setExportDateTo(e.target.value)} style={IS2}/>
+                          </div>
+                        </div>
+                        {(dateFrom||dateTo)&&<button onClick={()=>{setExportDateFrom("");setExportDateTo("");}} style={{marginTop:10,fontSize:11,color:T.ghost,background:"none",border:"none",cursor:"pointer",textDecoration:"underline",fontFamily:FB}}>Clear dates</button>}
+                      </div>
+
+                      {/* Preview count */}
+                      <div style={{background:T.bg,borderRadius:8,padding:"10px 14px",border:`1px solid ${T.border}`,marginBottom:20,display:"flex",gap:20}}>
+                        <div style={{fontSize:12,color:T.ghost}}>Items: <span style={{color:T.offWhite,fontWeight:600}}>{totalCount}</span></div>
+                        <div style={{fontSize:12,color:T.ghost}}>Qty: <span style={{color:T.cobaltText,fontWeight:600}}>{totalQtyE.toLocaleString()}</span></div>
+                        <div style={{fontSize:12,color:T.ghost}}>Inv. Value: <span style={{color:T.offWhite,fontWeight:600}}>₨{totalCostE.toLocaleString()}</span></div>
+                      </div>
+
+                      <div style={{display:"flex",justifyContent:"flex-end",gap:8,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
+                        <button onClick={()=>setExportOpen(false)} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
+                        <button onClick={()=>{
+                          const brand = aBrand==="all"?"All Brands":(brands.find(b=>b.id===aBrand)?.name||"All Brands");
+                          const now = new Date().toISOString().slice(0,10);
+                          const dateRangeLabel = dateFrom&&dateTo?`${dateFrom} to ${dateTo}`:dateFrom?`From ${dateFrom}`:dateTo?`To ${dateTo}`:"All dates";
+                          // use exportFiltered for actual export
+                          const doExport = (exportFmt) => {
+                            const headers = ["SKU","Item","Brand","Category","Subcategory","Size","Grade","Status","Qty","Cost (₨)","Sold Price","Currency","Date Added","Notes"];
+                            const rows = exportFiltered.map(it=>[
+                              it.sku||"",
+                              `"${(it.name||"").replace(/"/g,'""')}"`,
+                              brands.find(b=>b.id===it.brand)?.name||"",
+                              it.category||"",
+                              it.subcategory||"",
+                              sizeLabel(it)||"",
+                              it.grade||"",
+                              it.status||"",
+                              it.qty||1,
+                              it.cost||0,
+                              it.price||0,
+                              it.currency||"PKR",
+                              it.inventoryDate||"",
+                              `"${(it.notes||"").replace(/"/g,'""')}"`,
+                            ].join(","));
+                            const totalQtyDl  = exportFiltered.reduce((s,i)=>s+(i.qty||1),0);
+                            const totalCostDl = exportFiltered.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
+                            const totalCostPerItem = exportFiltered.reduce((s,i)=>s+(i.cost||0),0);
+                            const slug = brand.toLowerCase().replace(/\s+/g,"-");
+                            if (exportFmt==="csv") {
+                              const csv = [
+                                `"RELOOP — Inventory Export"`,
+                                `"Brand: ${brand} | Filter: ${aStat==="all"?"All":aStat} | Date range: ${dateRangeLabel} | Exported: ${now}"`,
+                                `"Items: ${exportFiltered.length} | Total Qty: ${totalQtyDl} | Total Inv. Value: Rs${totalCostDl.toLocaleString()}"`,
+                                "",
+                                headers.join(","),
+                                ...rows,
+                                "",
+                                `"Generated by ReLoop — reloopio.netlify.app"`,
+                              ].join("\n");
+                              const blob = new Blob([csv],{type:"text/csv"});
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href=url; a.download=`reloop-inventory-${slug}-${now}.csv`;
+                              a.click(); URL.revokeObjectURL(url);
+                            } else {
+                              const LOGO_URL="https://res.cloudinary.com/daw3s99fs/image/upload/f_auto,q_auto/WhatsApp_Image_2026-06-08_at_19.43.43-removebg-preview_fcadkj";
+                              const tableRows = exportFiltered.map(it=>{
+                                const b = brands.find(x=>x.id===it.brand);
+                                const prof = toPKR(it.price,it.currency)-(it.cost||0);
+                                return `<tr>
+                                  <td style="font-family:monospace;font-size:8px">${it.sku||"—"}</td>
+                                  <td>${it.name||"—"}</td>
+                                  <td>${b?.name||"—"}</td>
+                                  <td>${it.category||"—"}</td>
+                                  <td>${it.subcategory||"—"}</td>
+                                  <td>${sizeLabel(it)||"—"}</td>
+                                  <td style="text-align:center">${it.grade||"—"}</td>
+                                  <td>${it.status||"—"}</td>
+                                  <td style="text-align:center">${it.qty||1}</td>
+                                  <td style="text-align:right">&#8360;${(it.cost||0).toLocaleString()}</td>
+                                  <td style="text-align:right">${it.price?`${it.currency==="PKR"?"&#8360;":""}${it.price.toLocaleString()}${it.currency!=="PKR"?" "+it.currency:""}`:""}</td>
+                                  <td style="text-align:right">${it.price?(prof>=0?"+":"")+"\u20a8"+prof.toLocaleString():"—"}</td>
+                                  <td>${it.inventoryDate||"—"}</td>
+                                  <td style="font-size:8px;color:#666">${it.notes||""}</td>
+                                </tr>`;
+                              }).join("");
+                              const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>ReLoop Inventory — ${brand} — ${now}</title>
+                              <link href="https://fonts.googleapis.com/css2?family=Lato:wght@100;700&display=swap" rel="stylesheet">
+                              <style>
+                                *{margin:0;padding:0;box-sizing:border-box}
+                                body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10px;color:#1a1a1a;background:#fff}
+                                .header{background:#1E1530;padding:22px 28px;display:flex;align-items:center;justify-content:space-between}
+                                .logo{font-family:'Lato',sans-serif;font-size:32px;letter-spacing:2px;text-transform:uppercase;line-height:1;margin-bottom:6px}
+                                .logo .re{color:#C8F135;font-weight:100}
+                                .logo .loop{color:#C8F135;font-weight:700}
+                                .tagline{color:#9B8FBB;font-size:10px;margin-bottom:9px}
+                                .meta{display:flex;gap:16px;flex-wrap:wrap}
+                                .meta span{color:#9B8FBB;font-size:10px}
+                                .meta span b{color:#C8F135;font-weight:600}
+                                .logo-box{width:68px;height:68px;background:#C8F135;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+                                .logo-box img{width:58px;height:58px;object-fit:contain}
+                                .totals{display:flex;border-bottom:0.5px solid #e0e0d8}
+                                .tc{flex:1;padding:11px 18px;border-right:0.5px solid #e0e0d8}
+                                .tc:last-child{border-right:none}
+                                .tl{font-size:8px;color:#999;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px}
+                                .tv{font-size:16px;font-weight:600;color:#1a1a1a}
+                                table{width:100%;border-collapse:collapse;font-size:9px;table-layout:auto}
+                                th{background:#1E1530;color:#C8F135;padding:8px 14px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap}
+                                td{padding:7px 14px;border-bottom:0.5px solid #eee;vertical-align:middle;color:#1a1a1a}
+                                tr:nth-child(even) td{background:#fafaf8}
+                                .footer{display:flex;justify-content:space-between;padding:10px 18px;border-top:0.5px solid #e0e0d8;background:#fafaf8}
+                                .footer span{font-size:8.5px;color:#aaa}
+                                @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+                              </style></head><body>
+                              <div class="header">
+                                <div>
+                                  <div class="logo"><span class="re">Re</span><span class="loop">Loop</span></div>
+                                  <div class="tagline">Inventory Management Platform</div>
+                                  <div class="meta">
+                                    <span>Brand: <b>${brand}</b></span>
+                                    <span>Filter: <b>${aStat==="all"?"All":aStat}</b></span>
+                                    <span>Date range: <b>${dateRangeLabel}</b></span>
+                                    <span>Exported: <b>${now}</b></span>
+                                  </div>
+                                </div>
+                                <div class="logo-box"><img src="${LOGO_URL}" /></div>
+                              </div>
+                              <div class="totals">
+                                <div class="tc"><div class="tl">Items</div><div class="tv">${exportFiltered.length}</div></div>
+                                <div class="tc"><div class="tl">Total qty</div><div class="tv">${totalQtyDl.toLocaleString()}</div></div>
+                                <div class="tc"><div class="tl">Total cost</div><div class="tv">&#8360;${totalCostPerItem.toLocaleString()}</div></div>
+                                <div class="tc"><div class="tl">Inv. value</div><div class="tv">&#8360;${totalCostDl.toLocaleString()}</div></div>
+                              </div>
+                              <table>
+                                <thead><tr>
+                                  <th>SKU</th><th>Item</th><th>Brand</th><th>Category</th><th>Subcat</th><th>Size</th><th>Grade</th><th>Status</th><th>Qty</th><th>Cost</th><th>Sold Price</th><th>Profit</th><th>Date Added</th><th>Notes</th>
+                                </tr></thead>
+                                <tbody>${tableRows}</tbody>
+                              </table>
+                              <div class="footer"><span>Generated by ReLoop &mdash; reloopio.netlify.app</span><span>${now}</span></div>
+                              </body></html>`;
+                              const w=window.open("","_blank","width=1100,height=800");
+                              w.document.write(html); w.document.close(); w.focus();
+                              setTimeout(()=>w.print(),600);
+                            }
+                          };
+                          doExport(fmt);
+                          setExportOpen(false);
+                        }} style={{padding:"8px 22px",border:"none",borderRadius:8,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>
+                          Export {fmt.toUpperCase()}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
               <button onClick={()=>setAddItemOpen(true)} style={{padding:"7px 20px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Add item</button>
             </div>
 
