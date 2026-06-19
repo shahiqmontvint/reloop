@@ -2306,13 +2306,34 @@ export default function App(){
                               {isAdmin&&it.currency&&it.currency!=="PKR"&&it.price>0&&<div style={{fontSize:10,color:T.ghost}}>₨{pricePKR.toLocaleString()}</div>}
                             </div>
                           </TCell>
-                          <TCell w={COLS[11].w} left><span style={{fontSize:11,color:T.ghost,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.notes||"—"}</span></TCell>
-                          <TCell w={COLS[12].w}><span style={{fontSize:12,fontWeight:700,color:prof>=0?T.profit:T.loss}}>{isAdmin?(prof>=0?"+":"")+"₨"+prof.toLocaleString():"*****"}</span></TCell>
-                          <TCell w={COLS[13].w}><div style={{display:"flex",gap:6,justifyContent:"center"}}><IconBtn title="Edit" onClick={e=>{e.stopPropagation();setEditItem(it);}}/><IconBtn title="Delete" danger onClick={e=>{e.stopPropagation();delItem(it.id);}}/></div></TCell>
+                          <TCell w={COLS[11].w}>{it.inventoryDate?<span style={{fontSize:11,color:T.cobaltText,fontFamily:"monospace",whiteSpace:"nowrap"}}>{it.inventoryDate}</span>:<span style={{fontSize:11,color:T.ghost}}>—</span>}</TCell>
+                          <TCell w={COLS[12].w} left><span style={{fontSize:11,color:T.ghost,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.notes||"—"}</span></TCell>
+                          <TCell w={COLS[13].w}><span style={{fontSize:12,fontWeight:700,color:prof>=0?T.profit:T.loss}}>{isAdmin?(prof>=0?"+":"")+"₨"+prof.toLocaleString():"*****"}</span></TCell>
+                          <TCell w={COLS[14].w}><div style={{display:"flex",gap:6,justifyContent:"center"}}><IconBtn title="Edit" onClick={e=>{e.stopPropagation();setEditItem(it);}}/><IconBtn title="Delete" danger onClick={e=>{e.stopPropagation();delItem(it.id);}}/></div></TCell>
                         </div>
                       );
                     })}
                   </div>
+                  {/* ── Totals row ── */}
+                  {(() => {
+                    const totalQty    = filtItems.reduce((s,i)=>s+(i.qty||1),0);
+                    const totalCost   = filtItems.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
+                    const totalSoldVal= filtItems.filter(i=>i.status==="sold").reduce((s,i)=>s+toPKR(i.price,i.currency)*(i.qty||1),0);
+                    const totalProfit = filtItems.filter(i=>i.status==="sold").reduce((s,i)=>s+(toPKR(i.price,i.currency)-i.cost)*(i.qty||1),0);
+                    const totalInvVal = filtItems.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
+                    return (
+                      <div style={{display:"flex",alignItems:"center",gap:0,background:T.surface,borderTop:`2px solid ${T.lime}44`,padding:"10px 14px",overflowX:"auto",flexShrink:0}}>
+                        <div style={{fontSize:10,color:T.lime,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.9px",marginRight:16,flexShrink:0}}>Totals</div>
+                        <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+                          <div style={{fontSize:12,color:T.ghost}}>Items: <span style={{color:T.offWhite,fontWeight:600}}>{filtItems.length}</span></div>
+                          <div style={{fontSize:12,color:T.ghost}}>Qty: <span style={{color:T.cobaltText,fontWeight:600}}>{totalQty.toLocaleString()}</span></div>
+                          {isAdmin&&<div style={{fontSize:12,color:T.ghost}}>Inv. Value: <span style={{color:T.offWhite,fontWeight:600}}>₨{totalInvVal.toLocaleString()}</span></div>}
+                          {isAdmin&&totalSoldVal>0&&<div style={{fontSize:12,color:T.ghost}}>Revenue: <span style={{color:T.lime,fontWeight:600}}>₨{totalSoldVal.toLocaleString()}</span></div>}
+                          {isAdmin&&totalProfit!==0&&<div style={{fontSize:12,color:T.ghost}}>Profit: <span style={{color:totalProfit>=0?T.profit:T.loss,fontWeight:700}}>{totalProfit>=0?"+":""}₨{totalProfit.toLocaleString()}</span></div>}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   </div>
                 </div>}
             </div>
