@@ -2348,20 +2348,20 @@ export default function App(){
                                 const b = brands.find(x=>x.id===it.brand);
                                 const prof = toPKR(it.price,it.currency)-(it.cost||0);
                                 return `<tr>
-                                  <td style="font-family:monospace;font-size:8px">${it.sku||"—"}</td>
-                                  <td>${it.name||"—"}</td>
-                                  <td>${b?.name||"—"}</td>
-                                  <td>${it.category||"—"}</td>
-                                  <td>${it.subcategory||"—"}</td>
-                                  <td>${sizeLabel(it)||"—"}</td>
+                                  <td style="font-family:monospace;font-size:8px;text-align:left">${it.sku||"—"}</td>
+                                  <td style="text-align:left">${it.name||"—"}</td>
+                                  <td style="text-align:center">${b?.name||"—"}</td>
+                                  <td style="text-align:center">${it.category||"—"}</td>
+                                  <td style="text-align:center">${it.subcategory||"—"}</td>
+                                  <td style="text-align:center">${sizeLabel(it)||"—"}</td>
                                   <td style="text-align:center">${it.grade||"—"}</td>
-                                  <td>${it.status||"—"}</td>
+                                  <td style="text-align:center">${it.status||"—"}</td>
                                   <td style="text-align:center">${it.qty||1}</td>
-                                  <td style="text-align:right">&#8360;${(it.cost||0).toLocaleString()}</td>
-                                  <td style="text-align:right">${it.price?`${it.currency==="PKR"?"&#8360;":""}${it.price.toLocaleString()}${it.currency!=="PKR"?" "+it.currency:""}`:""}</td>
-                                  <td style="text-align:right">${it.price?(prof>=0?"+":"")+"\u20a8"+prof.toLocaleString():"—"}</td>
-                                  <td>${it.inventoryDate||"—"}</td>
-                                  <td style="font-size:8px;color:#666">${it.notes||""}</td>
+                                  <td style="text-align:right">Rs ${(it.cost||0).toLocaleString()}</td>
+                                  <td style="text-align:right">${it.price?`${it.currency==="PKR"?"Rs\u00a0":""}${it.price.toLocaleString()}${it.currency!=="PKR"?" "+it.currency:""}`:""}</td>
+                                  <td style="text-align:right">${it.price?(prof>=0?"+":"")+"Rs\u00a0"+prof.toLocaleString():"—"}</td>
+                                  <td style="text-align:center">${it.inventoryDate||"—"}</td>
+                                  <td style="text-align:left;font-size:8px;color:#666">${it.notes||""}</td>
                                 </tr>`;
                               }).join("");
                               const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>ReLoop Inventory — ${brand} — ${now}</title>
@@ -2385,8 +2385,8 @@ export default function App(){
                                 .tl{font-size:8px;color:#999;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px}
                                 .tv{font-size:16px;font-weight:600;color:#1a1a1a}
                                 table{width:100%;border-collapse:collapse;font-size:9px;table-layout:auto}
-                                th{background:#1E1530;color:#C8F135;padding:8px 14px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap}
-                                td{padding:7px 14px;border-bottom:0.5px solid #eee;vertical-align:middle;color:#1a1a1a}
+                                th{background:#1E1530;color:#C8F135;padding:8px 14px;text-align:center;font-size:8px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap}
+                                td{padding:7px 14px;border-bottom:0.5px solid #eee;vertical-align:middle;color:#1a1a1a;text-align:left}
                                 tr:nth-child(even) td{background:#fafaf8}
                                 .footer{display:flex;justify-content:space-between;padding:10px 18px;border-top:0.5px solid #e0e0d8;background:#fafaf8}
                                 .footer span{font-size:8.5px;color:#aaa}
@@ -2408,12 +2408,12 @@ export default function App(){
                               <div class="totals">
                                 <div class="tc"><div class="tl">Items</div><div class="tv">${exportFiltered.length}</div></div>
                                 <div class="tc"><div class="tl">Total qty</div><div class="tv">${totalQtyDl.toLocaleString()}</div></div>
-                                <div class="tc"><div class="tl">Total cost</div><div class="tv">&#8360;${totalCostPerItem.toLocaleString()}</div></div>
-                                <div class="tc"><div class="tl">Inv. value</div><div class="tv">&#8360;${totalCostDl.toLocaleString()}</div></div>
+                                <div class="tc"><div class="tl">Total cost</div><div class="tv">Rs ${totalCostPerItem.toLocaleString()}</div></div>
+                                <div class="tc"><div class="tl">Inv. value</div><div class="tv">Rs ${totalCostDl.toLocaleString()}</div></div>
                               </div>
                               <table>
                                 <thead><tr>
-                                  <th>SKU</th><th>Item</th><th>Brand</th><th>Category</th><th>Subcat</th><th>Size</th><th>Grade</th><th>Status</th><th>Qty</th><th>Cost</th><th>Sold Price</th><th>Profit</th><th>Date Added</th><th>Notes</th>
+                                  <th style="text-align:left">SKU</th><th style="text-align:left">Item</th><th>Brand</th><th>Category</th><th>Subcat</th><th>Size</th><th>Grade</th><th>Status</th><th>Qty</th><th style="text-align:right">Cost</th><th style="text-align:right">Sold Price</th><th style="text-align:right">Profit</th><th>Date Added</th><th style="text-align:left">Notes</th>
                                 </tr></thead>
                                 <tbody>${tableRows}</tbody>
                               </table>
@@ -2492,9 +2492,9 @@ export default function App(){
                           <TCell w={COLS[1].w}><span style={{fontSize:11,fontWeight:600,color:bc}}>{b?.name}</span></TCell>
                           <TCell w={COLS[2].w}><span style={{fontSize:12,color:T.muted}}>{it.category}</span></TCell>
                           <TCell w={COLS[3].w}><span style={{fontSize:12,color:T.muted}}>{it.subcategory||"—"}</span></TCell>
-                          <TCell w={COLS[4].w}><span style={{fontSize:12,fontWeight:600,color:(it.qty||1)>1?T.cobaltText:T.ghost}}>{it.qty||1}</span></TCell>
+                          <TCell w={COLS[4].w}><span style={{fontSize:12,fontWeight:600,color:T.offWhite}}>{it.qty||1}</span></TCell>
                           <TCell w={COLS[5].w}>{sizeLabel(it)==="—"?<span style={{fontSize:12,color:T.ghost}}>—</span>:<span style={{fontSize:11,fontWeight:600,color:T.cobaltText,background:T.cobaltBg,padding:"2px 8px",borderRadius:20}}>{sizeLabel(it)}</span>}</TCell>
-                          <TCell w={COLS[6].w}>{it.grade?<span style={{fontSize:12,fontWeight:700,color:T.lime,background:`${T.lime}18`,padding:"2px 8px",borderRadius:6,border:`1px solid ${T.lime}30`}}>{it.grade}</span>:<span style={{color:T.ghost,fontSize:12}}>—</span>}</TCell>
+                          <TCell w={COLS[6].w}><span style={{fontSize:12,fontWeight:600,color:T.offWhite}}>{it.grade||"—"}</span></TCell>
                           <TCell w={COLS[7].w}><span style={{fontSize:11,color:T.ghost,fontFamily:"monospace",letterSpacing:"0.3px"}}>{it.sku||"—"}</span></TCell>
                           <TCell w={COLS[8].w}><StatusPill status={it.status}/></TCell>
                           <TCell w={COLS[9].w}><span style={{fontSize:12,color:T.muted}}>{isAdmin?`₨${it.cost.toLocaleString()}`:"*****"}</span></TCell>
