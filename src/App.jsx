@@ -2316,16 +2316,15 @@ export default function App(){
                   </div>
                   {/* ── Totals row ── */}
                   {(() => {
-                    const totalQty    = filtItems.reduce((s,i)=>s+(i.qty||1),0);
-                    const totalCost   = filtItems.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
-                    const totalSoldVal= filtItems.filter(i=>i.status==="sold").reduce((s,i)=>s+toPKR(i.price,i.currency)*(i.qty||1),0);
-                    const totalProfit = filtItems.filter(i=>i.status==="sold").reduce((s,i)=>s+(toPKR(i.price,i.currency)-i.cost)*(i.qty||1),0);
-                    const totalInvVal = filtItems.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
+                    const totalQty    = filtered.reduce((s,i)=>s+(i.qty||1),0);
+                    const totalInvVal = filtered.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
+                    const totalSoldVal= filtered.filter(i=>i.status==="sold").reduce((s,i)=>s+toPKR(i.price,i.currency)*(i.qty||1),0);
+                    const totalProfit = filtered.filter(i=>i.status==="sold").reduce((s,i)=>s+(toPKR(i.price,i.currency)-i.cost)*(i.qty||1),0);
                     return (
                       <div style={{display:"flex",alignItems:"center",gap:0,background:T.surface,borderTop:`2px solid ${T.lime}44`,padding:"10px 14px",overflowX:"auto",flexShrink:0}}>
                         <div style={{fontSize:10,color:T.lime,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.9px",marginRight:16,flexShrink:0}}>Totals</div>
                         <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-                          <div style={{fontSize:12,color:T.ghost}}>Items: <span style={{color:T.offWhite,fontWeight:600}}>{filtItems.length}</span></div>
+                          <div style={{fontSize:12,color:T.ghost}}>Items: <span style={{color:T.offWhite,fontWeight:600}}>{filtered.length}</span></div>
                           <div style={{fontSize:12,color:T.ghost}}>Qty: <span style={{color:T.cobaltText,fontWeight:600}}>{totalQty.toLocaleString()}</span></div>
                           {isAdmin&&<div style={{fontSize:12,color:T.ghost}}>Inv. Value: <span style={{color:T.offWhite,fontWeight:600}}>₨{totalInvVal.toLocaleString()}</span></div>}
                           {isAdmin&&totalSoldVal>0&&<div style={{fontSize:12,color:T.ghost}}>Revenue: <span style={{color:T.lime,fontWeight:600}}>₨{totalSoldVal.toLocaleString()}</span></div>}
