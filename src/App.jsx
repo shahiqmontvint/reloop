@@ -71,21 +71,23 @@ const initBrands=[{id:"encore",name:"Encore",tagline:"Y2K — Womenswear",color:
 const initItems=[];
 
 const COLS=[
-  {key:"name",    label:"Item",       w:160},
-  {key:"brand",   label:"Brand",      w:80},
-  {key:"category",label:"Category",   w:90},
-  {key:"subcat",  label:"Subcat",     w:100},
-  {key:"qty",     label:"Qty",        w:44},
-  {key:"size",    label:"Size",       w:76},
-  {key:"grade",   label:"Grade",      w:60},
-  {key:"sku",     label:"SKU",        w:88},
-  {key:"status",  label:"Status",     w:100},
-  {key:"cost",    label:"Cost",       w:80},
-  {key:"price",   label:"Sold",       w:90},
-  {key:"date",    label:"Date Added", w:96},
-  {key:"notes",   label:"Notes",      w:160},
-  {key:"profit",  label:"Profit",     w:90},
-  {key:"actions", label:"",           w:72},
+  {key:"date",      label:"Date Added",  w:96},
+  {key:"name",      label:"Item",        w:150},
+  {key:"category",  label:"Category",    w:90},
+  {key:"subcat",    label:"Sub Cat",     w:80},
+  {key:"size",      label:"Size",        w:60},
+  {key:"qty",       label:"Qty",         w:44},
+  {key:"grade",     label:"Grade",       w:56},
+  {key:"status",    label:"Status",      w:96},
+  {key:"sku",       label:"SKU",         w:100},
+  {key:"brand",     label:"Brand",       w:80},
+  {key:"cost",      label:"Cost",        w:72},
+  {key:"totalcost", label:"Total Cost",  w:80},
+  {key:"price",     label:"Sold",        w:80},
+  {key:"totalsold", label:"Total Sold",  w:80},
+  {key:"profit",    label:"Profit",      w:80},
+  {key:"notes",     label:"Notes",       w:140},
+  {key:"actions",   label:"",            w:72},
 ];
 const TOTAL_W = COLS.reduce((s,c)=>s+c.w,0);
 const GRID_COLS = COLS.map(c=>`${c.w}px`).join(" ");
@@ -2079,13 +2081,19 @@ export default function App(){
     return f;
   },[pool,aStat,q,sortCol,sortDir,brands,rates]);
 
-  const stats=useMemo(()=>({
-    total:pool.reduce((s,i)=>s+(i.qty||1),0),
-    avail:pool.filter(i=>i.status==="available"||i.status==="listed").reduce((s,i)=>s+(i.qty||1),0),
-    sold:pool.filter(i=>i.status==="sold").reduce((s,i)=>s+(i.qty||1),0),
-    val:pool.filter(i=>i.status!=="sold").reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0),
-    profit:pool.filter(i=>i.status==="sold").reduce((s,i)=>s+(toPKR(i.price,i.currency)-(i.cost||0))*(i.qty||1),0),
-  }),[pool,rates]);
+  const stats=useMemo(()=>{
+    const soldItems=pool.filter(i=>i.status==="sold");
+    const profit=soldItems.reduce((s,i)=>s+(toPKR(i.price,i.currency)-(i.cost||0))*(i.qty||1),0);
+    const rev=soldItems.reduce((s,i)=>s+toPKR(i.price,i.currency)*(i.qty||1),0);
+    return {
+      total:pool.reduce((s,i)=>s+(i.qty||1),0),
+      avail:pool.filter(i=>i.status==="available"||i.status==="listed").reduce((s,i)=>s+(i.qty||1),0),
+      sold:soldItems.reduce((s,i)=>s+(i.qty||1),0),
+      val:pool.filter(i=>i.status!=="sold").reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0),
+      profit,
+      profitPct:rev>0?((profit/rev)*100):null,
+    };
+  },[pool,rates]);
 
   const handleSort=col=>{if(sortCol===col)setSortDir(d=>d*-1);else{setSortCol(col);setSortDir(1);}};
   const SortArrow=({col})=>sortCol===col?<span style={{fontSize:9,color:T.lime}}>{sortDir===1?"↑":"↓"}</span>:<span style={{fontSize:9,color:T.ghost,opacity:0.4}}>↕</span>;
@@ -2465,7 +2473,7 @@ export default function App(){
             {/* Scrollable content */}
             <div style={{padding:"18px 20px",flex:1,overflowY:"auto",background:T.bg}}>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}}>
-                {[{label:"Total pieces",val:stats.total,sub:`${stats.avail} available`,fin:false},{label:"Inventory value",val:`₨${stats.val.toLocaleString()}`,sub:"at cost price",fin:true},{label:"Sold",val:stats.sold,sub:"items",fin:false},{label:"Profit realised",val:`₨${stats.profit.toLocaleString()}`,sub:"from sold",accent:stats.profit>=0?T.profit:T.loss,fin:true}].map(s=>(
+                {[{label:"Total pieces",val:stats.total,sub:`${stats.avail} available`,fin:false},{label:"Inventory value",val:`₨${stats.val.toLocaleString()}`,sub:"at cost price",fin:true},{label:"Sold",val:stats.sold,sub:"items",fin:false},{label:"Profit realised",val:`₨${stats.profit.toLocaleString()}`,sub:"from sold",accent:stats.profit>=0?T.profit:T.loss,fin:true},{label:"Profit %",val:stats.profitPct!=null?`${stats.profitPct.toFixed(1)}%`:"—",sub:"on sold items",accent:stats.profitPct!=null&&stats.profitPct>=0?T.profit:T.loss,fin:true}].map(s=>(
                   <div key={s.label} style={{background:T.card,borderRadius:12,padding:"14px 16px",border:`1px solid ${T.border}`}}>
                     <div style={{fontSize:9.5,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.9px",fontWeight:600}}>{s.label}</div>
                     <div style={{fontSize:24,fontWeight:700,fontFamily:FD,color:s.accent||T.lime}}>{s.fin&&!isAdmin?"*****":s.val}</div>
@@ -2513,26 +2521,23 @@ export default function App(){
                           onMouseEnter={e=>{if(detail?.id!==it.id)e.currentTarget.style.background=T.card;}}
                           onMouseLeave={e=>{if(detail?.id!==it.id)e.currentTarget.style.background="transparent";}}
                           style={{display:"flex",alignItems:"center",padding:"0 8px",borderBottom:isLast?"none":`1px solid ${T.border}`,cursor:"pointer",background:detail?.id===it.id?T.cardHov:"transparent",transition:"background 0.12s",minHeight:52,minWidth:TOTAL_W+16,width:"100%",boxSizing:"border-box"}}>
-                          <TCell w={COLS[0].w} left><span style={{fontSize:13,fontWeight:500,color:T.offWhite,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.name}</span></TCell>
-                          <TCell w={COLS[1].w}><span style={{fontSize:11,fontWeight:600,color:bc}}>{b?.name}</span></TCell>
+                          <TCell w={COLS[0].w}>{it.inventoryDate?<span style={{fontSize:11,color:T.cobaltText,fontFamily:"monospace",whiteSpace:"nowrap"}}>{it.inventoryDate}</span>:<span style={{fontSize:11,color:T.ghost}}>—</span>}</TCell>
+                          <TCell w={COLS[1].w} left><span style={{fontSize:13,fontWeight:500,color:T.offWhite,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.name}</span></TCell>
                           <TCell w={COLS[2].w}><span style={{fontSize:12,color:T.muted}}>{it.category}</span></TCell>
                           <TCell w={COLS[3].w}><span style={{fontSize:12,color:T.muted}}>{it.subcategory||"—"}</span></TCell>
-                          <TCell w={COLS[4].w}><span style={{fontSize:12,fontWeight:600,color:T.offWhite}}>{it.qty||1}</span></TCell>
-                          <TCell w={COLS[5].w}>{sizeLabel(it)==="—"?<span style={{fontSize:12,color:T.ghost}}>—</span>:<span style={{fontSize:11,fontWeight:600,color:T.cobaltText,background:T.cobaltBg,padding:"2px 8px",borderRadius:20}}>{sizeLabel(it)}</span>}</TCell>
+                          <TCell w={COLS[4].w}>{sizeLabel(it)==="—"?<span style={{fontSize:12,color:T.ghost}}>—</span>:<span style={{fontSize:11,fontWeight:600,color:T.cobaltText,background:T.cobaltBg,padding:"2px 8px",borderRadius:20}}>{sizeLabel(it)}</span>}</TCell>
+                          <TCell w={COLS[5].w}><span style={{fontSize:12,fontWeight:600,color:T.offWhite}}>{it.qty||1}</span></TCell>
                           <TCell w={COLS[6].w}><span style={{fontSize:12,fontWeight:600,color:T.offWhite}}>{it.grade||"—"}</span></TCell>
-                          <TCell w={COLS[7].w}><span style={{fontSize:11,color:T.ghost,fontFamily:"monospace",letterSpacing:"0.3px"}}>{it.sku||"—"}</span></TCell>
-                          <TCell w={COLS[8].w}><StatusPill status={it.status}/></TCell>
-                          <TCell w={COLS[9].w}><span style={{fontSize:12,color:T.muted}}>{isAdmin?`₨${it.cost.toLocaleString()}`:"*****"}</span></TCell>
-                          <TCell w={COLS[10].w}>
-                            <div style={{textAlign:"center"}}>
-                              <div style={{fontSize:13,fontWeight:700,color:T.lime}}>{isAdmin?`${sym}${it.price.toLocaleString()}`:"*****"}</div>
-                              {isAdmin&&it.currency&&it.currency!=="PKR"&&it.price>0&&<div style={{fontSize:10,color:T.ghost}}>₨{pricePKR.toLocaleString()}</div>}
-                            </div>
-                          </TCell>
-                          <TCell w={COLS[11].w}>{it.inventoryDate?<span style={{fontSize:11,color:T.cobaltText,fontFamily:"monospace",whiteSpace:"nowrap"}}>{it.inventoryDate}</span>:<span style={{fontSize:11,color:T.ghost}}>—</span>}</TCell>
-                          <TCell w={COLS[12].w} left><span style={{fontSize:11,color:T.ghost,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.notes||"—"}</span></TCell>
-                          <TCell w={COLS[13].w}><span style={{fontSize:12,fontWeight:700,color:prof>=0?T.profit:T.loss}}>{isAdmin?(prof>=0?"+":"")+"₨"+prof.toLocaleString():"*****"}</span></TCell>
-                          <TCell w={COLS[14].w}><div style={{display:"flex",gap:6,justifyContent:"center"}}><IconBtn title="Edit" onClick={e=>{e.stopPropagation();setEditItem(it);}}/><IconBtn title="Delete" danger onClick={e=>{e.stopPropagation();delItem(it.id);}}/></div></TCell>
+                          <TCell w={COLS[7].w}><StatusPill status={it.status}/></TCell>
+                          <TCell w={COLS[8].w}><span style={{fontSize:11,color:T.ghost,fontFamily:"monospace",letterSpacing:"0.3px"}}>{it.sku||"—"}</span></TCell>
+                          <TCell w={COLS[9].w}><span style={{fontSize:11,fontWeight:600,color:bc}}>{b?.name}</span></TCell>
+                          <TCell w={COLS[10].w}><span style={{fontSize:12,color:T.muted}}>{isAdmin?`₨${it.cost.toLocaleString()}`:"*****"}</span></TCell>
+                          <TCell w={COLS[11].w}><span style={{fontSize:12,color:T.muted}}>{isAdmin?`₨${(it.cost*(it.qty||1)).toLocaleString()}`:"*****"}</span></TCell>
+                          <TCell w={COLS[12].w}><div style={{textAlign:"center"}}><div style={{fontSize:12,fontWeight:600,color:T.lime}}>{isAdmin?(it.price?`${sym}${it.price.toLocaleString()}`:"—"):"*****"}</div>{isAdmin&&it.currency&&it.currency!=="PKR"&&it.price>0&&<div style={{fontSize:10,color:T.ghost}}>₨{pricePKR.toLocaleString()}</div>}</div></TCell>
+                          <TCell w={COLS[13].w}><span style={{fontSize:12,color:T.lime}}>{isAdmin&&it.price?`₨${(pricePKR*(it.qty||1)).toLocaleString()}`:"—"}</span></TCell>
+                          <TCell w={COLS[14].w}><span style={{fontSize:12,fontWeight:700,color:prof>=0?T.profit:T.loss}}>{isAdmin?(prof>=0?"+":"")+"₨"+prof.toLocaleString():"*****"}</span></TCell>
+                          <TCell w={COLS[15].w} left><span style={{fontSize:11,color:T.ghost,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.notes||"—"}</span></TCell>
+                          <TCell w={COLS[16].w}><div style={{display:"flex",gap:6,justifyContent:"center"}}><IconBtn title="Edit" onClick={e=>{e.stopPropagation();setEditItem(it);}}/><IconBtn title="Delete" danger onClick={e=>{e.stopPropagation();delItem(it.id);}}/></div></TCell>
                         </div>
                       );
                     })}
