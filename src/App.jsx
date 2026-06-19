@@ -2346,24 +2346,33 @@ export default function App(){
                               const LOGO_URL="https://res.cloudinary.com/daw3s99fs/image/upload/f_auto,q_auto/WhatsApp_Image_2026-06-08_at_19.43.43-removebg-preview_fcadkj";
                               const tableRows = exportFiltered.map(it=>{
                                 const b = brands.find(x=>x.id===it.brand);
-                                const prof = toPKR(it.price,it.currency)-(it.cost||0);
+                                const soldPKR = toPKR(it.price,it.currency);
+                                const prof = soldPKR-(it.cost||0);
+                                const profPct = soldPKR>0?((prof/soldPKR)*100).toFixed(1):null;
+                                const sym = it.currency&&it.currency!=="PKR"?it.currency:"";
                                 return `<tr>
+                                  <td style="text-align:center">${it.inventoryDate||"—"}</td>
                                   <td style="font-family:monospace;font-size:8px;text-align:left">${it.sku||"—"}</td>
                                   <td style="text-align:left">${it.name||"—"}</td>
                                   <td style="text-align:center">${b?.name||"—"}</td>
                                   <td style="text-align:center">${it.category||"—"}</td>
                                   <td style="text-align:center">${it.subcategory||"—"}</td>
-                                  <td style="text-align:center">${sizeLabel(it)||"—"}</td>
                                   <td style="text-align:center">${it.grade||"—"}</td>
-                                  <td style="text-align:center">${it.status||"—"}</td>
                                   <td style="text-align:center">${it.qty||1}</td>
-                                  <td style="text-align:right">Rs ${(it.cost||0).toLocaleString()}</td>
-                                  <td style="text-align:right">${it.price?`${it.currency==="PKR"?"Rs\u00a0":""}${it.price.toLocaleString()}${it.currency!=="PKR"?" "+it.currency:""}`:""}</td>
-                                  <td style="text-align:right">${it.price?(prof>=0?"+":"")+"Rs\u00a0"+prof.toLocaleString():"—"}</td>
-                                  <td style="text-align:center">${it.inventoryDate||"—"}</td>
-                                  <td style="text-align:left;font-size:8px;color:#666">${it.notes||""}</td>
+                                  <td style="text-align:center">${sizeLabel(it)||"—"}</td>
+                                  <td style="text-align:right">${it.cost?`Rs ${(it.cost||0).toLocaleString()}`:"—"}</td>
+                                  <td style="text-align:right">${it.price?`${sym?sym+" ":"Rs "}${it.price.toLocaleString()}`:""}</td>
+                                  <td style="text-align:left;font-size:8px;color:#444">${it.notes||""}</td>
+                                  <td style="text-align:right">${it.price?(prof>=0?"+":"")+"Rs "+prof.toLocaleString():"—"}</td>
+                                  <td style="text-align:center">${profPct!==null?profPct+"%":"—"}</td>
                                 </tr>`;
                               }).join("");
+                              const totalQtyDl  = exportFiltered.reduce((s,i)=>s+(i.qty||1),0);
+                              const totalCostDl = exportFiltered.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
+                              const totalCostPerItem = exportFiltered.reduce((s,i)=>s+(i.cost||0),0);
+                              const totalProfitDl = exportFiltered.filter(i=>i.price).reduce((s,i)=>s+(toPKR(i.price,i.currency)-(i.cost||0)),0);
+                              const totalRevDl = exportFiltered.filter(i=>i.price).reduce((s,i)=>s+toPKR(i.price,i.currency),0);
+                              const avgProfPct = totalRevDl>0?((totalProfitDl/totalRevDl)*100).toFixed(1):null;
                               const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>ReLoop Inventory — ${brand} — ${now}</title>
                               <link href="https://fonts.googleapis.com/css2?family=Lato:wght@100;700&display=swap" rel="stylesheet">
                               <style>
@@ -2377,16 +2386,18 @@ export default function App(){
                                 .meta{display:flex;gap:16px;flex-wrap:wrap}
                                 .meta span{color:#9B8FBB;font-size:10px}
                                 .meta span b{color:#C8F135;font-weight:600}
-                                .logo-box{width:68px;height:68px;background:#C8F135;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
-                                .logo-box img{width:58px;height:58px;object-fit:contain}
+                                .logo-box{width:72px;height:72px;background:#C8F135;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;padding:0}
+                                .logo-box img{width:72px;height:72px;object-fit:cover;border-radius:14px}
                                 .totals{display:flex;border-bottom:0.5px solid #e0e0d8}
-                                .tc{flex:1;padding:11px 18px;border-right:0.5px solid #e0e0d8}
+                                .tc{flex:1;padding:12px 18px;border-right:0.5px solid #e0e0d8}
                                 .tc:last-child{border-right:none}
-                                .tl{font-size:8px;color:#999;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px}
+                                .tl{font-size:8px;color:#999;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:5px}
                                 .tv{font-size:16px;font-weight:600;color:#1a1a1a}
                                 table{width:100%;border-collapse:collapse;font-size:9px;table-layout:auto}
-                                th{background:#1E1530;color:#C8F135;padding:8px 14px;text-align:center;font-size:8px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap}
-                                td{padding:7px 14px;border-bottom:0.5px solid #eee;vertical-align:middle;color:#1a1a1a;text-align:left}
+                                th{background:#1E1530;color:#C8F135;padding:8px 10px;text-align:center;font-size:7.5px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap}
+                                th.left{text-align:left}
+                                th.right{text-align:right}
+                                td{padding:6px 10px;border-bottom:0.5px solid #eee;vertical-align:middle;color:#1a1a1a;text-align:left}
                                 tr:nth-child(even) td{background:#fafaf8}
                                 .footer{display:flex;justify-content:space-between;padding:10px 18px;border-top:0.5px solid #e0e0d8;background:#fafaf8}
                                 .footer span{font-size:8.5px;color:#aaa}
@@ -2403,24 +2414,38 @@ export default function App(){
                                     <span>Exported: <b>${now}</b></span>
                                   </div>
                                 </div>
-                                <div class="logo-box"><img src="${LOGO_URL}" /></div>
+                                <div class="logo-box"><img src="https://res.cloudinary.com/daw3s99fs/image/upload/f_auto,q_auto/WhatsApp_Image_2026-06-08_at_19.43.43-removebg-preview_fcadkj" /></div>
                               </div>
                               <div class="totals">
                                 <div class="tc"><div class="tl">Items</div><div class="tv">${exportFiltered.length}</div></div>
-                                <div class="tc"><div class="tl">Total qty</div><div class="tv">${totalQtyDl.toLocaleString()}</div></div>
-                                <div class="tc"><div class="tl">Total cost</div><div class="tv">Rs ${totalCostPerItem.toLocaleString()}</div></div>
-                                <div class="tc"><div class="tl">Inv. value</div><div class="tv">Rs ${totalCostDl.toLocaleString()}</div></div>
+                                <div class="tc"><div class="tl">Total Qty</div><div class="tv">${totalQtyDl.toLocaleString()}</div></div>
+                                <div class="tc"><div class="tl">Total Cost</div><div class="tv">Rs ${totalCostPerItem.toLocaleString()}</div></div>
+                                <div class="tc"><div class="tl">Inv. Value</div><div class="tv">Rs ${totalCostDl.toLocaleString()}</div></div>
+                                <div class="tc"><div class="tl">Total Profit</div><div class="tv">${totalProfitDl?`Rs ${totalProfitDl.toLocaleString()}`:"—"}</div></div>
+                                <div class="tc"><div class="tl">% Profit</div><div class="tv">${avgProfPct!==null?avgProfPct+"%":"—"}</div></div>
                               </div>
                               <table>
                                 <thead><tr>
-                                  <th style="text-align:left">SKU</th><th style="text-align:left">Item</th><th>Brand</th><th>Category</th><th>Subcat</th><th>Size</th><th>Grade</th><th>Status</th><th>Qty</th><th style="text-align:right">Cost</th><th style="text-align:right">Sold Price</th><th style="text-align:right">Profit</th><th>Date Added</th><th style="text-align:left">Notes</th>
+                                  <th>Date Added</th>
+                                  <th class="left">SKU</th>
+                                  <th class="left">Item</th>
+                                  <th>Brand</th>
+                                  <th>Category</th>
+                                  <th>Subcat</th>
+                                  <th>Grade</th>
+                                  <th>Qty</th>
+                                  <th>Size</th>
+                                  <th class="right">Cost Price</th>
+                                  <th class="right">Sold Price</th>
+                                  <th class="left">Notes</th>
+                                  <th class="right">Profit</th>
+                                  <th class="right">% Profit</th>
                                 </tr></thead>
                                 <tbody>${tableRows}</tbody>
                               </table>
                               <div class="footer"><span>Generated by ReLoop &mdash; reloopio.netlify.app</span><span>${now}</span></div>
                               </body></html>`;
-                              const w=window.open("","_blank","width=1100,height=800");
-                              w.document.write(html); w.document.close(); w.focus();
+w.document.write(html); w.document.close(); w.focus();
                               setTimeout(()=>w.print(),600);
                             }
                           };
