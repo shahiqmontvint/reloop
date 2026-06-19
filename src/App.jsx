@@ -2318,14 +2318,23 @@ export default function App(){
                   {(() => {
                     const totalQty    = filtered.reduce((s,i)=>s+(i.qty||1),0);
                     const totalInvVal = filtered.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
+                    const totalCost   = filtered.reduce((s,i)=>s+(i.cost||0),0);
                     const totalSoldVal= filtered.filter(i=>i.status==="sold").reduce((s,i)=>s+toPKR(i.price,i.currency)*(i.qty||1),0);
                     const totalProfit = filtered.filter(i=>i.status==="sold").reduce((s,i)=>s+(toPKR(i.price,i.currency)-i.cost)*(i.qty||1),0);
+                    const dates = filtered.map(i=>i.inventoryDate).filter(Boolean).sort();
+                    const earliest = dates[0], latest = dates[dates.length-1];
                     return (
                       <div style={{display:"flex",alignItems:"center",gap:0,background:T.surface,borderTop:`2px solid ${T.lime}44`,padding:"10px 14px",overflowX:"auto",flexShrink:0}}>
                         <div style={{fontSize:10,color:T.lime,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.9px",marginRight:16,flexShrink:0}}>Totals</div>
-                        <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+                        <div style={{display:"flex",gap:20,flexWrap:"wrap",alignItems:"center"}}>
+                          {earliest&&<div style={{fontSize:11,color:T.ghost,paddingRight:16,marginRight:4,borderRight:`1px solid ${T.border}`}}>
+                            {earliest===latest
+                              ? <span>Purchased: <span style={{color:T.cobaltText,fontWeight:600}}>{earliest}</span></span>
+                              : <span>Purchases: <span style={{color:T.cobaltText,fontWeight:600}}>{earliest}</span> → <span style={{color:T.cobaltText,fontWeight:600}}>{latest}</span></span>}
+                          </div>}
                           <div style={{fontSize:12,color:T.ghost}}>Items: <span style={{color:T.offWhite,fontWeight:600}}>{filtered.length}</span></div>
                           <div style={{fontSize:12,color:T.ghost}}>Qty: <span style={{color:T.cobaltText,fontWeight:600}}>{totalQty.toLocaleString()}</span></div>
+                          {isAdmin&&<div style={{fontSize:12,color:T.ghost}}>Total Cost: <span style={{color:T.offWhite,fontWeight:600}}>₨{totalCost.toLocaleString()}</span></div>}
                           {isAdmin&&<div style={{fontSize:12,color:T.ghost}}>Inv. Value: <span style={{color:T.offWhite,fontWeight:600}}>₨{totalInvVal.toLocaleString()}</span></div>}
                           {isAdmin&&totalSoldVal>0&&<div style={{fontSize:12,color:T.ghost}}>Revenue: <span style={{color:T.lime,fontWeight:600}}>₨{totalSoldVal.toLocaleString()}</span></div>}
                           {isAdmin&&totalProfit!==0&&<div style={{fontSize:12,color:T.ghost}}>Profit: <span style={{color:totalProfit>=0?T.profit:T.loss,fontWeight:700}}>{totalProfit>=0?"+":""}₨{totalProfit.toLocaleString()}</span></div>}
