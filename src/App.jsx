@@ -1904,7 +1904,6 @@ function WorkSheetPage({ worksheet, setWorksheet }) {
   const rows   = worksheet?.rows || [];
 
   // ── Formula engine ──────────────────────────────────────────────────────────
-  // Parse A1-style ref like "B3" → {r:2, c:1}
   const parseRef = ref => {
     const m = ref.trim().match(/^([A-Za-z]+)(\d+)$/);
     if (!m) return null;
@@ -1912,7 +1911,6 @@ function WorkSheetPage({ worksheet, setWorksheet }) {
     const r = parseInt(m[2])-1;
     return {r,c};
   };
-  // Parse range like "B2:B10" → array of {r,c}
   const parseRange = (a, b) => {
     const s = parseRef(a), e = parseRef(b);
     if (!s||!e) return [];
@@ -1922,93 +1920,154 @@ function WorkSheetPage({ worksheet, setWorksheet }) {
         cells.push({r,c});
     return cells;
   };
-  const getCellVal = (r,c) => {
-    const raw = (rows[r]?.cells||[])[c]||"";
-    if (raw.startsWith("=")) return evalFormula(raw, r, c);
-    return isNaN(raw)||raw.trim()===""?raw:parseFloat(raw);
-  };
-  const getNumVals = cells => cells.map(({r,c})=>getCellVal(r,c)).filter(v=>typeof v==="number"&&!isNaN(v));
 
-  const evalFormula = (formula, selfR, selfC) => {
+  const getRawCell = (ri, ci) => (rows[ri]?.cells||[])[ci]||"";
+
+  const evalCell = (ri, ci, depth=0) => {
+    if (depth>10) return 0; // circular ref guard
+    const raw = getRawCell(ri, ci);
+    if (!raw) return "";
+    if (!raw.startsWith("=")) {
+      const n = parseFloat(raw);
+      return isNaN(n) ? raw : n;
+    }
+    return evalFormula(raw.slice(1).trim(), depth+1);
+  };
+
+  const evalFormula = (expr, depth=0) => {
+    if (!expr) return "";
     try {
-      const expr = formula.slice(1).trim();
-      // Match function calls: SUM(range), AVG/AVERAGE(range), COUNT(range), MIN(range), MAX(range), IF(cond,t,f)
-      const fnMatch = expr.match(/^(\w+)\((.+)\)$/i);
+      const getValsFromArgs = (args) => {
+        const parts = splitArgs(args);
+        let vals = [];
+        for (const p of parts) {
+          const trimmed = p.trim();
+          if (trimmed.includes(":")) {
+            const [a,b] = trimmed.split(":");
+            parseRange(a.trim(),b.trim()).forEach(({r,c})=>{
+              const v = evalCell(r,c,depth);
+              if (v!==""&&!isNaN(Number(v))) vals.push(Number(v));
+            });
+          } else {
+            const ref = parseRef(trimmed);
+            if (ref) {
+              const v = evalCell(ref.r,ref.c,depth);
+              if (v!==""&&!isNaN(Number(v))) vals.push(Number(v));
+            } else if (!isNaN(Number(trimmed))) {
+              vals.push(Number(trimmed));
+            }
+          }
+        }
+        return vals;
+      };
+
+      // Match FUNCTION(args)
+      const fnMatch = expr.match(/^([A-Za-z_]+)\s*\((.*))\s*$/s);
       if (fnMatch) {
         const fn   = fnMatch[1].toUpperCase();
         const args = fnMatch[2];
-        // Range or list
-        const getRangeVals = str => {
-          const parts = str.split(",").map(s=>s.trim());
-          let vals = [];
-          for (const p of parts) {
-            if (p.includes(":")) {
-              const [a,b] = p.split(":");
-              vals.push(...getNumVals(parseRange(a,b)));
-            } else {
-              const ref = parseRef(p);
-              if (ref) { const v=getCellVal(ref.r,ref.c); if(typeof v==="number") vals.push(v); }
-              else if (!isNaN(p)) vals.push(parseFloat(p));
-            }
-          }
-          return vals;
-        };
-        if (fn==="SUM")                { const v=getRangeVals(args); return v.reduce((s,n)=>s+n,0); }
-        if (fn==="AVG"||fn==="AVERAGE"){ const v=getRangeVals(args); return v.length?v.reduce((s,n)=>s+n,0)/v.length:0; }
-        if (fn==="COUNT")              { return getRangeVals(args).length; }
-        if (fn==="MIN")                { const v=getRangeVals(args); return v.length?Math.min(...v):""; }
-        if (fn==="MAX")                { const v=getRangeVals(args); return v.length?Math.max(...v):""; }
+
+        if (fn==="SUM")                  { const v=getValsFromArgs(args); return v.reduce((s,n)=>s+n,0); }
+        if (fn==="AVG"||fn==="AVERAGE")  { const v=getValsFromArgs(args); return v.length?v.reduce((s,n)=>s+n,0)/v.length:0; }
+        if (fn==="COUNT")                { return getValsFromArgs(args).length; }
+        if (fn==="MIN")                  { const v=getValsFromArgs(args); return v.length?Math.min(...v):""; }
+        if (fn==="MAX")                  { const v=getValsFromArgs(args); return v.length?Math.max(...v):""; }
+        if (fn==="ABS")                  { const v=getValsFromArgs(args); return v.length?Math.abs(v[0]):""; }
+        if (fn==="ROUND") {
+          const parts=splitArgs(args); const val=getValsFromArgs(parts[0]||""); const dec=parseInt(parts[1])||0;
+          return val.length?parseFloat(val[0].toFixed(dec)):"";
+        }
         if (fn==="COUNTA") {
-          const parts = args.split(",").map(s=>s.trim());
+          const parts = splitArgs(args);
           let count=0;
           for(const p of parts){
-            if(p.includes(":")){const [a,b]=p.split(":");parseRange(a,b).forEach(({r,c})=>{if((rows[r]?.cells||[])[c])count++;});}
-            else{const ref=parseRef(p);if(ref&&(rows[ref.r]?.cells||[])[ref.c])count++;}
+            const t=p.trim();
+            if(t.includes(":")){const [a,b]=t.split(":");parseRange(a.trim(),b.trim()).forEach(({r,c})=>{if(getRawCell(r,c))count++;});}
+            else{const ref=parseRef(t);if(ref&&getRawCell(ref.r,ref.c))count++;}
           }
           return count;
         }
         if (fn==="IF") {
-          const ifParts = args.match(/^(.+?),(.+?),(.+)$/);
-          if (!ifParts) return "#ERR";
-          const condStr = ifParts[1].trim();
-          const tVal    = ifParts[2].trim();
-          const fVal    = ifParts[3].trim();
-          // Evaluate condition: e.g. A1>100
-          const condM = condStr.match(/^([A-Za-z]+\d+)\s*([><=!]+)\s*(.+)$/);
-          if (condM) {
-            const ref = parseRef(condM[1]);
-            const op  = condM[2];
-            const cmp = isNaN(condM[3])?condM[3]:parseFloat(condM[3]);
-            const lhs = ref?getCellVal(ref.r,ref.c):0;
-            let result;
-            if(op===">"||op==="=>") result=lhs>cmp;
-            else if(op==="<") result=lhs<cmp;
-            else if(op===">=") result=lhs>=cmp;
-            else if(op==="<=") result=lhs<=cmp;
-            else if(op==="="||op==="==") result=lhs==cmp;
-            else if(op==="!="||op==="<>") result=lhs!=cmp;
-            return result ? (isNaN(tVal)?tVal:parseFloat(tVal)) : (isNaN(fVal)?fVal:parseFloat(fVal));
-          }
-          return "#ERR";
+          const parts = splitArgs(args);
+          if(parts.length<2) return "#ERR";
+          const condResult = evalCondition(parts[0].trim(), depth);
+          const tVal = parts[1]?.trim().replace(/^"|"$/g,"")||"";
+          const fVal = parts[2]?.trim().replace(/^"|"$/g,"")||"";
+          return condResult ? (!isNaN(Number(tVal))?Number(tVal):tVal) : (!isNaN(Number(fVal))?Number(fVal):fVal);
+        }
+        if (fn==="SUMIF") {
+          const parts = splitArgs(args);
+          if(parts.length<2) return "#ERR";
+          const rangeCells = parts[0].includes(":")?parseRange(...parts[0].split(":").map(s=>s.trim())):[];
+          const crit = parts[1].trim().replace(/^"|"$/g,"");
+          const sumRange = parts[2] ? (parts[2].includes(":")?parseRange(...parts[2].split(":").map(s=>s.trim())):null) : null;
+          let total=0;
+          rangeCells.forEach(({r,c},i)=>{
+            const testVal = String(evalCell(r,c,depth));
+            if(testVal===crit||testVal.includes(crit)){
+              const sc = sumRange?sumRange[i]:{r,c};
+              if(sc){const v=Number(evalCell(sc.r,sc.c,depth));if(!isNaN(v))total+=v;}
+            }
+          });
+          return total;
+        }
+        if (fn==="CONCAT"||fn==="CONCATENATE") {
+          return splitArgs(args).map(p=>{
+            const t=p.trim().replace(/^"|"$/g,"");
+            const ref=parseRef(t);
+            return ref?String(evalCell(ref.r,ref.c,depth)||""):t;
+          }).join("");
         }
       }
-      // Simple cell ref: =A1
-      const refOnly = parseRef(expr);
-      if (refOnly) return getCellVal(refOnly.r,refOnly.c);
-      // Basic math fallback with cell refs substituted
-      let mathExpr = expr.replace(/[A-Za-z]+\d+/g, ref=>{
-        const r=parseRef(ref); return r?(getCellVal(r.r,r.c)||0):0;
+
+      // Simple cell ref  =A1
+      const refOnly = parseRef(expr.trim());
+      if (refOnly) return evalCell(refOnly.r,refOnly.c,depth);
+
+      // Math expression with cell refs  =A1+B2*0.15
+      const mathExpr = expr.replace(/[A-Za-z]+\d+/g, ref=>{
+        const r=parseRef(ref); return r!=null?(Number(evalCell(r.r,r.c,depth))||0):0;
       });
       // eslint-disable-next-line no-new-func
-      return Function('"use strict";return ('+mathExpr+')')();
+      const result = Function('"use strict";return ('+mathExpr+')')();
+      return typeof result==="number"&&isNaN(result)?"#ERR":result;
     } catch { return "#ERR"; }
   };
 
-  const displayVal = (r, c) => {
-    const raw = (rows[r]?.cells||[])[c]||"";
+  const evalCondition = (cond, depth) => {
+    const m = cond.match(/^(.+?)\s*([><=!]{1,2})\s*(.+)$/);
+    if (!m) return false;
+    const lhsStr = m[1].trim(), op = m[2], rhsStr = m[3].trim().replace(/^"|"$/g,"");
+    const ref = parseRef(lhsStr);
+    const lhs = ref ? evalCell(ref.r,ref.c,depth) : (!isNaN(Number(lhsStr))?Number(lhsStr):lhsStr);
+    const rhs = !isNaN(Number(rhsStr)) ? Number(rhsStr) : rhsStr;
+    if(op===">"||op==="=>") return lhs>rhs;
+    if(op==="<") return lhs<rhs;
+    if(op===">=") return lhs>=rhs;
+    if(op==="<=") return lhs<=rhs;
+    if(op==="="||op==="==") return lhs==rhs;
+    if(op==="!="||op==="<>") return lhs!=rhs;
+    return false;
+  };
+
+  // Split args by comma, respecting nested parens
+  const splitArgs = str => {
+    const parts=[]; let depth=0, cur="";
+    for(const ch of str){
+      if(ch==="("){ depth++; cur+=ch; }
+      else if(ch===")"){ depth--; cur+=ch; }
+      else if(ch===","&&depth===0){ parts.push(cur); cur=""; }
+      else cur+=ch;
+    }
+    if(cur) parts.push(cur);
+    return parts;
+  };
+
+  const displayVal = (ri, ci) => {
+    const raw = getRawCell(ri, ci);
     if (!raw) return "";
     if (raw.startsWith("=")) {
-      const result = evalFormula(raw, r, c);
+      const result = evalFormula(raw.slice(1).trim());
       if (result==null||result==="") return "";
       if (typeof result==="number") return isNaN(result)?"#ERR":result.toLocaleString(undefined,{maximumFractionDigits:6});
       return String(result);
