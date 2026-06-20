@@ -1897,429 +1897,75 @@ Be concise and direct. Give concrete numbers and actionable insights. Respond in
 }
 
 // ── Work Sheet Page ───────────────────────────────────────────────────────────
-function WorkSheetPage({ worksheet, setWorksheet }) {
-  const FIN_PASS = "fin_96_enmnt";
+function WorkSheetPage() {
+  const SHEET_ID = "1Y0ejl-TLiLMheuV9MD6YNq40-MRw98wsQ0LFZAHJ0_Y";
+  const EMBED_BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/htmlview?rm=minimal`;
+  const EXPORT_CSV = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
+  const EXPORT_PDF = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=pdf&size=A4&portrait=true&fitw=true&gridlines=false&printtitle=true&sheetnames=true`;
 
-  const cols   = worksheet?.cols || ["Date","Description","Type","Amount (Rs)","Notes"];
-  const rows   = worksheet?.rows || [];
+  const [loading, setLoading] = useState(true);
 
-  // ── Formula engine ──────────────────────────────────────────────────────────
-  const parseRef = ref => {
-    const m = ref.trim().match(/^([A-Za-z]+)(\d+)$/);
-    if (!m) return null;
-    const c = m[1].toUpperCase().split("").reduce((n,ch)=>n*26+(ch.charCodeAt(0)-64),0)-1;
-    const r = parseInt(m[2])-1;
-    return {r,c};
-  };
-  const parseRange = (a, b) => {
-    const s = parseRef(a), e = parseRef(b);
-    if (!s||!e) return [];
-    const cells = [];
-    for(let r=Math.min(s.r,e.r);r<=Math.max(s.r,e.r);r++)
-      for(let c=Math.min(s.c,e.c);c<=Math.max(s.c,e.c);c++)
-        cells.push({r,c});
-    return cells;
-  };
-
-  const getRawCell = (ri, ci) => (rows[ri]?.cells||[])[ci]||"";
-
-  const evalCell = (ri, ci, depth=0) => {
-    if (depth>10) return 0; // circular ref guard
-    const raw = getRawCell(ri, ci);
-    if (!raw) return "";
-    if (!raw.startsWith("=")) {
-      const n = parseFloat(raw);
-      return isNaN(n) ? raw : n;
-    }
-    return evalFormula(raw.slice(1).trim(), depth+1);
-  };
-
-  const evalFormula = (expr, depth=0) => {
-    if (!expr) return "";
-    try {
-      const getValsFromArgs = (args) => {
-        const parts = splitArgs(args);
-        let vals = [];
-        for (const p of parts) {
-          const trimmed = p.trim();
-          if (trimmed.includes(":")) {
-            const [a,b] = trimmed.split(":");
-            parseRange(a.trim(),b.trim()).forEach(({r,c})=>{
-              const v = evalCell(r,c,depth);
-              if (v!==""&&!isNaN(Number(v))) vals.push(Number(v));
-            });
-          } else {
-            const ref = parseRef(trimmed);
-            if (ref) {
-              const v = evalCell(ref.r,ref.c,depth);
-              if (v!==""&&!isNaN(Number(v))) vals.push(Number(v));
-            } else if (!isNaN(Number(trimmed))) {
-              vals.push(Number(trimmed));
-            }
-          }
-        }
-        return vals;
-      };
-
-      // Match FUNCTION(args)
-      const fnMatch = expr.match(/^([A-Za-z_]+)\s*\((.*))\s*$/s);
-      if (fnMatch) {
-        const fn   = fnMatch[1].toUpperCase();
-        const args = fnMatch[2];
-
-        if (fn==="SUM")                  { const v=getValsFromArgs(args); return v.reduce((s,n)=>s+n,0); }
-        if (fn==="AVG"||fn==="AVERAGE")  { const v=getValsFromArgs(args); return v.length?v.reduce((s,n)=>s+n,0)/v.length:0; }
-        if (fn==="COUNT")                { return getValsFromArgs(args).length; }
-        if (fn==="MIN")                  { const v=getValsFromArgs(args); return v.length?Math.min(...v):""; }
-        if (fn==="MAX")                  { const v=getValsFromArgs(args); return v.length?Math.max(...v):""; }
-        if (fn==="ABS")                  { const v=getValsFromArgs(args); return v.length?Math.abs(v[0]):""; }
-        if (fn==="ROUND") {
-          const parts=splitArgs(args); const val=getValsFromArgs(parts[0]||""); const dec=parseInt(parts[1])||0;
-          return val.length?parseFloat(val[0].toFixed(dec)):"";
-        }
-        if (fn==="COUNTA") {
-          const parts = splitArgs(args);
-          let count=0;
-          for(const p of parts){
-            const t=p.trim();
-            if(t.includes(":")){const [a,b]=t.split(":");parseRange(a.trim(),b.trim()).forEach(({r,c})=>{if(getRawCell(r,c))count++;});}
-            else{const ref=parseRef(t);if(ref&&getRawCell(ref.r,ref.c))count++;}
-          }
-          return count;
-        }
-        if (fn==="IF") {
-          const parts = splitArgs(args);
-          if(parts.length<2) return "#ERR";
-          const condResult = evalCondition(parts[0].trim(), depth);
-          const tVal = parts[1]?.trim().replace(/^"|"$/g,"")||"";
-          const fVal = parts[2]?.trim().replace(/^"|"$/g,"")||"";
-          return condResult ? (!isNaN(Number(tVal))?Number(tVal):tVal) : (!isNaN(Number(fVal))?Number(fVal):fVal);
-        }
-        if (fn==="SUMIF") {
-          const parts = splitArgs(args);
-          if(parts.length<2) return "#ERR";
-          const rangeCells = parts[0].includes(":")?parseRange(...parts[0].split(":").map(s=>s.trim())):[];
-          const crit = parts[1].trim().replace(/^"|"$/g,"");
-          const sumRange = parts[2] ? (parts[2].includes(":")?parseRange(...parts[2].split(":").map(s=>s.trim())):null) : null;
-          let total=0;
-          rangeCells.forEach(({r,c},i)=>{
-            const testVal = String(evalCell(r,c,depth));
-            if(testVal===crit||testVal.includes(crit)){
-              const sc = sumRange?sumRange[i]:{r,c};
-              if(sc){const v=Number(evalCell(sc.r,sc.c,depth));if(!isNaN(v))total+=v;}
-            }
-          });
-          return total;
-        }
-        if (fn==="CONCAT"||fn==="CONCATENATE") {
-          return splitArgs(args).map(p=>{
-            const t=p.trim().replace(/^"|"$/g,"");
-            const ref=parseRef(t);
-            return ref?String(evalCell(ref.r,ref.c,depth)||""):t;
-          }).join("");
-        }
-      }
-
-      // Simple cell ref  =A1
-      const refOnly = parseRef(expr.trim());
-      if (refOnly) return evalCell(refOnly.r,refOnly.c,depth);
-
-      // Math expression with cell refs  =A1+B2*0.15
-      const mathExpr = expr.replace(/[A-Za-z]+\d+/g, ref=>{
-        const r=parseRef(ref); return r!=null?(Number(evalCell(r.r,r.c,depth))||0):0;
-      });
-      // eslint-disable-next-line no-new-func
-      const result = Function('"use strict";return ('+mathExpr+')')();
-      return typeof result==="number"&&isNaN(result)?"#ERR":result;
-    } catch { return "#ERR"; }
-  };
-
-  const evalCondition = (cond, depth) => {
-    const m = cond.match(/^(.+?)\s*([><=!]{1,2})\s*(.+)$/);
-    if (!m) return false;
-    const lhsStr = m[1].trim(), op = m[2], rhsStr = m[3].trim().replace(/^"|"$/g,"");
-    const ref = parseRef(lhsStr);
-    const lhs = ref ? evalCell(ref.r,ref.c,depth) : (!isNaN(Number(lhsStr))?Number(lhsStr):lhsStr);
-    const rhs = !isNaN(Number(rhsStr)) ? Number(rhsStr) : rhsStr;
-    if(op===">"||op==="=>") return lhs>rhs;
-    if(op==="<") return lhs<rhs;
-    if(op===">=") return lhs>=rhs;
-    if(op==="<=") return lhs<=rhs;
-    if(op==="="||op==="==") return lhs==rhs;
-    if(op==="!="||op==="<>") return lhs!=rhs;
-    return false;
-  };
-
-  // Split args by comma, respecting nested parens
-  const splitArgs = str => {
-    const parts=[]; let depth=0, cur="";
-    for(const ch of str){
-      if(ch==="("){ depth++; cur+=ch; }
-      else if(ch===")"){ depth--; cur+=ch; }
-      else if(ch===","&&depth===0){ parts.push(cur); cur=""; }
-      else cur+=ch;
-    }
-    if(cur) parts.push(cur);
-    return parts;
-  };
-
-  const displayVal = (ri, ci) => {
-    const raw = getRawCell(ri, ci);
-    if (!raw) return "";
-    if (raw.startsWith("=")) {
-      const result = evalFormula(raw.slice(1).trim());
-      if (result==null||result==="") return "";
-      if (typeof result==="number") return isNaN(result)?"#ERR":result.toLocaleString(undefined,{maximumFractionDigits:6});
-      return String(result);
-    }
-    return raw;
-  };
-  // ────────────────────────────────────────────────────────────────────────────
-
-  // Edit unlock
-  const [canEdit, setCanEdit]     = useState(false);
-  const [unlockOpen, setUnlockOpen] = useState(false);
-  const [unlockPass, setUnlockPass] = useState("");
-  const [unlockErr,  setUnlockErr]  = useState(false);
-  const unlockInputRef = useRef(null);
-
-  useEffect(()=>{ if(unlockOpen) setTimeout(()=>unlockInputRef.current?.focus(),50); },[unlockOpen]);
-
-  const tryUnlock = () => {
-    if(unlockPass===FIN_PASS){ setCanEdit(true); setUnlockOpen(false); setUnlockPass(""); setUnlockErr(false); }
-    else { setUnlockErr(true); setTimeout(()=>setUnlockErr(false),2000); }
-  };
-
-  // Cell editing
-  const [selCell,  setSelCell]  = useState(null);
-  const [editCell, setEditCell] = useState(null);
-  const [editVal,  setEditVal]  = useState("");
-  const [editColIdx, setEditColIdx] = useState(null);
-  const [editColVal, setEditColVal] = useState("");
-  const inputRef = useRef(null);
-
-  const save = (newCols, newRows) => setWorksheet({ cols: newCols, rows: newRows });
-
-  const startEdit = (r, c) => {
-    if (!canEdit) return;
-    setEditCell({r,c}); setEditVal((rows[r]?.cells||[])[c]||"");
-    setTimeout(()=>inputRef.current?.focus(),0);
-  };
-  const commitEdit = () => {
-    if (!editCell) return;
-    const {r,c} = editCell;
-    save(cols, rows.map((row,ri)=>ri===r?{...row,cells:(row.cells||[]).map((v,ci)=>ci===c?editVal:v)}:row));
-    setEditCell(null);
-  };
-  const handleKeyDown = e => {
-    if(e.key==="Enter")  { commitEdit(); setSelCell(sc=>sc?{r:Math.min(sc.r+1,rows.length-1),c:sc.c}:null); setEditCell(null); }
-    if(e.key==="Escape") { setEditCell(null); setEditVal(""); }
-    if(e.key==="Tab")    { e.preventDefault(); commitEdit(); setSelCell(sc=>sc?{r:sc.r,c:Math.min(sc.c+1,cols.length-1)}:null); }
-  };
-  const startColEdit = i => {
-    if(!canEdit) return;
-    setEditColIdx(i); setEditColVal(cols[i]);
-    setTimeout(()=>document.getElementById("col-edit-input")?.focus(),0);
-  };
-  const commitColEdit = () => {
-    if(editColIdx===null) return;
-    save(cols.map((c,i)=>i===editColIdx?editColVal:c), rows);
-    setEditColIdx(null);
-  };
-
-  const addRow = () => save(cols, [...rows, {id:Date.now(), cells:cols.map(()=>"")}]);
-  const addCol = () => save([...cols,"New Column"], rows.map(r=>({...r,cells:[...(r.cells||[]),""]}) ));
-  const deleteRow = id => save(cols, rows.filter(r=>r.id!==id));
-  const deleteCol = i => { if(cols.length<=1) return; save(cols.filter((_,j)=>j!==i), rows.map(r=>({...r,cells:(r.cells||[]).filter((_,j)=>j!==i)}))); };
-
-  const numericCols = cols.map((_,ci)=>rows.some(r=>{
-    const v = displayVal(rows.indexOf(r),ci);
-    return v!==""&&!isNaN(parseFloat(v));
-  }));
-  const colSums = cols.map((_,ci)=>numericCols[ci]?rows.reduce((s,r,ri)=>{
-    const v=displayVal(ri,ci); return s+(isNaN(parseFloat(v))?0:parseFloat(v));
-  },0):null);
-
-  const doExport = fmt => {
-    const now = new Date().toISOString().slice(0,10);
-    if(fmt==="csv"){
-      const csv=['"RELOOP — Work Sheet"',`"Exported: ${now}"`,"",
-        cols.map(c=>`"${c}"`).join(","),
-        ...rows.map(r=>(r.cells||[]).map(c=>`"${(c||"").replace(/"/g,'""')}"`).join(",")),
-        "","\"Generated by ReLoop — reloopio.netlify.app\""].join("\n");
-      const blob=new Blob([csv],{type:"text/csv"});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement("a"); a.href=url; a.download=`reloop-worksheet-${now}.csv`; a.click(); URL.revokeObjectURL(url);
-    } else {
-      const LOGO="https://res.cloudinary.com/daw3s99fs/image/upload/f_auto,q_auto/WhatsApp_Image_2026-06-08_at_19.43.43-removebg-preview_fcadkj";
-      const trs=rows.map((r,ri)=>`<tr style="background:${ri%2?"#fafaf8":"#fff"}">${(r.cells||[]).map((c,ci)=>`<td style="padding:7px 12px;border-bottom:0.5px solid #eee;text-align:${numericCols[ci]?"right":"left"}">${c||""}</td>`).join("")}</tr>`).join("");
-      const totRow=colSums.some(v=>v!==null)?`<tr style="background:#1E1530;color:#C8F135;font-weight:600">${cols.map((_,ci)=>`<td style="padding:7px 12px;text-align:${numericCols[ci]?"right":"left"}">${ci===0?"TOTAL":colSums[ci]!==null?colSums[ci].toLocaleString():""}</td>`).join("")}</tr>`:"";
-      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>ReLoop Work Sheet</title>
-<link href="https://fonts.googleapis.com/css2?family=Lato:wght@100;700&display=swap" rel="stylesheet">
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10px;color:#1a1a1a}
-.hdr{background:#1E1530;padding:22px 28px;display:flex;align-items:center;justify-content:space-between}
-.logo{font-family:'Lato',sans-serif;font-size:32px;letter-spacing:2px;text-transform:uppercase;line-height:1;margin-bottom:6px}
-.logo .re{color:#C8F135;font-weight:100}.logo .loop{color:#C8F135;font-weight:700}
-.sub{color:#9B8FBB;font-size:10px;margin-bottom:4px}.meta{color:#9B8FBB;font-size:10px}.meta b{color:#C8F135;font-weight:600}
-.logo-box{width:72px;height:72px;background:#C8F135;border-radius:14px;overflow:hidden;flex-shrink:0}
-.logo-box img{width:72px;height:72px;object-fit:cover;display:block}
-table{width:100%;border-collapse:collapse}
-th{background:#1E1530;color:#C8F135;padding:8px 12px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap}
-.footer{display:flex;justify-content:space-between;padding:10px 18px;border-top:0.5px solid #e0e0d8;background:#fafaf8}
-.footer span{font-size:8.5px;color:#aaa}
-@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>
-<div class="hdr"><div><div class="logo"><span class="re">Re</span><span class="loop">Loop</span></div>
-<div class="sub">Work Sheet</div><div class="meta">Exported: <b>${now}</b></div></div>
-<div class="logo-box"><img src="${LOGO}"/></div></div>
-<table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${trs}${totRow}</tbody></table>
-<div class="footer"><span>Generated by ReLoop — reloopio.netlify.app</span><span>${now}</span></div>
-</body></html>`;
-      const w=window.open("","_blank","width=1100,height=800");
-      w.document.write(html); w.document.close(); w.focus(); setTimeout(()=>w.print(),600);
-    }
-  };
-
-  const TBTN = {padding:"5px 12px",border:`1px solid ${T.border}`,borderRadius:6,background:T.surface,color:T.muted,cursor:"pointer",fontSize:12,fontFamily:FB,display:"flex",alignItems:"center",gap:5};
+  const downloadCSV = () => window.open(EXPORT_CSV, "_blank");
+  const downloadPDF = () => window.open(EXPORT_PDF, "_blank");
+  const openSheet   = () => window.open(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`, "_blank");
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",background:T.bg}}>
-
-      {/* Unlock modal */}
-      {unlockOpen&&(
-        <div onClick={()=>setUnlockOpen(false)} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:500}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:360,maxWidth:"92vw",padding:28}}>
-            <div style={{fontSize:18,fontWeight:700,color:T.lime,fontFamily:FB,marginBottom:6}}>🔐 Finance Edit Access</div>
-            <div style={{fontSize:12,color:T.ghost,fontFamily:FB,marginBottom:20}}>Enter the finance password to unlock editing.</div>
-            <input ref={unlockInputRef} type="password" value={unlockPass} onChange={e=>setUnlockPass(e.target.value)}
-              onKeyDown={e=>{if(e.key==="Enter")tryUnlock(); if(e.key==="Escape")setUnlockOpen(false);}}
-              placeholder="Finance password"
-              style={{width:"100%",padding:"10px 14px",border:`2px solid ${unlockErr?T.rougeText:T.border}`,borderRadius:9,background:T.card,fontSize:14,fontFamily:FB,color:T.offWhite,outline:"none",boxSizing:"border-box",marginBottom:unlockErr?6:16,transition:"border-color 0.2s"}}/>
-            {unlockErr&&<div style={{fontSize:11,color:T.rougeText,marginBottom:12,fontFamily:FB}}>Incorrect password — try again.</div>}
-            <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-              <button onClick={()=>setUnlockOpen(false)} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
-              <button onClick={tryUnlock} style={{padding:"8px 22px",border:"none",borderRadius:8,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>Unlock</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Toolbar */}
-      <div style={{background:"#2A1F42",borderBottom:`1px solid ${T.border}`,padding:"7px 14px",display:"flex",alignItems:"center",gap:8,flexShrink:0,flexWrap:"wrap"}}>
-        <span style={{fontFamily:FB,fontSize:15,fontWeight:700,color:T.lime,marginRight:6}}>📒 Work Sheet</span>
-        {canEdit?<>
-          <span style={{fontSize:11,color:T.lime,background:`${T.lime}18`,padding:"3px 10px",borderRadius:5,border:`1px solid ${T.lime}44`,fontFamily:FB}}>✏️ Editing unlocked</span>
-          <button onClick={addRow} style={TBTN}><span style={{fontSize:15,lineHeight:1}}>+</span>Row</button>
-          <button onClick={addCol} style={TBTN}><span style={{fontSize:15,lineHeight:1}}>+</span>Column</button>
-          <button onClick={()=>{setCanEdit(false);}} style={{...TBTN,color:T.rougeText,borderColor:T.rougeText}}>🔒 Lock</button>
-        </>:<>
-          <span style={{fontSize:11,color:T.ghost,background:T.card,padding:"3px 10px",borderRadius:5,border:`1px solid ${T.border}`,fontFamily:FB}}>👁 View only</span>
-          <button onClick={()=>setUnlockOpen(true)} style={{...TBTN,color:T.cobaltText,borderColor:T.cobaltText}}>✏️ Request edit access</button>
-        </>}
-        <div style={{marginLeft:"auto",display:"flex",gap:6}}>
-          <button onClick={()=>doExport("csv")} style={{...TBTN,color:T.cobaltText,borderColor:T.cobaltText}}>↓ CSV</button>
-          <button onClick={()=>doExport("pdf")} style={{...TBTN,color:T.lime,borderColor:T.lime}}>↓ PDF</button>
+      {/* Header */}
+      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"10px 18px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <div style={{fontFamily:FB,fontSize:18,fontWeight:700,color:T.offWhite,flex:1}}>🏢 Fin HQ's</div>
+        <span style={{fontSize:11,color:T.ghost,background:T.card,padding:"3px 10px",borderRadius:5,border:`1px solid ${T.border}`,fontFamily:FB}}>
+          👁 View only — edit directly in Google Sheets
+        </span>
+        <button onClick={openSheet}
+          style={{padding:"6px 14px",border:`1px solid ${T.cobaltText}`,borderRadius:8,background:"transparent",color:T.cobaltText,cursor:"pointer",fontSize:12,fontFamily:FB,display:"flex",alignItems:"center",gap:5}}>
+          ↗ Open in Sheets
+        </button>
+        <div style={{display:"flex",border:`1px solid ${T.border}`,borderRadius:8,overflow:"hidden"}}>
+          <button onClick={downloadCSV}
+            style={{padding:"6px 12px",background:T.card,border:"none",cursor:"pointer",fontSize:12,color:T.muted,fontFamily:FB,borderRight:`1px solid ${T.border}`}}
+            onMouseEnter={e=>{e.currentTarget.style.color=T.lime;e.currentTarget.style.background=T.surface;}}
+            onMouseLeave={e=>{e.currentTarget.style.color=T.muted;e.currentTarget.style.background=T.card;}}>
+            ↓ CSV
+          </button>
+          <button onClick={downloadPDF}
+            style={{padding:"6px 12px",background:T.card,border:"none",cursor:"pointer",fontSize:12,color:T.muted,fontFamily:FB}}
+            onMouseEnter={e=>{e.currentTarget.style.color=T.lime;e.currentTarget.style.background=T.surface;}}
+            onMouseLeave={e=>{e.currentTarget.style.color=T.muted;e.currentTarget.style.background=T.card;}}>
+            ↓ PDF
+          </button>
         </div>
       </div>
 
-      {/* Formula bar */}
-      <div style={{background:"#1E1530",borderBottom:`1px solid ${T.border}`,padding:"4px 10px",display:"flex",alignItems:"center",gap:8,flexShrink:0,minHeight:30}}>
-        <span style={{fontSize:11,color:T.lime,fontWeight:700,fontFamily:"monospace",minWidth:32,textAlign:"center",background:"#2A1F42",padding:"2px 6px",borderRadius:4,border:`1px solid ${T.border}`}}>
-          {selCell?`${String.fromCharCode(65+selCell.c)}${selCell.r+1}`:""}
-        </span>
-        <span style={{color:T.border,fontSize:14}}>ƒx</span>
-        <span style={{fontSize:12,color:T.cobaltText,fontFamily:"monospace",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {selCell?((rows[selCell.r]?.cells||[])[selCell.c]||""):""}
-        </span>
-        {!canEdit&&selCell&&<span style={{fontSize:10,color:T.ghost,flexShrink:0}}>view only</span>}
+      {/* GSheet embed — full height, tabs handled natively by Google */}
+      <div style={{flex:1,position:"relative",background:"#fff"}}>
+        {loading&&<div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:T.bg,zIndex:2}}>
+          <div style={{fontSize:32,marginBottom:14}}>🏢</div>
+          <div style={{fontSize:14,color:T.offWhite,fontFamily:FB,fontWeight:600,marginBottom:6}}>Loading Fin HQ's...</div>
+          <div style={{fontSize:12,color:T.ghost,fontFamily:FB}}>Fetching your Google Sheet</div>
+        </div>}
+        <iframe
+          src={EMBED_BASE}
+          onLoad={()=>setLoading(false)}
+          style={{
+            width:"100%",
+            height:"100%",
+            border:"none",
+            display:"block",
+          }}
+          title="Fin HQs Google Sheet"
+          allowFullScreen
+        />
       </div>
 
-      {/* Spreadsheet */}
-      <div style={{flex:1,overflow:"auto"}} onClick={()=>{if(!editCell)setSelCell(null);}}>
-        <table style={{borderCollapse:"collapse",tableLayout:"fixed",minWidth:"max-content",fontFamily:"'Google Sans',system-ui,sans-serif",fontSize:13}}>
-          <thead style={{position:"sticky",top:0,zIndex:10}}>
-            <tr style={{background:"#2A1F42"}}>
-              <th style={{width:46,minWidth:46,background:"#2A1F42",borderRight:`1px solid ${T.border}`,borderBottom:`2px solid ${T.lime}55`,position:"sticky",left:0,zIndex:11}}/>
-              {cols.map((col,ci)=>(
-                <th key={ci} style={{width:140,minWidth:80,background:"#2A1F42",borderRight:`1px solid ${T.border}`,borderBottom:`2px solid ${T.lime}55`,padding:0}}>
-                  <div style={{display:"flex",alignItems:"center",padding:"0 8px",height:30,gap:4}}>
-                    {editColIdx===ci
-                      ?<input id="col-edit-input" value={editColVal} onChange={e=>setEditColVal(e.target.value)}
-                          onBlur={commitColEdit} onKeyDown={e=>{if(e.key==="Enter"||e.key==="Escape")commitColEdit();}}
-                          style={{background:"transparent",border:"none",outline:"none",color:T.lime,fontSize:10,fontWeight:700,letterSpacing:"0.8px",textTransform:"uppercase",width:"100%",fontFamily:FB}}/>
-                      :<span onDoubleClick={()=>startColEdit(ci)}
-                          style={{fontSize:10,fontWeight:700,color:T.lime,textTransform:"uppercase",letterSpacing:"0.8px",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",cursor:canEdit?"text":"default"}}>
-                          {col}
-                        </span>}
-                    {canEdit&&cols.length>1&&<button onClick={e=>{e.stopPropagation();deleteCol(ci);}} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:13,padding:"0 2px",flexShrink:0,lineHeight:1}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color=T.ghost}>×</button>}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length===0&&(
-              <tr><td colSpan={cols.length+1} style={{textAlign:"center",padding:"60px 20px",color:T.ghost,fontSize:13}}>
-                {canEdit?"Click \"+ Row\" to add your first entry":"No entries yet"}
-              </td></tr>
-            )}
-            {rows.map((row,ri)=>(
-              <tr key={row.id}
-                style={{background:ri%2===0?"#241A38":"#1E1530"}}
-                onMouseEnter={e=>e.currentTarget.style.background="#2E2050"}
-                onMouseLeave={e=>e.currentTarget.style.background=ri%2===0?"#241A38":"#1E1530"}>
-                <td style={{width:46,minWidth:46,borderRight:`1px solid ${T.border}40`,borderBottom:`1px solid ${T.border}40`,textAlign:"center",position:"sticky",left:0,background:"#2A1F42",zIndex:2,padding:"0 4px"}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:1}}>
-                    <span style={{fontSize:10,color:T.ghost}}>{ri+1}</span>
-                    {canEdit&&<button onClick={()=>deleteRow(row.id)} style={{background:"none",border:"none",cursor:"pointer",color:"transparent",fontSize:12,padding:"0 2px",lineHeight:1}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color="transparent"}>×</button>}
-                  </div>
-                </td>
-                {cols.map((_,ci)=>{
-                  const isSel  = selCell?.r===ri&&selCell?.c===ci;
-                  const isEdit = editCell?.r===ri&&editCell?.c===ci;
-                  const val    = (row.cells||[])[ci]||"";
-                  return (
-                    <td key={ci}
-                      onClick={e=>{e.stopPropagation();setSelCell({r:ri,c:ci});}}
-                      onDoubleClick={()=>startEdit(ri,ci)}
-                      style={{width:140,borderRight:`1px solid ${T.border}40`,borderBottom:`1px solid ${T.border}40`,padding:0,outline:isSel?`2px solid ${T.lime}`:"none",outlineOffset:-2,position:"relative",cursor:canEdit?"cell":"default"}}>
-                      {isEdit
-                        ?<input ref={inputRef} value={editVal} onChange={e=>setEditVal(e.target.value)}
-                            onBlur={commitEdit} onKeyDown={handleKeyDown}
-                            style={{position:"absolute",inset:0,width:"100%",height:"100%",padding:"0 8px",background:"#1A1030",border:`2px solid ${T.lime}`,outline:"none",color:T.lime,fontSize:13,fontFamily:FB,boxSizing:"border-box",zIndex:5}}/>
-                        :<div style={{padding:"5px 8px",color:val&&val.startsWith("=")?T.cobaltText:val?T.offWhite:T.ghost,fontSize:13,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minHeight:30,lineHeight:"20px"}}>
-                            {displayVal(ri,ci)}
-                          </div>}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-            {/* Totals */}
-            {colSums.some(v=>v!==null)&&rows.length>0&&(
-              <tr style={{background:"#2A1F42",position:"sticky",bottom:0,zIndex:3}}>
-                <td style={{position:"sticky",left:0,background:"#2A1F42",borderTop:`2px solid ${T.lime}55`,padding:"5px 4px",textAlign:"center"}}>
-                  <span style={{fontSize:10,color:T.lime,fontWeight:700}}>Σ</span>
-                </td>
-                {cols.map((_,ci)=>(
-                  <td key={ci} style={{borderTop:`2px solid ${T.lime}55`,padding:"5px 8px",textAlign:numericCols[ci]?"right":"left",fontWeight:700,color:colSums[ci]!==null?T.lime:T.ghost,fontSize:12}}>
-                    {colSums[ci]!==null?colSums[ci].toLocaleString():ci===0?"TOTAL":""}
-                  </td>
-                ))}
-              </tr>
-            )}
-            {canEdit&&<tr><td colSpan={cols.length+1} style={{borderTop:`1px dashed ${T.border}`}}>
-              <button onClick={addRow} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:12,fontFamily:FB,padding:"6px 52px",display:"block",width:"100%",textAlign:"left"}} onMouseEnter={e=>e.currentTarget.style.color=T.lime} onMouseLeave={e=>e.currentTarget.style.color=T.ghost}>+ Click to add row</button>
-            </td></tr>}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Status bar */}
-      <div style={{background:"#2A1F42",borderTop:`1px solid ${T.border}`,padding:"3px 14px",display:"flex",gap:20,alignItems:"center",flexShrink:0}}>
-        <span style={{fontSize:10,color:T.ghost}}>{rows.length} row{rows.length!==1?"s":""} · {cols.length} column{cols.length!==1?"s":""}</span>
-        {selCell&&<span style={{fontSize:10,color:T.cobaltText}}>{String.fromCharCode(65+selCell.c)}{selCell.r+1}{canEdit?" · Double-click to edit":""}</span>}
-        {canEdit&&<span style={{fontSize:10,color:T.ghost,marginLeft:"auto"}}>Formulas: =SUM(A1:A5) · =AVG(B2:B8) · =IF(A1>100,"Yes","No") · =MIN · =MAX · =COUNT</span>}
-        {!canEdit&&<span style={{fontSize:10,color:T.ghost,marginLeft:"auto"}}>Click "Request edit access" to unlock editing</span>}
+      {/* Footer status */}
+      <div style={{background:"#2A1F42",borderTop:`1px solid ${T.border}`,padding:"4px 14px",display:"flex",alignItems:"center",gap:16,flexShrink:0}}>
+        <span style={{fontSize:10,color:T.ghost,fontFamily:FB}}>
+          Live from Google Sheets · Read-only view
+        </span>
+        <span style={{fontSize:10,color:T.ghost,marginLeft:"auto",fontFamily:FB}}>
+          Use tab switcher inside the sheet to navigate between sheets
+        </span>
       </div>
     </div>
   );
@@ -2637,7 +2283,7 @@ export default function App(){
                   {icon:"🗓️",label:"Attendance",page:"attendance"},
                   {icon:"📋",label:"Order Working",page:"orders",adminOnly:true},
                   {icon:"🤖",label:"Profit Bot",page:"profitbot",adminOnly:true},
-                  {icon:"📒",label:"Work Sheet",page:"worksheet",adminOnly:true},
+                  {icon:"🏢",label:"Fin HQ's",page:"worksheet",adminOnly:true},
                   {icon:"🧾",label:"Sales ↗",page:null,adminOnly:true},
                   {icon:"📊",label:"Analytics ↗",page:null,adminOnly:true},
                   {icon:"🤝",label:"Suppliers ↗",page:null,adminOnly:true},
@@ -2664,7 +2310,7 @@ export default function App(){
         :activePage==="attendance"?<AttendancePage attendance={attendance} isAdmin={isAdmin} setAttendance={a=>{setAttendance(a);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance:a,orders});}}/>
         :activePage==="orders"?(isAdmin?<OrderWorkingPage orders={orders} setOrders={o=>{setOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders:o,worksheet});}}/>:<AccessDenied/>)
         :activePage==="profitbot"?(isAdmin?<ProfitBotPage rates={rates}/>:<AccessDenied/>)
-        :activePage==="worksheet"?(isAdmin?<WorkSheetPage worksheet={worksheet} setWorksheet={w=>{setWorksheet(w);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,worksheet:w});}}/>:<AccessDenied/>)
+        :activePage==="worksheet"?(isAdmin?<WorkSheetPage/>:<AccessDenied/>)
         :(
           <>
             {/* Top bar */}
