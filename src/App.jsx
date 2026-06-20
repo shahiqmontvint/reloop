@@ -2569,7 +2569,12 @@ export default function App(){
                               const totalRevDl = exportFiltered.filter(i=>i.price).reduce((s,i)=>s+toPKR(i.price,i.currency),0);
                               const avgProfPct = totalRevDl>0?((totalProfitDl/totalRevDl)*100).toFixed(1):null;
                               const LOGO_URL="https://res.cloudinary.com/daw3s99fs/image/upload/f_auto,q_auto/WhatsApp_Image_2026-06-08_at_19.43.43-removebg-preview_fcadkj";
-                              const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>ReLoop Inventory</title>
+                              const fmtMonthYear = d => { if(!d) return ""; const [y,m] = d.split("-"); return `${m}/${y}`; };
+                              const dateFromLabel = filterDateFrom ? fmtMonthYear(filterDateFrom) : (exportDateFrom ? fmtMonthYear(exportDateFrom) : "");
+                              const dateToLabel   = filterDateTo   ? fmtMonthYear(filterDateTo)   : (exportDateTo   ? fmtMonthYear(exportDateTo)   : "");
+                              const datesPart = dateFromLabel&&dateToLabel ? `_${dateFromLabel}_${dateToLabel}` : dateFromLabel ? `_${dateFromLabel}` : "";
+                              const pdfTitle = `${brand.toLowerCase().replace(/\s+/g,"_")}_inventory${datesPart}`;
+                              const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${pdfTitle}</title>
                               <link href="https://fonts.googleapis.com/css2?family=Lato:wght@100;700&display=swap" rel="stylesheet">
                               <style>
                                 *{margin:0;padding:0;box-sizing:border-box}
