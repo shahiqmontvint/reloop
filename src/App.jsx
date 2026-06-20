@@ -2094,6 +2094,9 @@ export default function App(){
   const[exportOpen,setExportOpen]=useState(false);
   const[exportDateFrom,setExportDateFrom]=useState("");
   const[exportDateTo,setExportDateTo]=useState("");
+  const[filterDateFrom,setFilterDateFrom]=useState("");
+  const[filterDateTo,setFilterDateTo]=useState("");
+  const[dateFilterMode,setDateFilterMode]=useState("all"); // all | month | range
   const[sortCol,setSortCol]=useState(null);
   const[sortDir,setSortDir]=useState(1);
   const[addItemOpen,setAddItemOpen]=useState(false);
@@ -2197,9 +2200,17 @@ export default function App(){
     let f=pool;
     if(aStat!=="all")f=f.filter(i=>i.status===aStat);
     if(q)f=f.filter(i=>i.name.toLowerCase().includes(q.toLowerCase())||i.sku?.toLowerCase().includes(q.toLowerCase())||(i.category||"").toLowerCase().includes(q.toLowerCase())||(i.notes||"").toLowerCase().includes(q.toLowerCase()));
+    if(filterDateFrom||filterDateTo){
+      f=f.filter(i=>{
+        if(!i.inventoryDate) return false;
+        if(filterDateFrom&&i.inventoryDate<filterDateFrom) return false;
+        if(filterDateTo&&i.inventoryDate>filterDateTo) return false;
+        return true;
+      });
+    }
     if(sortCol)f=[...f].sort((a,b)=>{const av=getSortVal(a,sortCol),bv=getSortVal(b,sortCol);if(typeof av==="number"&&typeof bv==="number")return(av-bv)*sortDir;return String(av).localeCompare(String(bv))*sortDir;});
     return f;
-  },[pool,aStat,q,sortCol,sortDir,brands,rates]);
+  },[pool,aStat,q,sortCol,sortDir,brands,rates,filterDateFrom,filterDateTo]);
 
   const stats=useMemo(()=>{
     const soldItems=pool.filter(i=>i.status==="sold");
@@ -2634,7 +2645,7 @@ export default function App(){
                 ))}
               </div>
 
-              <div style={{display:"flex",gap:6,marginBottom:16,alignItems:"center"}}>
+              <div style={{display:"flex",gap:6,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
                 {["all","available","listed","reserved","sold"].map(s=>(
                   <button key={s} onClick={()=>setAStat(s)} style={{padding:"5px 14px",borderRadius:20,fontSize:12,border:`1px solid ${aStat===s?T.lime:T.border}`,cursor:"pointer",background:aStat===s?T.lime:T.card,color:aStat===s?T.ink:T.muted,fontFamily:FB,fontWeight:aStat===s?700:400}}>
                     {s==="all"?"All":{available:"Available",listed:"Listed",reserved:"Reserved",sold:"Sold"}[s]}
@@ -2642,6 +2653,57 @@ export default function App(){
                 ))}
                 <div style={{height:16,width:1,background:T.border,margin:"0 4px"}}/>
                 <span style={{fontSize:11.5,color:T.ghost}}>{filtered.length} item{filtered.length!==1?"s":""}</span>
+
+                {/* Date filter — right side */}
+                <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  {/* Mode pills */}
+                  <div style={{display:"flex",border:`1px solid ${T.border}`,borderRadius:20,overflow:"hidden"}}>
+                    {[["all","All dates"],["month","Month"],["range","Date range"]].map(([m,l],i)=>(
+                      <button key={m} onClick={()=>{setDateFilterMode(m);if(m==="all"){setFilterDateFrom("");setFilterDateTo("");}}}
+                        style={{padding:"4px 12px",fontSize:11,fontFamily:FB,cursor:"pointer",border:"none",borderLeft:i>0?`1px solid ${T.border}`:"none",
+                          background:dateFilterMode===m?T.lime:"transparent",
+                          color:dateFilterMode===m?T.ink:T.muted,
+                          fontWeight:dateFilterMode===m?700:400}}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Month picker */}
+                  {dateFilterMode==="month"&&(
+                    <input type="month"
+                      value={filterDateFrom?filterDateFrom.slice(0,7):""}
+                      onChange={e=>{
+                        const ym=e.target.value;
+                        if(!ym){setFilterDateFrom("");setFilterDateTo("");return;}
+                        const [y,mo]=ym.split("-");
+                        const lastDay=new Date(y,mo,0).getDate();
+                        setFilterDateFrom(`${ym}-01`);
+                        setFilterDateTo(`${ym}-${String(lastDay).padStart(2,"0")}`);
+                      }}
+                      style={{padding:"4px 10px",border:`1px solid ${T.lime}`,borderRadius:8,background:T.card,fontSize:12,fontFamily:FB,color:T.offWhite,outline:"none",cursor:"pointer"}}
+                    />
+                  )}
+
+                  {/* Date range picker */}
+                  {dateFilterMode==="range"&&(
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <input type="date" value={filterDateFrom} onChange={e=>{setFilterDateFrom(e.target.value);if(e.target.value>filterDateTo)setFilterDateTo(e.target.value);}}
+                        style={{padding:"4px 8px",border:`1px solid ${filterDateFrom?T.lime:T.border}`,borderRadius:8,background:T.card,fontSize:11,fontFamily:FB,color:T.offWhite,outline:"none"}}/>
+                      <span style={{fontSize:12,color:T.ghost}}>→</span>
+                      <input type="date" value={filterDateTo} min={filterDateFrom} onChange={e=>setFilterDateTo(e.target.value)}
+                        style={{padding:"4px 8px",border:`1px solid ${filterDateTo?T.lime:T.border}`,borderRadius:8,background:T.card,fontSize:11,fontFamily:FB,color:T.offWhite,outline:"none"}}/>
+                    </div>
+                  )}
+
+                  {/* Clear badge */}
+                  {(filterDateFrom||filterDateTo)&&(
+                    <button onClick={()=>{setFilterDateFrom("");setFilterDateTo("");setDateFilterMode("all");}}
+                      style={{padding:"3px 8px",fontSize:11,fontFamily:FB,border:`1px solid ${T.rougeText}`,borderRadius:20,background:"transparent",color:T.rougeText,cursor:"pointer"}}>
+                      ✕ Clear
+                    </button>
+                  )}
+                </div>
               </div>
 
               {filtered.length===0
@@ -2698,7 +2760,6 @@ export default function App(){
                   {(() => {
                     const totalQty    = filtered.reduce((s,i)=>s+(i.qty||1),0);
                     const totalInvVal = filtered.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
-                    const totalCost   = filtered.reduce((s,i)=>s+(i.cost||0),0);
                     const totalSoldVal= filtered.filter(i=>i.status==="sold").reduce((s,i)=>s+toPKR(i.price,i.currency)*(i.qty||1),0);
                     const totalProfit = filtered.filter(i=>i.status==="sold").reduce((s,i)=>s+(toPKR(i.price,i.currency)-i.cost)*(i.qty||1),0);
                     const dates = filtered.map(i=>i.inventoryDate).filter(Boolean).sort();
@@ -2714,7 +2775,6 @@ export default function App(){
                           </div>}
                           <div style={{fontSize:12,color:T.ghost}}>Items: <span style={{color:T.offWhite,fontWeight:600}}>{filtered.length}</span></div>
                           <div style={{fontSize:12,color:T.ghost}}>Qty: <span style={{color:T.cobaltText,fontWeight:600}}>{totalQty.toLocaleString()}</span></div>
-                          {isAdmin&&<div style={{fontSize:12,color:T.ghost}}>Total Cost: <span style={{color:T.offWhite,fontWeight:600}}>₨{totalCost.toLocaleString()}</span></div>}
                           {isAdmin&&<div style={{fontSize:12,color:T.ghost}}>Inv. Value: <span style={{color:T.offWhite,fontWeight:600}}>₨{totalInvVal.toLocaleString()}</span></div>}
                           {isAdmin&&totalSoldVal>0&&<div style={{fontSize:12,color:T.ghost}}>Revenue: <span style={{color:T.lime,fontWeight:600}}>₨{totalSoldVal.toLocaleString()}</span></div>}
                           {isAdmin&&totalProfit!==0&&<div style={{fontSize:12,color:T.ghost}}>Profit: <span style={{color:totalProfit>=0?T.profit:T.loss,fontWeight:700}}>{totalProfit>=0?"+":""}₨{totalProfit.toLocaleString()}</span></div>}
