@@ -1897,245 +1897,236 @@ Be concise and direct. Give concrete numbers and actionable insights. Respond in
 }
 
 // ── Work Sheet Page ───────────────────────────────────────────────────────────
-function WorkSheetPage({ worksheet, setWorksheet, canEdit }) {
+function WorkSheetPage({ worksheet, setWorksheet }) {
+  const FIN_PASS = "fin_96_enmnt";
+
   const cols   = worksheet?.cols || ["Date","Description","Type","Amount (Rs)","Notes"];
   const rows   = worksheet?.rows || [];
-  const [selCell, setSelCell]     = useState(null); // {r,c}
-  const [editCell, setEditCell]   = useState(null); // {r,c}
-  const [editVal,  setEditVal]    = useState("");
-  const [colWidths, setColWidths] = useState({});
+
+  // Edit unlock
+  const [canEdit, setCanEdit]     = useState(false);
+  const [unlockOpen, setUnlockOpen] = useState(false);
+  const [unlockPass, setUnlockPass] = useState("");
+  const [unlockErr,  setUnlockErr]  = useState(false);
+  const unlockInputRef = useRef(null);
+
+  useEffect(()=>{ if(unlockOpen) setTimeout(()=>unlockInputRef.current?.focus(),50); },[unlockOpen]);
+
+  const tryUnlock = () => {
+    if(unlockPass===FIN_PASS){ setCanEdit(true); setUnlockOpen(false); setUnlockPass(""); setUnlockErr(false); }
+    else { setUnlockErr(true); setTimeout(()=>setUnlockErr(false),2000); }
+  };
+
+  // Cell editing
+  const [selCell,  setSelCell]  = useState(null);
+  const [editCell, setEditCell] = useState(null);
+  const [editVal,  setEditVal]  = useState("");
   const [editColIdx, setEditColIdx] = useState(null);
   const [editColVal, setEditColVal] = useState("");
   const inputRef = useRef(null);
 
   const save = (newCols, newRows) => setWorksheet({ cols: newCols, rows: newRows });
 
-  // --- Cell editing ---
   const startEdit = (r, c) => {
     if (!canEdit) return;
-    setEditCell({r,c});
-    setEditVal((rows[r]?.cells||[])[c]||"");
+    setEditCell({r,c}); setEditVal((rows[r]?.cells||[])[c]||"");
     setTimeout(()=>inputRef.current?.focus(),0);
   };
   const commitEdit = () => {
     if (!editCell) return;
     const {r,c} = editCell;
-    const newRows = rows.map((row,ri)=>ri===r?{...row,cells:row.cells.map((v,ci)=>ci===c?editVal:v)}:row);
-    save(cols, newRows);
+    save(cols, rows.map((row,ri)=>ri===r?{...row,cells:(row.cells||[]).map((v,ci)=>ci===c?editVal:v)}:row));
     setEditCell(null);
   };
   const handleKeyDown = e => {
-    if (e.key==="Enter")  { commitEdit(); setSelCell(ec=>ec?{r:Math.min(ec.r+1,rows.length-1),c:ec.c}:null); setEditCell(null); }
-    if (e.key==="Escape") { setEditCell(null); setEditVal(""); }
-    if (e.key==="Tab")    { e.preventDefault(); commitEdit(); setSelCell(ec=>ec?{r:ec.r,c:Math.min(ec.c+1,cols.length-1)}:null); }
+    if(e.key==="Enter")  { commitEdit(); setSelCell(sc=>sc?{r:Math.min(sc.r+1,rows.length-1),c:sc.c}:null); setEditCell(null); }
+    if(e.key==="Escape") { setEditCell(null); setEditVal(""); }
+    if(e.key==="Tab")    { e.preventDefault(); commitEdit(); setSelCell(sc=>sc?{r:sc.r,c:Math.min(sc.c+1,cols.length-1)}:null); }
   };
-
-  // --- Column header editing ---
-  const startColEdit = (i) => {
-    if (!canEdit) return;
+  const startColEdit = i => {
+    if(!canEdit) return;
     setEditColIdx(i); setEditColVal(cols[i]);
     setTimeout(()=>document.getElementById("col-edit-input")?.focus(),0);
   };
   const commitColEdit = () => {
-    if (editColIdx===null) return;
+    if(editColIdx===null) return;
     save(cols.map((c,i)=>i===editColIdx?editColVal:c), rows);
     setEditColIdx(null);
   };
 
-  // --- Row / Col management ---
-  const addRow = () => {
-    save(cols, [...rows, {id:Date.now(), cells:cols.map(()=>"")}]);
-  };
-  const addCol = () => {
-    save([...cols,"New Column"], rows.map(r=>({...r,cells:[...(r.cells||[]),""]}) ));
-  };
+  const addRow = () => save(cols, [...rows, {id:Date.now(), cells:cols.map(()=>"")}]);
+  const addCol = () => save([...cols,"New Column"], rows.map(r=>({...r,cells:[...(r.cells||[]),""]}) ));
   const deleteRow = id => save(cols, rows.filter(r=>r.id!==id));
-  const deleteCol = i => {
-    if(cols.length<=1) return;
-    save(cols.filter((_,j)=>j!==i), rows.map(r=>({...r,cells:(r.cells||[]).filter((_,j)=>j!==i)})));
-  };
+  const deleteCol = i => { if(cols.length<=1) return; save(cols.filter((_,j)=>j!==i), rows.map(r=>({...r,cells:(r.cells||[]).filter((_,j)=>j!==i)}))); };
 
-  // --- Numeric totals ---
-  const numericCols = cols.map((_,ci)=>{
-    const vals = rows.map(r=>parseFloat((r.cells||[])[ci])||0);
-    return vals.some(v=>v!==0);
-  });
-  const colSums = cols.map((_,ci)=>numericCols[ci]?rows.reduce((s,r)=>s+(parseFloat((r.cells||[])[ci])||0),0):null);
+  const numericCols = cols.map((_,ci)=>rows.some(r=>parseFloat((r.cells||[])[ci])));
+  const colSums     = cols.map((_,ci)=>numericCols[ci]?rows.reduce((s,r)=>s+(parseFloat((r.cells||[])[ci])||0),0):null);
 
-  // --- Export ---
   const doExport = fmt => {
     const now = new Date().toISOString().slice(0,10);
     if(fmt==="csv"){
       const csv=['"RELOOP — Work Sheet"',`"Exported: ${now}"`,"",
         cols.map(c=>`"${c}"`).join(","),
         ...rows.map(r=>(r.cells||[]).map(c=>`"${(c||"").replace(/"/g,'""')}"`).join(",")),
-        "",'"Generated by ReLoop — reloopio.netlify.app"'].join("\n");
+        "","\"Generated by ReLoop — reloopio.netlify.app\""].join("\n");
       const blob=new Blob([csv],{type:"text/csv"});
       const url=URL.createObjectURL(blob);
       const a=document.createElement("a"); a.href=url; a.download=`reloop-worksheet-${now}.csv`; a.click(); URL.revokeObjectURL(url);
     } else {
       const LOGO="https://res.cloudinary.com/daw3s99fs/image/upload/f_auto,q_auto/WhatsApp_Image_2026-06-08_at_19.43.43-removebg-preview_fcadkj";
-      const trs=rows.map(r=>`<tr>${(r.cells||[]).map((c,ci)=>`<td style="text-align:${numericCols[ci]?"right":"left"};padding:6px 12px;border-bottom:0.5px solid #eee">${c||""}</td>`).join("")}</tr>`).join("");
-      const totalRow=`<tr style="background:#1E1530;color:#C8F135;font-weight:600">${cols.map((c,ci)=>`<td style="padding:6px 12px;text-align:${numericCols[ci]?"right":"left"}">${ci===0?"TOTAL":colSums[ci]!==null?colSums[ci].toLocaleString():""}</td>`).join("")}</tr>`;
+      const trs=rows.map((r,ri)=>`<tr style="background:${ri%2?"#fafaf8":"#fff"}">${(r.cells||[]).map((c,ci)=>`<td style="padding:7px 12px;border-bottom:0.5px solid #eee;text-align:${numericCols[ci]?"right":"left"}">${c||""}</td>`).join("")}</tr>`).join("");
+      const totRow=colSums.some(v=>v!==null)?`<tr style="background:#1E1530;color:#C8F135;font-weight:600">${cols.map((_,ci)=>`<td style="padding:7px 12px;text-align:${numericCols[ci]?"right":"left"}">${ci===0?"TOTAL":colSums[ci]!==null?colSums[ci].toLocaleString():""}</td>`).join("")}</tr>`:"";
       const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>ReLoop Work Sheet</title>
-      <link href="https://fonts.googleapis.com/css2?family=Lato:wght@100;700&display=swap" rel="stylesheet">
-      <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10px;color:#1a1a1a}
-      .hdr{background:#1E1530;padding:22px 28px;display:flex;align-items:center;justify-content:space-between}
-      .logo{font-family:'Lato',sans-serif;font-size:32px;letter-spacing:2px;text-transform:uppercase;line-height:1;margin-bottom:6px}
-      .logo .re{color:#C8F135;font-weight:100}.logo .loop{color:#C8F135;font-weight:700}
-      .sub{color:#9B8FBB;font-size:10px;margin-bottom:4px}.meta{color:#9B8FBB;font-size:10px}.meta b{color:#C8F135;font-weight:600}
-      .logo-box{width:72px;height:72px;background:#C8F135;border-radius:14px;overflow:hidden;flex-shrink:0}
-      .logo-box img{width:72px;height:72px;object-fit:cover;display:block}
-      table{width:100%;border-collapse:collapse}
-      th{background:#1E1530;color:#C8F135;padding:8px 12px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap}
-      tr:nth-child(even) td{background:#fafaf8}
-      .footer{display:flex;justify-content:space-between;padding:10px 18px;border-top:0.5px solid #e0e0d8;background:#fafaf8}
-      .footer span{font-size:8.5px;color:#aaa}
-      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>
-      <div class="hdr"><div><div class="logo"><span class="re">Re</span><span class="loop">Loop</span></div>
-      <div class="sub">Work Sheet</div><div class="meta">Exported: <b>${now}</b></div></div>
-      <div class="logo-box"><img src="${LOGO}"/></div></div>
-      <table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead>
-      <tbody>${trs}${totalRow}</tbody></table>
-      <div class="footer"><span>Generated by ReLoop — reloopio.netlify.app</span><span>${now}</span></div>
-      </body></html>`;
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@100;700&display=swap" rel="stylesheet">
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10px;color:#1a1a1a}
+.hdr{background:#1E1530;padding:22px 28px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:'Lato',sans-serif;font-size:32px;letter-spacing:2px;text-transform:uppercase;line-height:1;margin-bottom:6px}
+.logo .re{color:#C8F135;font-weight:100}.logo .loop{color:#C8F135;font-weight:700}
+.sub{color:#9B8FBB;font-size:10px;margin-bottom:4px}.meta{color:#9B8FBB;font-size:10px}.meta b{color:#C8F135;font-weight:600}
+.logo-box{width:72px;height:72px;background:#C8F135;border-radius:14px;overflow:hidden;flex-shrink:0}
+.logo-box img{width:72px;height:72px;object-fit:cover;display:block}
+table{width:100%;border-collapse:collapse}
+th{background:#1E1530;color:#C8F135;padding:8px 12px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;white-space:nowrap}
+.footer{display:flex;justify-content:space-between;padding:10px 18px;border-top:0.5px solid #e0e0d8;background:#fafaf8}
+.footer span{font-size:8.5px;color:#aaa}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>
+<div class="hdr"><div><div class="logo"><span class="re">Re</span><span class="loop">Loop</span></div>
+<div class="sub">Work Sheet</div><div class="meta">Exported: <b>${now}</b></div></div>
+<div class="logo-box"><img src="${LOGO}"/></div></div>
+<table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${trs}${totRow}</tbody></table>
+<div class="footer"><span>Generated by ReLoop — reloopio.netlify.app</span><span>${now}</span></div>
+</body></html>`;
       const w=window.open("","_blank","width=1100,height=800");
       w.document.write(html); w.document.close(); w.focus(); setTimeout(()=>w.print(),600);
     }
   };
 
-  const cw = ci => colWidths[ci]||140;
-  const TOOLBAR_BTN = {padding:"3px 10px",border:`1px solid ${T.border}`,borderRadius:5,background:T.surface,color:T.muted,cursor:"pointer",fontSize:12,fontFamily:FB,display:"flex",alignItems:"center",gap:4};
+  const TBTN = {padding:"5px 12px",border:`1px solid ${T.border}`,borderRadius:6,background:T.surface,color:T.muted,cursor:"pointer",fontSize:12,fontFamily:FB,display:"flex",alignItems:"center",gap:5};
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",background:T.bg}}>
 
-      {/* ── Google-Sheets-style toolbar ── */}
-      <div style={{background:"#2A1F42",borderBottom:`1px solid ${T.border}`,padding:"6px 14px",display:"flex",alignItems:"center",gap:8,flexShrink:0,flexWrap:"wrap"}}>
-        <span style={{fontFamily:FB,fontSize:15,fontWeight:700,color:T.lime,marginRight:8}}>📒 Work Sheet</span>
-        {canEdit&&<>
-          <button onClick={addRow} style={TOOLBAR_BTN}><span style={{fontSize:14,lineHeight:1}}>+</span> Row</button>
-          <button onClick={addCol} style={TOOLBAR_BTN}><span style={{fontSize:14,lineHeight:1}}>+</span> Column</button>
-          <div style={{width:1,height:20,background:T.border,margin:"0 4px"}}/>
+      {/* Unlock modal */}
+      {unlockOpen&&(
+        <div onClick={()=>setUnlockOpen(false)} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:500}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:360,maxWidth:"92vw",padding:28}}>
+            <div style={{fontSize:18,fontWeight:700,color:T.lime,fontFamily:FB,marginBottom:6}}>🔐 Finance Edit Access</div>
+            <div style={{fontSize:12,color:T.ghost,fontFamily:FB,marginBottom:20}}>Enter the finance password to unlock editing.</div>
+            <input ref={unlockInputRef} type="password" value={unlockPass} onChange={e=>setUnlockPass(e.target.value)}
+              onKeyDown={e=>{if(e.key==="Enter")tryUnlock(); if(e.key==="Escape")setUnlockOpen(false);}}
+              placeholder="Finance password"
+              style={{width:"100%",padding:"10px 14px",border:`2px solid ${unlockErr?T.rougeText:T.border}`,borderRadius:9,background:T.card,fontSize:14,fontFamily:FB,color:T.offWhite,outline:"none",boxSizing:"border-box",marginBottom:unlockErr?6:16,transition:"border-color 0.2s"}}/>
+            {unlockErr&&<div style={{fontSize:11,color:T.rougeText,marginBottom:12,fontFamily:FB}}>Incorrect password — try again.</div>}
+            <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+              <button onClick={()=>setUnlockOpen(false)} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
+              <button onClick={tryUnlock} style={{padding:"8px 22px",border:"none",borderRadius:8,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>Unlock</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toolbar */}
+      <div style={{background:"#2A1F42",borderBottom:`1px solid ${T.border}`,padding:"7px 14px",display:"flex",alignItems:"center",gap:8,flexShrink:0,flexWrap:"wrap"}}>
+        <span style={{fontFamily:FB,fontSize:15,fontWeight:700,color:T.lime,marginRight:6}}>📒 Work Sheet</span>
+        {canEdit?<>
+          <span style={{fontSize:11,color:T.lime,background:`${T.lime}18`,padding:"3px 10px",borderRadius:5,border:`1px solid ${T.lime}44`,fontFamily:FB}}>✏️ Editing unlocked</span>
+          <button onClick={addRow} style={TBTN}><span style={{fontSize:15,lineHeight:1}}>+</span>Row</button>
+          <button onClick={addCol} style={TBTN}><span style={{fontSize:15,lineHeight:1}}>+</span>Column</button>
+          <button onClick={()=>{setCanEdit(false);}} style={{...TBTN,color:T.rougeText,borderColor:T.rougeText}}>🔒 Lock</button>
+        </>:<>
+          <span style={{fontSize:11,color:T.ghost,background:T.card,padding:"3px 10px",borderRadius:5,border:`1px solid ${T.border}`,fontFamily:FB}}>👁 View only</span>
+          <button onClick={()=>setUnlockOpen(true)} style={{...TBTN,color:T.cobaltText,borderColor:T.cobaltText}}>✏️ Request edit access</button>
         </>}
-        {!canEdit&&<span style={{fontSize:11,color:T.ghost,background:T.card,padding:"3px 10px",borderRadius:5,border:`1px solid ${T.border}`}}>👁 View only</span>}
         <div style={{marginLeft:"auto",display:"flex",gap:6}}>
-          <button onClick={()=>doExport("csv")} style={{...TOOLBAR_BTN,color:T.cobaltText,borderColor:T.cobaltText}}>↓ CSV</button>
-          <button onClick={()=>doExport("pdf")} style={{...TOOLBAR_BTN,color:T.lime,borderColor:T.lime}}>↓ PDF</button>
+          <button onClick={()=>doExport("csv")} style={{...TBTN,color:T.cobaltText,borderColor:T.cobaltText}}>↓ CSV</button>
+          <button onClick={()=>doExport("pdf")} style={{...TBTN,color:T.lime,borderColor:T.lime}}>↓ PDF</button>
         </div>
       </div>
 
-      {/* ── Spreadsheet ── */}
-      <div style={{flex:1,overflow:"auto",position:"relative"}} onClick={()=>{if(!editCell){setSelCell(null);}}}>
+      {/* Spreadsheet */}
+      <div style={{flex:1,overflow:"auto"}} onClick={()=>{if(!editCell)setSelCell(null);}}>
         <table style={{borderCollapse:"collapse",tableLayout:"fixed",minWidth:"max-content",fontFamily:"'Google Sans',system-ui,sans-serif",fontSize:13}}>
-
-          {/* Column headers */}
           <thead style={{position:"sticky",top:0,zIndex:10}}>
-            {/* Row number + col letter header */}
             <tr style={{background:"#2A1F42"}}>
               <th style={{width:46,minWidth:46,background:"#2A1F42",borderRight:`1px solid ${T.border}`,borderBottom:`2px solid ${T.lime}55`,position:"sticky",left:0,zIndex:11}}/>
               {cols.map((col,ci)=>(
-                <th key={ci} style={{width:cw(ci),minWidth:60,background:"#2A1F42",borderRight:`1px solid ${T.border}`,borderBottom:`2px solid ${T.lime}55`,padding:0,position:"relative",userSelect:"none"}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 6px",height:28}}>
+                <th key={ci} style={{width:140,minWidth:80,background:"#2A1F42",borderRight:`1px solid ${T.border}`,borderBottom:`2px solid ${T.lime}55`,padding:0}}>
+                  <div style={{display:"flex",alignItems:"center",padding:"0 8px",height:30,gap:4}}>
                     {editColIdx===ci
                       ?<input id="col-edit-input" value={editColVal} onChange={e=>setEditColVal(e.target.value)}
                           onBlur={commitColEdit} onKeyDown={e=>{if(e.key==="Enter"||e.key==="Escape")commitColEdit();}}
-                          style={{background:"transparent",border:"none",outline:"none",color:T.lime,fontSize:11,fontWeight:700,letterSpacing:"0.8px",textTransform:"uppercase",width:"100%",fontFamily:FB}}/>
+                          style={{background:"transparent",border:"none",outline:"none",color:T.lime,fontSize:10,fontWeight:700,letterSpacing:"0.8px",textTransform:"uppercase",width:"100%",fontFamily:FB}}/>
                       :<span onDoubleClick={()=>startColEdit(ci)}
                           style={{fontSize:10,fontWeight:700,color:T.lime,textTransform:"uppercase",letterSpacing:"0.8px",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",cursor:canEdit?"text":"default"}}>
                           {col}
                         </span>}
-                    {canEdit&&<button onClick={e=>{e.stopPropagation();deleteCol(ci);}} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:12,lineHeight:1,padding:"0 2px",flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color=T.ghost}>×</button>}
+                    {canEdit&&cols.length>1&&<button onClick={e=>{e.stopPropagation();deleteCol(ci);}} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:13,padding:"0 2px",flexShrink:0,lineHeight:1}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color=T.ghost}>×</button>}
                   </div>
                 </th>
               ))}
-              {/* Extra add column cell */}
-              {canEdit&&<th style={{width:36,background:"#2A1F42",borderBottom:`2px solid ${T.lime}55`}}/>}
             </tr>
           </thead>
-
           <tbody>
+            {rows.length===0&&(
+              <tr><td colSpan={cols.length+1} style={{textAlign:"center",padding:"60px 20px",color:T.ghost,fontSize:13}}>
+                {canEdit?"Click \"+ Row\" to add your first entry":"No entries yet"}
+              </td></tr>
+            )}
             {rows.map((row,ri)=>(
               <tr key={row.id}
                 style={{background:ri%2===0?"#241A38":"#1E1530"}}
                 onMouseEnter={e=>e.currentTarget.style.background="#2E2050"}
                 onMouseLeave={e=>e.currentTarget.style.background=ri%2===0?"#241A38":"#1E1530"}>
-
-                {/* Row number + delete */}
                 <td style={{width:46,minWidth:46,borderRight:`1px solid ${T.border}40`,borderBottom:`1px solid ${T.border}40`,textAlign:"center",position:"sticky",left:0,background:"#2A1F42",zIndex:2,padding:"0 4px"}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:2}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:1}}>
                     <span style={{fontSize:10,color:T.ghost}}>{ri+1}</span>
-                    {canEdit&&<button onClick={()=>deleteRow(row.id)} style={{background:"none",border:"none",cursor:"pointer",color:"transparent",fontSize:11,lineHeight:1,padding:"0 1px"}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color="transparent"}>×</button>}
+                    {canEdit&&<button onClick={()=>deleteRow(row.id)} style={{background:"none",border:"none",cursor:"pointer",color:"transparent",fontSize:12,padding:"0 2px",lineHeight:1}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color="transparent"}>×</button>}
                   </div>
                 </td>
-
-                {/* Data cells */}
                 {cols.map((_,ci)=>{
-                  const isSelected = selCell?.r===ri&&selCell?.c===ci;
-                  const isEditing  = editCell?.r===ri&&editCell?.c===ci;
-                  const val = (row.cells||[])[ci]||"";
+                  const isSel  = selCell?.r===ri&&selCell?.c===ci;
+                  const isEdit = editCell?.r===ri&&editCell?.c===ci;
+                  const val    = (row.cells||[])[ci]||"";
                   return (
                     <td key={ci}
                       onClick={e=>{e.stopPropagation();setSelCell({r:ri,c:ci});}}
                       onDoubleClick={()=>startEdit(ri,ci)}
-                      style={{
-                        width:cw(ci), minWidth:60,
-                        borderRight:`1px solid ${T.border}40`,
-                        borderBottom:`1px solid ${T.border}40`,
-                        padding:0,
-                        outline:isSelected?`2px solid ${T.lime}`:"none",
-                        outlineOffset:-2,
-                        position:"relative",
-                        cursor:canEdit?"cell":"default",
-                      }}>
-                      {isEditing
-                        ?<input ref={inputRef} value={editVal}
-                            onChange={e=>setEditVal(e.target.value)}
-                            onBlur={commitEdit}
-                            onKeyDown={handleKeyDown}
+                      style={{width:140,borderRight:`1px solid ${T.border}40`,borderBottom:`1px solid ${T.border}40`,padding:0,outline:isSel?`2px solid ${T.lime}`:"none",outlineOffset:-2,position:"relative",cursor:canEdit?"cell":"default"}}>
+                      {isEdit
+                        ?<input ref={inputRef} value={editVal} onChange={e=>setEditVal(e.target.value)}
+                            onBlur={commitEdit} onKeyDown={handleKeyDown}
                             style={{position:"absolute",inset:0,width:"100%",height:"100%",padding:"0 8px",background:"#1A1030",border:`2px solid ${T.lime}`,outline:"none",color:T.offWhite,fontSize:13,fontFamily:FB,boxSizing:"border-box",zIndex:5}}/>
-                        :<div style={{padding:"4px 8px",color:T.offWhite,fontSize:13,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minHeight:28,lineHeight:"20px"}}>
-                            {val}
-                          </div>}
+                        :<div style={{padding:"5px 8px",color:val?T.offWhite:T.ghost,fontSize:13,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minHeight:30,lineHeight:"20px"}}>{val||""}</div>}
                     </td>
                   );
                 })}
-                {canEdit&&<td style={{width:36}}/>}
               </tr>
             ))}
-
-            {/* Totals row */}
+            {/* Totals */}
             {colSums.some(v=>v!==null)&&rows.length>0&&(
-              <tr style={{background:"#1E1530",position:"sticky",bottom:0,zIndex:3}}>
+              <tr style={{background:"#2A1F42",position:"sticky",bottom:0,zIndex:3}}>
                 <td style={{position:"sticky",left:0,background:"#2A1F42",borderTop:`2px solid ${T.lime}55`,padding:"5px 4px",textAlign:"center"}}>
-                  <span style={{fontSize:9,color:T.lime,fontWeight:700}}>Σ</span>
+                  <span style={{fontSize:10,color:T.lime,fontWeight:700}}>Σ</span>
                 </td>
                 {cols.map((_,ci)=>(
                   <td key={ci} style={{borderTop:`2px solid ${T.lime}55`,padding:"5px 8px",textAlign:numericCols[ci]?"right":"left",fontWeight:700,color:colSums[ci]!==null?T.lime:T.ghost,fontSize:12}}>
                     {colSums[ci]!==null?colSums[ci].toLocaleString():ci===0?"TOTAL":""}
                   </td>
                 ))}
-                {canEdit&&<td style={{borderTop:`2px solid ${T.lime}55`}}/>}
               </tr>
             )}
-
-            {/* Add row hint */}
-            {canEdit&&<tr style={{background:"transparent"}}>
-              <td colSpan={cols.length+2} style={{padding:"6px 50px",borderTop:`1px dashed ${T.border}`}}>
-                <button onClick={addRow} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:12,fontFamily:FB,padding:"4px 0"}} onMouseEnter={e=>e.currentTarget.style.color=T.lime} onMouseLeave={e=>e.currentTarget.style.color=T.ghost}>
-                  + Click to add row
-                </button>
-              </td>
-            </tr>}
+            {canEdit&&<tr><td colSpan={cols.length+1} style={{borderTop:`1px dashed ${T.border}`}}>
+              <button onClick={addRow} style={{background:"none",border:"none",cursor:"pointer",color:T.ghost,fontSize:12,fontFamily:FB,padding:"6px 52px",display:"block",width:"100%",textAlign:"left"}} onMouseEnter={e=>e.currentTarget.style.color=T.lime} onMouseLeave={e=>e.currentTarget.style.color=T.ghost}>+ Click to add row</button>
+            </td></tr>}
           </tbody>
         </table>
       </div>
 
       {/* Status bar */}
       <div style={{background:"#2A1F42",borderTop:`1px solid ${T.border}`,padding:"3px 14px",display:"flex",gap:20,alignItems:"center",flexShrink:0}}>
-        <span style={{fontSize:10,color:T.ghost}}>{rows.length} row{rows.length!==1?"s":""} · {cols.length} columns</span>
-        {selCell&&<span style={{fontSize:10,color:T.lime}}>Cell {String.fromCharCode(65+selCell.c)}{selCell.r+1} selected {canEdit?"· Double-click to edit":""}</span>}
-        {!canEdit&&<span style={{fontSize:10,color:T.ghost,marginLeft:"auto"}}>🔒 Sign in as fin_admin to edit</span>}
+        <span style={{fontSize:10,color:T.ghost}}>{rows.length} row{rows.length!==1?"s":""} · {cols.length} column{cols.length!==1?"s":""}</span>
+        {selCell&&<span style={{fontSize:10,color:T.cobaltText}}>{String.fromCharCode(65+selCell.c)}{selCell.r+1}{canEdit?" · Double-click to edit":""}</span>}
+        {!canEdit&&<span style={{fontSize:10,color:T.ghost,marginLeft:"auto"}}>Click "Request edit access" to unlock editing</span>}
       </div>
     </div>
   );
@@ -2181,9 +2172,8 @@ function EditableTagline({value,bold,italic,color,onChange}){
 
 // ── Login Screen ──────────────────────────────────────────────────────────────
 const USERS = {
-  admin:     { password:"admin96#",      role:"admin" },
-  ninja:     { password:"ninja12345",    role:"staff" },
-  fin_admin: { password:"fin_96_enmnt", role:"fin_admin" },
+  admin:  { password:"admin96#",  role:"admin" },
+  ninja:  { password:"ninja12345", role:"staff" },
 };
 
 function LoginScreen({onLogin}){
@@ -2237,7 +2227,6 @@ export default function App(){
   const[authed,setAuthed]=useState(()=>!!localStorage.getItem("rl_auth"));
   const[role,setRole]=useState(()=>localStorage.getItem("rl_role")||"");
   const isAdmin=role==="admin";
-  const isFinAdmin=role==="fin_admin"||role==="admin";
   if(!authed)return <LoginScreen onLogin={(u,r)=>{localStorage.setItem("rl_auth","1");localStorage.setItem("rl_role",r);setAuthed(true);setRole(r);}}/>;
   useEffect(()=>{
     if(!document.getElementById("rl-font")){const l=document.createElement("link");l.id="rl-font";l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family=Lato:wght@100;700&family=Google+Sans:wght@400;500;700&display=swap";document.head.appendChild(l);}
@@ -2455,11 +2444,11 @@ export default function App(){
                   {icon:"🗓️",label:"Attendance",page:"attendance"},
                   {icon:"📋",label:"Order Working",page:"orders",adminOnly:true},
                   {icon:"🤖",label:"Profit Bot",page:"profitbot",adminOnly:true},
-                  {icon:"📒",label:"Work Sheet",page:"worksheet",finOnly:true},
+                  {icon:"📒",label:"Work Sheet",page:"worksheet",adminOnly:true},
                   {icon:"🧾",label:"Sales ↗",page:null,adminOnly:true},
                   {icon:"📊",label:"Analytics ↗",page:null,adminOnly:true},
                   {icon:"🤝",label:"Suppliers ↗",page:null,adminOnly:true},
-                ].filter(n=>(!n.adminOnly||isAdmin)&&(!n.finOnly||(isAdmin||role==="fin_admin"))).map(n=>(
+                ].filter(n=>!n.adminOnly||isAdmin).map(n=>(
                   <button key={n.label} onClick={n.page?()=>setActivePage(n.page):undefined}
                     style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",borderRadius:8,border:"none",background:activePage===n.page?T.card:"transparent",cursor:n.page?"pointer":"default",width:"100%",textAlign:"left",fontSize:12.5,color:activePage===n.page?T.lime:T.muted,fontFamily:FB,marginBottom:2,fontWeight:activePage===n.page?500:400}}>
                     <span style={{fontSize:14}}>{n.icon}</span>{n.label}
@@ -2482,7 +2471,7 @@ export default function App(){
         :activePage==="attendance"?<AttendancePage attendance={attendance} isAdmin={isAdmin} setAttendance={a=>{setAttendance(a);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance:a,orders});}}/>
         :activePage==="orders"?(isAdmin?<OrderWorkingPage orders={orders} setOrders={o=>{setOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders:o,worksheet});}}/>:<AccessDenied/>)
         :activePage==="profitbot"?(isAdmin?<ProfitBotPage rates={rates}/>:<AccessDenied/>)
-        :activePage==="worksheet"?(isFinAdmin||isAdmin)?<WorkSheetPage worksheet={worksheet} setWorksheet={w=>{setWorksheet(w);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,worksheet:w});}} canEdit={role==="fin_admin"} />:<AccessDenied/>
+        :activePage==="worksheet"?(isAdmin?<WorkSheetPage worksheet={worksheet} setWorksheet={w=>{setWorksheet(w);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,worksheet:w});}}/>:<AccessDenied/>)
         :(
           <>
             {/* Top bar */}
