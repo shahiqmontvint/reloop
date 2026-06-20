@@ -2104,6 +2104,9 @@ export default function App(){
   const[sortCol,setSortCol]=useState("date");
   const[sortDir,setSortDir]=useState(1);
   const[addItemOpen,setAddItemOpen]=useState(false);
+  const[importOpen,setImportOpen]=useState(false);
+  const[importResult,setImportResult]=useState(null); // {added, skipped, errors}
+  const importRef = useRef(null);
   const[addBrandOpen,setAddBrandOpen]=useState(false);
   const[editItem,setEditItem]=useState(null);
   const[detail,setDetail]=useState(null);
@@ -2667,10 +2670,94 @@ export default function App(){
                   </div>
                 );
               })()}
+              <input ref={importRef} type="file" accept=".csv" style={{display:"none"}} onChange={e=>{
+                const file=e.target.files?.[0]; if(!file) return;
+                const reader=new FileReader();
+                reader.onload=ev=>{
+                  const text=ev.target.result.replace(/^\uFEFF/,"");
+                  const lines=text.split("\n").map(l=>l.trim()).filter(Boolean);
+                  if(lines.length<2){setImportResult({added:0,skipped:0,errors:["File is empty or has no data rows"]});setImportOpen(true);return;}
+                  const hdr=lines[0].toLowerCase().split(",").map(h=>h.trim().replace(/['"]/g,""));
+                  const col=k=>hdr.indexOf(k);
+                  const get=(row,k)=>(row[col(k)]||"").trim().replace(/^"|"$/g,"");
+                  const added=[];const errors=[];
+                  for(let i=1;i<lines.length;i++){
+                    const raw=lines[i]; if(!raw||raw.startsWith("//")) continue;
+                    // Parse CSV respecting quoted fields
+                    const row=[]; let cur="",inQ=false;
+                    for(let c=0;c<raw.length;c++){
+                      if(raw[c]==='"'){inQ=!inQ;}
+                      else if(raw[c]===","&&!inQ){row.push(cur);cur="";}
+                      else cur+=raw[c];
+                    }
+                    row.push(cur);
+                    const name=get(row,"item_name");
+                    if(!name){errors.push(`Row ${i+1}: missing item_name`);continue;}
+                    const vertName=get(row,"vertical");
+                    const brandMatch=brands.find(b=>b.name.toLowerCase()===vertName.toLowerCase());
+                    if(!brandMatch){errors.push(`Row ${i+1}: vertical "${vertName}" not found — add it in sidebar first`);continue;}
+                    const cost=parseInt(get(row,"cost"))||0;
+                    const qty=parseInt(get(row,"qty"))||1;
+                    const status=(get(row,"status")||"available").toLowerCase();
+                    const currency=(get(row,"currency")||"PKR").toUpperCase();
+                    const soldPrice=parseFloat(get(row,"sold_price"))||0;
+                    // Date parse DD/MM/YYYY or YYYY-MM-DD
+                    let dateStr=get(row,"date_added")||new Date().toISOString().slice(0,10);
+                    if(dateStr.includes("/")){const[d,m,y]=dateStr.split("/");dateStr=`${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;}
+                    const skuInput=get(row,"sku");
+                    const cat=get(row,"category")||"";
+                    const subcat=get(row,"subcategory")||"";
+                    const newId=Date.now()+i;
+                    const newNid=nid+i;
+                    const sku=skuInput||nextSku(brandMatch.id,brandMatch.name,cat,subcat,[...items,...added]);
+                    added.push({
+                      id:newId,brand:brandMatch.id,name,productBrand:get(row,"brand"),
+                      category:cat,subcategory:subcat,grade:get(row,"grade")||"AB",
+                      qty,size:"",sizeMin:"",sizeMax:"",
+                      status,sku,cost,price:soldPrice||0,currency,
+                      inventoryDate:dateStr,notes:get(row,"notes")||"",platforms:[],
+                    });
+                  }
+                  if(added.length>0){
+                    const newItems=[...items,...added];
+                    const newNid2=nid+added.length;
+                    setItems(newItems);setNid(newNid2);
+                    sbSet({brands,items:newItems,nid:newNid2,catTree,fixes,rates,rateHistory,bundles,attendance,orders,worksheet});
+                  }
+                  setImportResult({added:added.length,skipped:errors.length,errors});
+                  setImportOpen(true);
+                  e.target.value="";
+                };
+                reader.readAsText(file);
+              }}/>
+              <button onClick={()=>importRef.current?.click()} style={{padding:"7px 14px",border:`1px solid ${T.border}`,borderRadius:9,background:T.card,color:T.muted,cursor:"pointer",fontSize:13,fontFamily:FB,display:"flex",alignItems:"center",gap:5}} onMouseEnter={e=>{e.currentTarget.style.borderColor=T.lime;e.currentTarget.style.color=T.lime;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.muted;}}>↑ Import CSV</button>
               <button onClick={()=>setAddItemOpen(true)} style={{padding:"7px 20px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ Add item</button>
             </div>
 
-            {/* Scrollable content */}
+            {/* Import result modal */}
+            {importOpen&&importResult&&(
+              <div onClick={()=>setImportOpen(false)} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:400}}>
+                <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:440,maxWidth:"94vw",padding:26}}>
+                  <div style={{fontSize:18,fontWeight:700,color:T.lime,fontFamily:FB,marginBottom:16}}>↑ Import complete</div>
+                  <div style={{display:"flex",gap:12,marginBottom:16}}>
+                    <div style={{flex:1,background:T.card,borderRadius:10,padding:"12px 16px",border:`1px solid ${T.border}`}}>
+                      <div style={{fontSize:11,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:4}}>Added</div>
+                      <div style={{fontSize:24,fontWeight:700,color:T.profit}}>{importResult.added}</div>
+                    </div>
+                    <div style={{flex:1,background:T.card,borderRadius:10,padding:"12px 16px",border:`1px solid ${T.border}`}}>
+                      <div style={{fontSize:11,color:T.ghost,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:4}}>Skipped</div>
+                      <div style={{fontSize:24,fontWeight:700,color:importResult.skipped>0?T.rougeText:T.ghost}}>{importResult.skipped}</div>
+                    </div>
+                  </div>
+                  {importResult.errors.length>0&&(
+                    <div style={{background:T.bg,borderRadius:8,padding:"10px 14px",border:`1px solid ${T.rougeText}40`,marginBottom:16,maxHeight:140,overflowY:"auto"}}>
+                      {importResult.errors.map((e,i)=><div key={i} style={{fontSize:12,color:T.rougeText,fontFamily:FB,marginBottom:4}}>{e}</div>)}
+                    </div>
+                  )}
+                  <button onClick={()=>setImportOpen(false)} style={{width:"100%",padding:"9px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>Done</button>
+                </div>
+              </div>
+            )}
             <div style={{padding:"18px 20px",flex:1,overflowY:"auto",background:T.bg}}>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}}>
                 {[{label:"Total pieces",val:stats.total,sub:`${stats.avail} available`,fin:false},{label:"Inventory value",val:`₨${stats.val.toLocaleString()}`,sub:"at cost price",fin:true},{label:"Sold",val:stats.sold,sub:"items",fin:false},{label:"Profit realised",val:`₨${stats.profit.toLocaleString()}`,sub:"from sold",accent:stats.profit>=0?T.profit:T.loss,fin:true},{label:"Profit %",val:stats.profitPct!=null?`${stats.profitPct.toFixed(1)}%`:"—",sub:"on sold items",accent:stats.profitPct!=null&&stats.profitPct>=0?T.profit:T.loss,fin:true}].map(s=>(
