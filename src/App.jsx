@@ -2614,7 +2614,6 @@ export default function App(){
                               <div class="totals">
                                 <div class="tc"><div class="tl">Items</div><div class="tv">${exportFiltered.length}</div></div>
                                 <div class="tc"><div class="tl">Total Qty</div><div class="tv">${totalQtyDl.toLocaleString()}</div></div>
-                                <div class="tc"><div class="tl">Total Cost</div><div class="tv">Rs ${totalCostPerItem.toLocaleString()}</div></div>
                                 <div class="tc"><div class="tl">Inv. Value</div><div class="tv">Rs ${totalCostDl.toLocaleString()}</div></div>
                                 <div class="tc"><div class="tl">Total Profit</div><div class="tv">${totalProfitDl?"Rs "+totalProfitDl.toLocaleString():"\u2014"}</div></div>
                                 <div class="tc"><div class="tl">% Profit</div><div class="tv">${avgProfPct!==null?avgProfPct+"%":"\u2014"}</div></div>
