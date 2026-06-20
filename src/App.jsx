@@ -1903,6 +1903,120 @@ function WorkSheetPage({ worksheet, setWorksheet }) {
   const cols   = worksheet?.cols || ["Date","Description","Type","Amount (Rs)","Notes"];
   const rows   = worksheet?.rows || [];
 
+  // ── Formula engine ──────────────────────────────────────────────────────────
+  // Parse A1-style ref like "B3" → {r:2, c:1}
+  const parseRef = ref => {
+    const m = ref.trim().match(/^([A-Za-z]+)(\d+)$/);
+    if (!m) return null;
+    const c = m[1].toUpperCase().split("").reduce((n,ch)=>n*26+(ch.charCodeAt(0)-64),0)-1;
+    const r = parseInt(m[2])-1;
+    return {r,c};
+  };
+  // Parse range like "B2:B10" → array of {r,c}
+  const parseRange = (a, b) => {
+    const s = parseRef(a), e = parseRef(b);
+    if (!s||!e) return [];
+    const cells = [];
+    for(let r=Math.min(s.r,e.r);r<=Math.max(s.r,e.r);r++)
+      for(let c=Math.min(s.c,e.c);c<=Math.max(s.c,e.c);c++)
+        cells.push({r,c});
+    return cells;
+  };
+  const getCellVal = (r,c) => {
+    const raw = (rows[r]?.cells||[])[c]||"";
+    if (raw.startsWith("=")) return evalFormula(raw, r, c);
+    return isNaN(raw)||raw.trim()===""?raw:parseFloat(raw);
+  };
+  const getNumVals = cells => cells.map(({r,c})=>getCellVal(r,c)).filter(v=>typeof v==="number"&&!isNaN(v));
+
+  const evalFormula = (formula, selfR, selfC) => {
+    try {
+      const expr = formula.slice(1).trim();
+      // Match function calls: SUM(range), AVG/AVERAGE(range), COUNT(range), MIN(range), MAX(range), IF(cond,t,f)
+      const fnMatch = expr.match(/^(\w+)\((.+)\)$/i);
+      if (fnMatch) {
+        const fn   = fnMatch[1].toUpperCase();
+        const args = fnMatch[2];
+        // Range or list
+        const getRangeVals = str => {
+          const parts = str.split(",").map(s=>s.trim());
+          let vals = [];
+          for (const p of parts) {
+            if (p.includes(":")) {
+              const [a,b] = p.split(":");
+              vals.push(...getNumVals(parseRange(a,b)));
+            } else {
+              const ref = parseRef(p);
+              if (ref) { const v=getCellVal(ref.r,ref.c); if(typeof v==="number") vals.push(v); }
+              else if (!isNaN(p)) vals.push(parseFloat(p));
+            }
+          }
+          return vals;
+        };
+        if (fn==="SUM")                { const v=getRangeVals(args); return v.reduce((s,n)=>s+n,0); }
+        if (fn==="AVG"||fn==="AVERAGE"){ const v=getRangeVals(args); return v.length?v.reduce((s,n)=>s+n,0)/v.length:0; }
+        if (fn==="COUNT")              { return getRangeVals(args).length; }
+        if (fn==="MIN")                { const v=getRangeVals(args); return v.length?Math.min(...v):""; }
+        if (fn==="MAX")                { const v=getRangeVals(args); return v.length?Math.max(...v):""; }
+        if (fn==="COUNTA") {
+          const parts = args.split(",").map(s=>s.trim());
+          let count=0;
+          for(const p of parts){
+            if(p.includes(":")){const [a,b]=p.split(":");parseRange(a,b).forEach(({r,c})=>{if((rows[r]?.cells||[])[c])count++;});}
+            else{const ref=parseRef(p);if(ref&&(rows[ref.r]?.cells||[])[ref.c])count++;}
+          }
+          return count;
+        }
+        if (fn==="IF") {
+          const ifParts = args.match(/^(.+?),(.+?),(.+)$/);
+          if (!ifParts) return "#ERR";
+          const condStr = ifParts[1].trim();
+          const tVal    = ifParts[2].trim();
+          const fVal    = ifParts[3].trim();
+          // Evaluate condition: e.g. A1>100
+          const condM = condStr.match(/^([A-Za-z]+\d+)\s*([><=!]+)\s*(.+)$/);
+          if (condM) {
+            const ref = parseRef(condM[1]);
+            const op  = condM[2];
+            const cmp = isNaN(condM[3])?condM[3]:parseFloat(condM[3]);
+            const lhs = ref?getCellVal(ref.r,ref.c):0;
+            let result;
+            if(op===">"||op==="=>") result=lhs>cmp;
+            else if(op==="<") result=lhs<cmp;
+            else if(op===">=") result=lhs>=cmp;
+            else if(op==="<=") result=lhs<=cmp;
+            else if(op==="="||op==="==") result=lhs==cmp;
+            else if(op==="!="||op==="<>") result=lhs!=cmp;
+            return result ? (isNaN(tVal)?tVal:parseFloat(tVal)) : (isNaN(fVal)?fVal:parseFloat(fVal));
+          }
+          return "#ERR";
+        }
+      }
+      // Simple cell ref: =A1
+      const refOnly = parseRef(expr);
+      if (refOnly) return getCellVal(refOnly.r,refOnly.c);
+      // Basic math fallback with cell refs substituted
+      let mathExpr = expr.replace(/[A-Za-z]+\d+/g, ref=>{
+        const r=parseRef(ref); return r?(getCellVal(r.r,r.c)||0):0;
+      });
+      // eslint-disable-next-line no-new-func
+      return Function('"use strict";return ('+mathExpr+')')();
+    } catch { return "#ERR"; }
+  };
+
+  const displayVal = (r, c) => {
+    const raw = (rows[r]?.cells||[])[c]||"";
+    if (!raw) return "";
+    if (raw.startsWith("=")) {
+      const result = evalFormula(raw, r, c);
+      if (result==null||result==="") return "";
+      if (typeof result==="number") return isNaN(result)?"#ERR":result.toLocaleString(undefined,{maximumFractionDigits:6});
+      return String(result);
+    }
+    return raw;
+  };
+  // ────────────────────────────────────────────────────────────────────────────
+
   // Edit unlock
   const [canEdit, setCanEdit]     = useState(false);
   const [unlockOpen, setUnlockOpen] = useState(false);
@@ -1959,8 +2073,13 @@ function WorkSheetPage({ worksheet, setWorksheet }) {
   const deleteRow = id => save(cols, rows.filter(r=>r.id!==id));
   const deleteCol = i => { if(cols.length<=1) return; save(cols.filter((_,j)=>j!==i), rows.map(r=>({...r,cells:(r.cells||[]).filter((_,j)=>j!==i)}))); };
 
-  const numericCols = cols.map((_,ci)=>rows.some(r=>parseFloat((r.cells||[])[ci])));
-  const colSums     = cols.map((_,ci)=>numericCols[ci]?rows.reduce((s,r)=>s+(parseFloat((r.cells||[])[ci])||0),0):null);
+  const numericCols = cols.map((_,ci)=>rows.some(r=>{
+    const v = displayVal(rows.indexOf(r),ci);
+    return v!==""&&!isNaN(parseFloat(v));
+  }));
+  const colSums = cols.map((_,ci)=>numericCols[ci]?rows.reduce((s,r,ri)=>{
+    const v=displayVal(ri,ci); return s+(isNaN(parseFloat(v))?0:parseFloat(v));
+  },0):null);
 
   const doExport = fmt => {
     const now = new Date().toISOString().slice(0,10);
@@ -2043,6 +2162,18 @@ th{background:#1E1530;color:#C8F135;padding:8px 12px;text-align:left;font-size:8
         </div>
       </div>
 
+      {/* Formula bar */}
+      <div style={{background:"#1E1530",borderBottom:`1px solid ${T.border}`,padding:"4px 10px",display:"flex",alignItems:"center",gap:8,flexShrink:0,minHeight:30}}>
+        <span style={{fontSize:11,color:T.lime,fontWeight:700,fontFamily:"monospace",minWidth:32,textAlign:"center",background:"#2A1F42",padding:"2px 6px",borderRadius:4,border:`1px solid ${T.border}`}}>
+          {selCell?`${String.fromCharCode(65+selCell.c)}${selCell.r+1}`:""}
+        </span>
+        <span style={{color:T.border,fontSize:14}}>ƒx</span>
+        <span style={{fontSize:12,color:T.cobaltText,fontFamily:"monospace",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          {selCell?((rows[selCell.r]?.cells||[])[selCell.c]||""):""}
+        </span>
+        {!canEdit&&selCell&&<span style={{fontSize:10,color:T.ghost,flexShrink:0}}>view only</span>}
+      </div>
+
       {/* Spreadsheet */}
       <div style={{flex:1,overflow:"auto"}} onClick={()=>{if(!editCell)setSelCell(null);}}>
         <table style={{borderCollapse:"collapse",tableLayout:"fixed",minWidth:"max-content",fontFamily:"'Google Sans',system-ui,sans-serif",fontSize:13}}>
@@ -2095,8 +2226,10 @@ th{background:#1E1530;color:#C8F135;padding:8px 12px;text-align:left;font-size:8
                       {isEdit
                         ?<input ref={inputRef} value={editVal} onChange={e=>setEditVal(e.target.value)}
                             onBlur={commitEdit} onKeyDown={handleKeyDown}
-                            style={{position:"absolute",inset:0,width:"100%",height:"100%",padding:"0 8px",background:"#1A1030",border:`2px solid ${T.lime}`,outline:"none",color:T.offWhite,fontSize:13,fontFamily:FB,boxSizing:"border-box",zIndex:5}}/>
-                        :<div style={{padding:"5px 8px",color:val?T.offWhite:T.ghost,fontSize:13,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minHeight:30,lineHeight:"20px"}}>{val||""}</div>}
+                            style={{position:"absolute",inset:0,width:"100%",height:"100%",padding:"0 8px",background:"#1A1030",border:`2px solid ${T.lime}`,outline:"none",color:T.lime,fontSize:13,fontFamily:FB,boxSizing:"border-box",zIndex:5}}/>
+                        :<div style={{padding:"5px 8px",color:val&&val.startsWith("=")?T.cobaltText:val?T.offWhite:T.ghost,fontSize:13,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minHeight:30,lineHeight:"20px"}}>
+                            {displayVal(ri,ci)}
+                          </div>}
                     </td>
                   );
                 })}
@@ -2126,6 +2259,7 @@ th{background:#1E1530;color:#C8F135;padding:8px 12px;text-align:left;font-size:8
       <div style={{background:"#2A1F42",borderTop:`1px solid ${T.border}`,padding:"3px 14px",display:"flex",gap:20,alignItems:"center",flexShrink:0}}>
         <span style={{fontSize:10,color:T.ghost}}>{rows.length} row{rows.length!==1?"s":""} · {cols.length} column{cols.length!==1?"s":""}</span>
         {selCell&&<span style={{fontSize:10,color:T.cobaltText}}>{String.fromCharCode(65+selCell.c)}{selCell.r+1}{canEdit?" · Double-click to edit":""}</span>}
+        {canEdit&&<span style={{fontSize:10,color:T.ghost,marginLeft:"auto"}}>Formulas: =SUM(A1:A5) · =AVG(B2:B8) · =IF(A1>100,"Yes","No") · =MIN · =MAX · =COUNT</span>}
         {!canEdit&&<span style={{fontSize:10,color:T.ghost,marginLeft:"auto"}}>Click "Request edit access" to unlock editing</span>}
       </div>
     </div>
