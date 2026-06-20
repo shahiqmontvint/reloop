@@ -2459,7 +2459,7 @@ export default function App(){
                           const dateRangeLabel = dateFrom&&dateTo?`${dateFrom} to ${dateTo}`:dateFrom?`From ${dateFrom}`:dateTo?`To ${dateTo}`:"All dates";
                           // use exportFiltered for actual export
                           const doExport = (exportFmt) => {
-                            const headers = ["Date Added","Item","Category","Sub Cat","Size","Qty","Grade","Status","SKU","Vertical","Brand","Cost","Total Cost","Sold Price","Total Sold","Profit","% Profit","Notes"];
+                            const headers = ["Date Added","Item","Category","Sub Cat","Size","Qty","Grade","Status","SKU","Vertical","Brand","Cost (Rs)","Total Cost (Rs)","Sold Price (Rs)","Total Sold (Rs)","Profit (Rs)","% Profit","Notes"];
                             const rows = exportFiltered.map(it=>{
                               const b = brands.find(x=>x.id===it.brand);
                               const soldPKR = toPKR(it.price,it.currency);
@@ -2470,9 +2470,9 @@ export default function App(){
                               const totalSold = hasSale?soldPKR*qty:null;
                               const profit = hasSale?soldPKR-cost:null;
                               const profitPct = hasSale&&soldPKR>0?((profit/soldPKR)*100).toFixed(1)+"%":"";
-                              const soldDisplay = hasSale?(it.currency!=="PKR"?`${it.currency} ${it.price}`:`Rs ${it.price}`):"";
-                              const totalSoldDisplay = hasSale?`Rs ${totalSold.toLocaleString()}`:"";
-                              const profitDisplay = hasSale?`Rs ${profit.toLocaleString()}`:"";
+                              const soldDisplay = hasSale?(it.currency!=="PKR"?`${it.currency} ${it.price}`:soldPKR):"";
+                              const totalSoldDisplay = hasSale?soldPKR*qty:"";
+                              const profitDisplay = hasSale?profit:"";
                               const sizeDisplay = sizeLabel(it)||"-";
                               return [
                                 it.inventoryDate?it.inventoryDate.split("-").reverse().join("/"):"",
@@ -2486,8 +2486,8 @@ export default function App(){
                                 it.sku||"",
                                 b?.name||"",
                                 it.productBrand||"",
-                                cost?`Rs ${cost.toLocaleString()}`:"",
-                                totalCost?`Rs ${totalCost.toLocaleString()}`:"",
+                                cost||"",
+                                totalCost||"",
                                 soldDisplay,
                                 totalSoldDisplay,
                                 profitDisplay,
@@ -2498,7 +2498,7 @@ export default function App(){
                             const totalQtyDl  = exportFiltered.reduce((s,i)=>s+(i.qty||1),0);
                             const totalCostDl = exportFiltered.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
                             const avgCost = exportFiltered.length>0?(exportFiltered.reduce((s,i)=>s+(i.cost||0),0)/exportFiltered.length):0;
-                            const soldItems = exportFiltered.filter(i=>i.price&&toPKR(i.price,i.currency)>0);
+                            const soldItems = exportFiltered.filter(i=>i.status==="sold"&&i.price&&toPKR(i.price,i.currency)>0);
                             const totalProfitDl = soldItems.reduce((s,i)=>s+(toPKR(i.price,i.currency)-(i.cost||0)),0);
                             const totalRevDl = soldItems.reduce((s,i)=>s+toPKR(i.price,i.currency),0);
                             const totalSoldQty = soldItems.reduce((s,i)=>s+toPKR(i.price,i.currency)*(i.qty||1),0);
@@ -2517,13 +2517,13 @@ export default function App(){
                               const totalRowParts = [
                                 "TOTAL","","","","",         // Date, Item, Category, Sub Cat, Size
                                 totalQtyDl,"","","","","",  // Qty, Grade, Status, SKU, Vertical, Brand
-                                `Avg: Rs ${Math.round(avgCost).toLocaleString()}`, // Cost = average
-                                `Rs ${totalCostDl.toLocaleString()}`,              // Total Cost = sum
-                                hasSales?`Rs ${totalSoldQty.toLocaleString()}`:"", // Sold Price total
-                                hasSales?`Rs ${totalSoldQty.toLocaleString()}`:"", // Total Sold
-                                hasSales?`Rs ${totalProfitDl.toLocaleString()}`:"",// Profit
-                                avgProfPct,                                         // % Profit
-                                "",                                                 // Notes
+                                Math.round(avgCost),         // Cost = average (plain number)
+                                totalCostDl,                 // Total Cost = sum (plain number)
+                                hasSales?totalSoldQty:"",    // Sold Price total
+                                hasSales?totalSoldQty:"",    // Total Sold
+                                hasSales?totalProfitDl:"",   // Profit
+                                avgProfPct,                  // % Profit
+                                "",                          // Notes
                               ];
                               const csv = [
                                 "RELOOP Inventory Export",
@@ -2772,7 +2772,7 @@ export default function App(){
                           onMouseEnter={e=>{if(detail?.id!==it.id)e.currentTarget.style.background=T.card;}}
                           onMouseLeave={e=>{if(detail?.id!==it.id)e.currentTarget.style.background="transparent";}}
                           style={{display:"flex",alignItems:"center",padding:"0 8px",borderBottom:isLast?"none":`1px solid ${T.border}`,cursor:"pointer",background:detail?.id===it.id?T.cardHov:"transparent",transition:"background 0.12s",minHeight:52,minWidth:TOTAL_W+16,width:"100%",boxSizing:"border-box"}}>
-                          <TCell w={COLS[0].w}><span style={{fontSize:12,color:T.cobaltText,fontFamily:"monospace",whiteSpace:"nowrap"}}>{it.inventoryDate||"—"}</span></TCell>
+                          <TCell w={COLS[0].w}><span style={{fontSize:12,color:T.offWhite}}>{it.inventoryDate||"—"}</span></TCell>
                           {aBrand==="all"&&<TCell w={COLS[1].w}><span style={{fontSize:12,color:T.offWhite,fontWeight:500}}>{gb(it.brand)?.name||"—"}</span></TCell>}
                           <TCell w={COLS[2].w} left><span style={{fontSize:12,fontWeight:500,color:T.offWhite,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.name}</span></TCell>
                           <TCell w={COLS[3].w}><span style={{fontSize:12,color:T.offWhite}}>{it.category}</span></TCell>
@@ -2808,8 +2808,8 @@ export default function App(){
                         <div style={{display:"flex",gap:20,flexWrap:"wrap",alignItems:"center"}}>
                           {earliest&&<div style={{fontSize:11,color:T.ghost,paddingRight:16,marginRight:4,borderRight:`1px solid ${T.border}`}}>
                             {earliest===latest
-                              ? <span>Purchased: <span style={{color:T.cobaltText,fontWeight:600}}>{earliest}</span></span>
-                              : <span>Purchases: <span style={{color:T.cobaltText,fontWeight:600}}>{earliest}</span> → <span style={{color:T.cobaltText,fontWeight:600}}>{latest}</span></span>}
+                              ? <span>Purchased: <span style={{color:T.offWhite,fontWeight:600}}>{earliest}</span></span>
+                              : <span>Purchases: <span style={{color:T.offWhite,fontWeight:600}}>{earliest}</span> → <span style={{color:T.offWhite,fontWeight:600}}>{latest}</span></span>}
                           </div>}
                           <div style={{fontSize:12,color:T.ghost}}>Items: <span style={{color:T.offWhite,fontWeight:600}}>{filtered.length}</span></div>
                           <div style={{fontSize:12,color:T.ghost}}>Qty: <span style={{color:T.cobaltText,fontWeight:600}}>{totalQty.toLocaleString()}</span></div>
