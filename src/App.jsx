@@ -2169,6 +2169,30 @@ export default function App(){
 
   const gb=id=>brands.find(b=>b.id===id);
   const pool=useMemo(()=>aBrand==="all"?items:items.filter(i=>i.brand===aBrand),[items,aBrand]);
+
+  const getSortVal=(it,col)=>{
+    const pricePKR=toPKR(it.price,it.currency);
+    switch(col){
+      case "date":      return it.inventoryDate||"";
+      case "name":      return it.name||"";
+      case "category":  return it.category||"";
+      case "subcat":    return it.subcategory||"";
+      case "size":      return sizeLabel(it)||"";
+      case "qty":       return it.qty||0;
+      case "grade":     return it.grade||"";
+      case "status":    return it.status||"";
+      case "sku":       return it.sku||"";
+      case "brand":     return it.productBrand||gb(it.brand)?.name||"";
+      case "cost":      return it.cost||0;
+      case "totalcost": return (it.cost||0)*(it.qty||1);
+      case "price":     return pricePKR||0;
+      case "totalsold": return pricePKR*(it.qty||1);
+      case "profit":    return pricePKR-(it.cost||0);
+      case "notes":     return it.notes||"";
+      default:          return it[col]||"";
+    }
+  };
+
   const filtered=useMemo(()=>{
     let f=pool;
     if(aStat!=="all")f=f.filter(i=>i.status===aStat);
@@ -2192,28 +2216,6 @@ export default function App(){
   },[pool,rates]);
 
   const handleSort=col=>{if(sortCol===col)setSortDir(d=>d*-1);else{setSortCol(col);setSortDir(1);}};
-  const getSortVal=(it,col)=>{
-    const pricePKR=toPKR(it.price,it.currency);
-    switch(col){
-      case "date":      return it.inventoryDate||"";
-      case "name":      return it.name||"";
-      case "category":  return it.category||"";
-      case "subcat":    return it.subcategory||"";
-      case "size":      return sizeLabel(it)||"";
-      case "qty":       return it.qty||0;
-      case "grade":     return it.grade||"";
-      case "status":    return it.status||"";
-      case "sku":       return it.sku||"";
-      case "brand":     return it.productBrand||gb(it.brand)?.name||"";
-      case "cost":      return it.cost||0;
-      case "totalcost": return (it.cost||0)*(it.qty||1);
-      case "price":     return pricePKR||0;
-      case "totalsold": return pricePKR*(it.qty||1);
-      case "profit":    return pricePKR-(it.cost||0);
-      case "notes":     return it.notes||"";
-      default:          return it[col]||"";
-    }
-  };
   const SortArrow=({col})=>sortCol===col?<span style={{fontSize:9,color:T.lime}}>{sortDir===1?"↑":"↓"}</span>:<span style={{fontSize:9,color:T.ghost,opacity:0.4}}>↕</span>;
 
   const startRename=(e,b)=>{e.stopPropagation();setColorPickerId(null);setRenamingId(b.id);setRenameVal(b.name);};
