@@ -2097,7 +2097,7 @@ export default function App(){
   const[filterDateFrom,setFilterDateFrom]=useState("");
   const[filterDateTo,setFilterDateTo]=useState("");
   const[dateFilterMode,setDateFilterMode]=useState("all"); // all | month | range
-  const[sortCol,setSortCol]=useState(null);
+  const[sortCol,setSortCol]=useState("date");
   const[sortDir,setSortDir]=useState(1);
   const[addItemOpen,setAddItemOpen]=useState(false);
   const[addBrandOpen,setAddBrandOpen]=useState(false);
