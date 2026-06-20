@@ -2163,6 +2163,7 @@ export default function App(){
   const[bundles,setBundles]=useState([]);
   const[attendance,setAttendance]=useState({members:[],absences:[]});
   const[orders,setOrders]=useState([]);
+  const[activeOrders,setActiveOrders]=useState([]);
   const[worksheet,setWorksheet]=useState({cols:["Date","Description","Type","Amount (₨)","Notes"],rows:[]});
   const[loaded,setLoaded]=useState(false);
   const[saveStatus,setSaveStatus]=useState("idle"); // idle | saving | saved | error
@@ -2216,6 +2217,7 @@ export default function App(){
         if(d.bundles)        setBundles(d.bundles);
         if(d.attendance)     setAttendance(d.attendance);
         if(d.orders)         setOrders(d.orders);
+        if(d.activeOrders)   setActiveOrders(d.activeOrders);
         if(d.worksheet)      setWorksheet(d.worksheet);
       } else {
         sbSet({ brands:initBrands, items:initItems, nid:7, catTree:{encore:{...BRAND_CATS.encore},generic:{...GENERIC_CATS},montvint:{...GENERIC_CATS},tbd:{...GENERIC_CATS}}, fixes:[], rates:DEFAULT_RATES, bundles:[] });
@@ -2461,7 +2463,7 @@ export default function App(){
                   {icon:"🗃️",label:"Category Tree",page:"categories"},
                   {icon:"🧵",label:"Jobs",page:"fixes"},
                   {icon:"📦",label:"Bundles",page:"bundles"},
-                  {icon:"💱",label:"Conversion",page:"conversion"},
+                  {icon:"💱",label:"Conversion",page:"conversion",adminOnly:true},
                   {icon:"🗓️",label:"Attendance",page:"attendance"},
                   {icon:"📋",label:"Order Working",page:"orders",adminOnly:true},
                   {icon:"🤖",label:"Profit Bot",page:"profitbot",adminOnly:true},
