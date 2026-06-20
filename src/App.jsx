@@ -2466,7 +2466,7 @@ export default function App(){
                               const qty = it.qty||1;
                               const cost = it.cost||0;
                               const totalCost = cost*qty;
-                              const hasSale = it.price && soldPKR>0;
+                              const hasSale = it.status==="sold" && it.price && soldPKR>0;
                               const totalSold = hasSale?soldPKR*qty:null;
                               const profit = hasSale?soldPKR-cost:null;
                               const profitPct = hasSale&&soldPKR>0?((profit/soldPKR)*100).toFixed(1)+"%":"";
@@ -2497,15 +2497,15 @@ export default function App(){
                             });
                             const totalQtyDl  = exportFiltered.reduce((s,i)=>s+(i.qty||1),0);
                             const totalCostDl = exportFiltered.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
-                            const totalCostPerItem = exportFiltered.reduce((s,i)=>s+(i.cost||0),0);
+                            const avgCost = exportFiltered.length>0?(exportFiltered.reduce((s,i)=>s+(i.cost||0),0)/exportFiltered.length):0;
                             const soldItems = exportFiltered.filter(i=>i.price&&toPKR(i.price,i.currency)>0);
                             const totalProfitDl = soldItems.reduce((s,i)=>s+(toPKR(i.price,i.currency)-(i.cost||0)),0);
                             const totalRevDl = soldItems.reduce((s,i)=>s+toPKR(i.price,i.currency),0);
+                            const totalSoldQty = soldItems.reduce((s,i)=>s+toPKR(i.price,i.currency)*(i.qty||1),0);
                             const avgProfPct = totalRevDl>0?((totalProfitDl/totalRevDl)*100).toFixed(1)+"%":"";
                             const hasSales = soldItems.length>0;
                             const slug = brand.toLowerCase().replace(/\s+/g,"-");
                             if (exportFmt==="csv") {
-                              // BOM for proper Excel UTF-8 rendering
                               const BOM = "\uFEFF";
                               const summaryParts = [
                                 `Items: ${exportFiltered.length}`,
@@ -2513,16 +2513,17 @@ export default function App(){
                                 `Inv. Value: Rs${totalCostDl.toLocaleString()}`,
                               ];
                               if(hasSales) summaryParts.push(`Total Profit: Rs${totalProfitDl.toLocaleString()}`,`Avg Profit%: ${avgProfPct}`);
+                              // 18 columns: Date Added, Item, Category, Sub Cat, Size, Qty, Grade, Status, SKU, Vertical, Brand, Cost, Total Cost, Sold Price, Total Sold, Profit, % Profit, Notes
                               const totalRowParts = [
-                                "TOTAL","","","","",
-                                totalQtyDl,"","","","","",
-                                `Rs ${totalCostPerItem.toLocaleString()}`,
-                                `Rs ${totalCostDl.toLocaleString()}`,
-                                hasSales?`Rs ${soldItems.reduce((s,i)=>s+toPKR(i.price,i.currency)*(i.qty||1),0).toLocaleString()}`:"",
-                                hasSales?`Rs ${soldItems.reduce((s,i)=>s+toPKR(i.price,i.currency)*(i.qty||1),0).toLocaleString()}`:"",
-                                hasSales?`Rs ${totalProfitDl.toLocaleString()}`:"",
-                                avgProfPct,
-                                "",
+                                "TOTAL","","","","",         // Date, Item, Category, Sub Cat, Size
+                                totalQtyDl,"","","","","",  // Qty, Grade, Status, SKU, Vertical, Brand
+                                `Avg: Rs ${Math.round(avgCost).toLocaleString()}`, // Cost = average
+                                `Rs ${totalCostDl.toLocaleString()}`,              // Total Cost = sum
+                                hasSales?`Rs ${totalSoldQty.toLocaleString()}`:"", // Sold Price total
+                                hasSales?`Rs ${totalSoldQty.toLocaleString()}`:"", // Total Sold
+                                hasSales?`Rs ${totalProfitDl.toLocaleString()}`:"",// Profit
+                                avgProfPct,                                         // % Profit
+                                "",                                                 // Notes
                               ];
                               const csv = [
                                 "RELOOP Inventory Export",
