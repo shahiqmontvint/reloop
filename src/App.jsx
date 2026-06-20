@@ -200,8 +200,8 @@ function ItemForm({brands,initial,onSave,onClose,defaultBrand,allItems,catTree,o
   const setCat=v=>{const s=regen(f.brand,v,"");setF(p=>({...p,category:v,subcategory:"",sizeMin:"",sizeMax:"",...(s?{sku:s}:{})}));};
   const setSubcat=v=>{const s=regen(f.brand,f.category,v);setF(p=>({...p,subcategory:v,sizeMin:NO_SIZE_SUBCATS.has(v)?"":p.sizeMin,sizeMax:NO_SIZE_SUBCATS.has(v)?"":p.sizeMax,...(s?{sku:s}:{})}));};
   const doShuffle=()=>{const bo=brands.find(b=>b.id===f.brand);set("sku",shuffleSku(bo?.name||"",f.category,f.subcategory,allItems,f.sku));setSkuEdited(true);};
-  const commitCat=()=>{const v=newCat.trim();if(!v){setAddCat(false);return;}const e=catTree[tk]||{};if(!e[v])onCatTreeChange(tk,{...e,[v]:["Other"]});const s=regen(f.brand,v,"");setF(p=>({...p,category:v,subcategory:"",...(s?{sku:s}:{})}));setNewCat("");setAddCat(false);};
-  const commitSub=()=>{const v=newSub.trim();if(!v||!f.category){setAddSub(false);return;}const e=catTree[tk]||{};const c=e[f.category]||[];if(!c.includes(v))onCatTreeChange(tk,{...e,[f.category]:[...c,v]});const s=regen(f.brand,f.category,v);setF(p=>({...p,subcategory:v,...(s?{sku:s}:{})}));setNewSub("");setAddSub(false);};
+  const commitCat=()=>{const v=newCat.trim();if(!v){setAddCat(false);setNewCat("");return;}const e=catTree[tk]||{};if(!e[v])onCatTreeChange(tk,{...e,[v]:["Other"]});const s=regen(f.brand,v,"");setF(p=>({...p,category:v,subcategory:"",...(s?{sku:s}:{})}));setNewCat("");setAddCat(false);};
+  const commitSub=()=>{const v=newSub.trim();if(!v||!f.category){setNewSub("");return;}const e=catTree[tk]||{};const c=e[f.category]||[];if(!c.includes(v))onCatTreeChange(tk,{...e,[f.category]:[...c,v]});toggleSub(v);setNewSub("");setAddSub(false);};
   const handleSave=()=>{if(!f.name.trim())return;const m=mem();if(f.productBrand)m.brands=uniq([...m.brands,f.productBrand]);if(f.supplierName)m.suppliers=uniq([...m.suppliers,f.supplierName]);if(f.supplierArea)m.areas=uniq([...m.areas,f.supplierArea]);onSave({...f,cost:parseInt(f.cost)||0,price:parseInt(f.price)||0});};
   const ab={padding:"0 10px",height:36,border:`1px solid ${T.lime}`,borderRadius:8,background:"transparent",color:T.lime,cursor:"pointer",fontSize:18,lineHeight:1,fontFamily:FB,flexShrink:0};
   const G2={display:"grid",gridTemplateColumns:"1fr 1fr",gap:12};
@@ -211,8 +211,84 @@ function ItemForm({brands,initial,onSave,onClose,defaultBrand,allItems,catTree,o
       <Field label="Item Name"><input style={INP} value={f.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Y2K Crop Top"/></Field>
     </div>
     <div style={G2}>
-      <Field label="Category">{addCat?<div style={{display:"flex",gap:6}}><input autoFocus style={{...INP,flex:1,borderColor:T.lime}} value={newCat} onChange={e=>setNewCat(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")commitCat();if(e.key==="Escape"){setAddCat(false);setNewCat("");}}} placeholder="New category…"/><button onClick={commitCat} style={{...ab,fontSize:13,padding:"0 12px"}}>Add</button><button onClick={()=>{setAddCat(false);setNewCat("");}} style={{...ab,borderColor:T.border,color:T.ghost,fontSize:16}}>×</button></div>:<div style={{display:"flex",gap:6}}><select style={{...INP,flex:1}} value={f.category} onChange={e=>setCat(e.target.value)}>{cl.map(c=><option key={c}>{c}</option>)}</select><button onClick={()=>setAddCat(true)} style={ab}>+</button></div>}</Field>
-      <Field label="Subcategory">{addSub?<div style={{display:"flex",gap:6}}><input autoFocus style={{...INP,flex:1,borderColor:T.lime}} value={newSub} onChange={e=>setNewSub(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")commitSub();if(e.key==="Escape"){setAddSub(false);setNewSub("");}}} placeholder="New subcategory…"/><button onClick={commitSub} style={{...ab,fontSize:13,padding:"0 12px"}}>Add</button><button onClick={()=>{setAddSub(false);setNewSub("");}} style={{...ab,borderColor:T.border,color:T.ghost,fontSize:16}}>×</button></div>:<div style={{display:"flex",flexDirection:"column",gap:6}}><div style={{display:"flex",flexWrap:"wrap",gap:5,padding:"6px 8px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,minHeight:36}}>{sc.length===0&&<span style={{fontSize:12,color:T.ghost,alignSelf:"center"}}>No subcategories — add one →</span>}{sc.map(s=>{const sel=selectedSubs.includes(s);return <button key={s} type="button" onClick={()=>toggleSub(s)} style={{padding:"2px 10px",borderRadius:20,fontSize:11,fontFamily:FB,cursor:"pointer",border:`1px solid ${sel?T.lime:T.border}`,background:sel?`${T.lime}22`:"transparent",color:sel?T.lime:T.muted,fontWeight:sel?600:400}}>{sel&&<span style={{marginRight:3,fontSize:9}}>✓</span>}{s}</button>;})}</div>{selectedSubs.length>0&&<div style={{fontSize:10,color:T.ghost}}>Selected: {selectedSubs.join(", ")}</div>}<button onClick={()=>setAddSub(true)} style={{...ab,fontSize:12,padding:"0 10px",height:28,alignSelf:"flex-start"}}>+ New subcat</button></div>}</Field>
+      <Field label="Category">
+        <div style={{position:"relative"}}>
+          <input
+            style={{...INP,width:"100%",boxSizing:"border-box"}}
+            value={addCat?newCat:f.category}
+            onChange={e=>{setNewCat(e.target.value);setAddCat(true);}}
+            onFocus={()=>setAddCat(true)}
+            onBlur={()=>setTimeout(()=>setAddCat(false),150)}
+            onKeyDown={e=>{
+              if(e.key==="Enter"&&newCat.trim()){e.preventDefault();commitCat();}
+              if(e.key==="Escape"){setNewCat("");setAddCat(false);}
+            }}
+            placeholder="Search or add category…"
+          />
+          {addCat&&(cl.filter(c=>c.toLowerCase().includes(newCat.toLowerCase())).length>0||newCat.trim())&&(
+            <div style={{position:"absolute",top:"100%",left:0,right:0,background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,zIndex:20,marginTop:2,overflow:"hidden",boxShadow:"0 4px 16px rgba(0,0,0,0.3)"}}>
+              {cl.filter(c=>c.toLowerCase().includes(newCat.toLowerCase())).map(c=>(
+                <div key={c} onMouseDown={()=>{setCat(c);setNewCat("");setAddCat(false);}}
+                  style={{padding:"8px 12px",cursor:"pointer",fontSize:12,color:f.category===c?T.lime:T.offWhite,borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:6}}
+                  onMouseEnter={e=>e.currentTarget.style.background=T.card}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  {f.category===c&&<span style={{fontSize:10}}>✓</span>}{c}
+                </div>
+              ))}
+              {newCat.trim()&&!cl.includes(newCat.trim())&&(
+                <div onMouseDown={()=>{commitCat();}}
+                  style={{padding:"8px 12px",cursor:"pointer",fontSize:12,color:T.lime,display:"flex",alignItems:"center",gap:6}}
+                  onMouseEnter={e=>e.currentTarget.style.background=T.card}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <span style={{fontSize:14,lineHeight:1}}>+</span> Add "{newCat.trim()}" as new category
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Field>
+      <Field label="Subcategory">
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {/* Selected pills */}
+          {selectedSubs.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:4}}>{selectedSubs.map(s=><span key={s} style={{display:"flex",alignItems:"center",gap:4,padding:"2px 8px",borderRadius:20,fontSize:11,fontFamily:FB,border:`1px solid ${T.lime}`,background:`${T.lime}18`,color:T.lime}}>{s}<button type="button" onClick={()=>toggleSub(s)} style={{background:"none",border:"none",cursor:"pointer",color:T.lime,fontSize:12,lineHeight:1,padding:0}}>×</button></span>)}</div>}
+          {/* Typeahead input */}
+          <div style={{position:"relative"}}>
+            <input
+              style={{...INP,width:"100%",boxSizing:"border-box"}}
+              value={newSub}
+              onChange={e=>setNewSub(e.target.value)}
+              onFocus={()=>setAddSub(true)}
+              onBlur={()=>setTimeout(()=>setAddSub(false),150)}
+              onKeyDown={e=>{
+                if(e.key==="Enter"&&newSub.trim()){e.preventDefault();commitSub();}
+                if(e.key==="Escape"){setNewSub("");setAddSub(false);}
+              }}
+              placeholder={sc.length?"Search or add subcategory…":"Type a subcategory and press Enter…"}
+            />
+            {/* Dropdown suggestions */}
+            {addSub&&(sc.filter(s=>s.toLowerCase().includes(newSub.toLowerCase())&&!selectedSubs.includes(s)).length>0||newSub.trim())&&(
+              <div style={{position:"absolute",top:"100%",left:0,right:0,background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,zIndex:20,marginTop:2,overflow:"hidden",boxShadow:"0 4px 16px rgba(0,0,0,0.3)"}}>
+                {sc.filter(s=>s.toLowerCase().includes(newSub.toLowerCase())&&!selectedSubs.includes(s)).map(s=>(
+                  <div key={s} onMouseDown={()=>{toggleSub(s);setNewSub("");}}
+                    style={{padding:"8px 12px",cursor:"pointer",fontSize:12,color:T.offWhite,borderBottom:`1px solid ${T.border}`}}
+                    onMouseEnter={e=>e.currentTarget.style.background=T.card}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    {s}
+                  </div>
+                ))}
+                {newSub.trim()&&!sc.includes(newSub.trim())&&(
+                  <div onMouseDown={commitSub}
+                    style={{padding:"8px 12px",cursor:"pointer",fontSize:12,color:T.lime,display:"flex",alignItems:"center",gap:6}}
+                    onMouseEnter={e=>e.currentTarget.style.background=T.card}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    <span style={{fontSize:14,lineHeight:1}}>+</span> Add "{newSub.trim()}" as new subcategory
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </Field>
     </div>
     <div style={G2}>
       <Field label="Brand (product)"><div style={{position:"relative"}}><input style={INP} value={f.productBrand||""} onChange={e=>{set("productBrand",e.target.value);const m=mem();setPbS(e.target.value?uniq(m.brands).filter(x=>x.toLowerCase().includes(e.target.value.toLowerCase())):[]);}} onBlur={()=>setTimeout(()=>setPbS([]),150)} placeholder="e.g. Levi's, Zara…"/><Sug s={pbS} pick={v=>set("productBrand",v)} clear={()=>setPbS([])}/></div></Field>
