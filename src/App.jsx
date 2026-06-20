@@ -2173,7 +2173,7 @@ export default function App(){
     let f=pool;
     if(aStat!=="all")f=f.filter(i=>i.status===aStat);
     if(q)f=f.filter(i=>i.name.toLowerCase().includes(q.toLowerCase())||i.sku?.toLowerCase().includes(q.toLowerCase())||(i.category||"").toLowerCase().includes(q.toLowerCase())||(i.notes||"").toLowerCase().includes(q.toLowerCase()));
-    if(sortCol)f=[...f].sort((a,b)=>{let av=sortCol==="profit"?toPKR(a.price,a.currency)-a.cost:sortCol==="brand"?(gb(a.brand)?.name||""):a[sortCol]||"";let bv=sortCol==="profit"?toPKR(b.price,b.currency)-b.cost:sortCol==="brand"?(gb(b.brand)?.name||""):b[sortCol]||"";if(typeof av==="number")return(av-bv)*sortDir;return String(av).localeCompare(String(bv))*sortDir;});
+    if(sortCol)f=[...f].sort((a,b)=>{const av=getSortVal(a,sortCol),bv=getSortVal(b,sortCol);if(typeof av==="number"&&typeof bv==="number")return(av-bv)*sortDir;return String(av).localeCompare(String(bv))*sortDir;});
     return f;
   },[pool,aStat,q,sortCol,sortDir,brands,rates]);
 
@@ -2192,6 +2192,28 @@ export default function App(){
   },[pool,rates]);
 
   const handleSort=col=>{if(sortCol===col)setSortDir(d=>d*-1);else{setSortCol(col);setSortDir(1);}};
+  const getSortVal=(it,col)=>{
+    const pricePKR=toPKR(it.price,it.currency);
+    switch(col){
+      case "date":      return it.inventoryDate||"";
+      case "name":      return it.name||"";
+      case "category":  return it.category||"";
+      case "subcat":    return it.subcategory||"";
+      case "size":      return sizeLabel(it)||"";
+      case "qty":       return it.qty||0;
+      case "grade":     return it.grade||"";
+      case "status":    return it.status||"";
+      case "sku":       return it.sku||"";
+      case "brand":     return it.productBrand||gb(it.brand)?.name||"";
+      case "cost":      return it.cost||0;
+      case "totalcost": return (it.cost||0)*(it.qty||1);
+      case "price":     return pricePKR||0;
+      case "totalsold": return pricePKR*(it.qty||1);
+      case "profit":    return pricePKR-(it.cost||0);
+      case "notes":     return it.notes||"";
+      default:          return it[col]||"";
+    }
+  };
   const SortArrow=({col})=>sortCol===col?<span style={{fontSize:9,color:T.lime}}>{sortDir===1?"↑":"↓"}</span>:<span style={{fontSize:9,color:T.ghost,opacity:0.4}}>↕</span>;
 
   const startRename=(e,b)=>{e.stopPropagation();setColorPickerId(null);setRenamingId(b.id);setRenameVal(b.name);};
@@ -2658,7 +2680,7 @@ export default function App(){
                           <TCell w={COLS[6].w}><span style={{fontSize:12,fontWeight:600,color:T.offWhite}}>{it.grade||"—"}</span></TCell>
                           <TCell w={COLS[7].w}><StatusPill status={it.status}/></TCell>
                           <TCell w={COLS[8].w}><span style={{fontSize:11,color:T.ghost,fontFamily:"monospace",letterSpacing:"0.3px"}}>{it.sku||"—"}</span></TCell>
-                          <TCell w={COLS[9].w}><span style={{fontSize:11,fontWeight:600,color:bc}}>{b?.name}</span></TCell>
+                          <TCell w={COLS[9].w}><span style={{fontSize:11,fontWeight:600,color:it.productBrand?T.offWhite:T.ghost}}>{it.productBrand||gb(it.brand)?.name||"—"}</span></TCell>
                           <TCell w={COLS[10].w}><span style={{fontSize:12,color:T.muted}}>{isAdmin?`₨${it.cost.toLocaleString()}`:"*****"}</span></TCell>
                           <TCell w={COLS[11].w}><span style={{fontSize:12,color:T.muted}}>{isAdmin?`₨${(it.cost*(it.qty||1)).toLocaleString()}`:"*****"}</span></TCell>
                           <TCell w={COLS[12].w}><div style={{textAlign:"center"}}><div style={{fontSize:12,fontWeight:600,color:T.lime}}>{isAdmin?(it.price?`${sym}${it.price.toLocaleString()}`:"—"):"*****"}</div>{isAdmin&&it.currency&&it.currency!=="PKR"&&it.price>0&&<div style={{fontSize:10,color:T.ghost}}>₨{pricePKR.toLocaleString()}</div>}</div></TCell>
