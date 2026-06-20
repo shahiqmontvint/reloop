@@ -109,9 +109,7 @@ async function sbGet() {
 }
 
 async function sbSet(payload) {
-  try {
-    await sb.from('kv_store').upsert({ key: STORE_KEY, value: JSON.stringify(payload) }, { onConflict: 'key' });
-  } catch (_) {}
+  await sb.from('kv_store').upsert({ key: STORE_KEY, value: JSON.stringify(payload) }, { onConflict: 'key' });
 }
 
 // ── Shared UI ─────────────────────────────────────────────────────────────────
@@ -1554,7 +1552,7 @@ function AIAssistant({ context, systemPrompt, placeholder }) {
         </button>
       </div>
 
-      <style>{`@keyframes pbdot{0%,80%,100%{opacity:0.2;transform:scale(0.8)}40%{opacity:1;transform:scale(1)}}`}</style>
+      <style>{`@keyframes pbdot{0%,80%,100%{opacity:0.2;transform:scale(0.8)}40%{opacity:1;transform:scale(1)}}@keyframes pulse{0%,100%{opacity:0.4;transform:scale(0.8)}50%{opacity:1;transform:scale(1.2)}}`}</style>
     </div>
   );
 }
@@ -2083,6 +2081,8 @@ export default function App(){
   const[orders,setOrders]=useState([]);
   const[worksheet,setWorksheet]=useState({cols:["Date","Description","Type","Amount (₨)","Notes"],rows:[]});
   const[loaded,setLoaded]=useState(false);
+  const[saveStatus,setSaveStatus]=useState("idle"); // idle | saving | saved | error
+  const saveTimerRef = useRef(null);
 
   // ── Collapsible sidebar sections ──────────────────────────────────────────
   const[verticalsOpen,setVerticalsOpen]=useState(true);
@@ -2131,11 +2131,30 @@ export default function App(){
     })();
   },[]);
 
-  // ── Persist to Supabase whenever state changes ────────────────────────────
+  // ── Debounced autosave — fires 800ms after last state change ─────────────
   const persist = (overrides={}) => {
     sbSet({ brands, items, nid, catTree, fixes, rates, rateHistory, bundles, attendance, orders, worksheet, ...overrides });
   };
-  useEffect(()=>{ if(!loaded) return; persist(); },[brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,worksheet,loaded]);
+
+  useEffect(()=>{
+    if(!loaded) return;
+    // Clear any pending save
+    if(saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setSaveStatus("saving");
+    // Debounce: wait 800ms after last change before writing to Supabase
+    saveTimerRef.current = setTimeout(async ()=>{
+      try {
+        await sbSet({ brands, items, nid, catTree, fixes, rates, rateHistory, bundles, attendance, orders, worksheet });
+        setSaveStatus("saved");
+        // Reset to idle after 2s
+        setTimeout(()=>setSaveStatus("idle"), 2000);
+      } catch {
+        setSaveStatus("error");
+        setTimeout(()=>setSaveStatus("idle"), 3000);
+      }
+    }, 800);
+    return ()=>{ if(saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  },[brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,worksheet,loaded]);
 
   const saveBrands = next => {
     setBrands(next);
@@ -2237,6 +2256,15 @@ export default function App(){
           <div style={{marginTop:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <span style={{fontSize:11,padding:"2px 8px",borderRadius:20,background:isAdmin?`${T.lime}22`:T.cobaltBg,color:isAdmin?T.lime:T.cobaltText,fontWeight:600,border:`1px solid ${isAdmin?T.lime:T.cobaltText}44`}}>{isAdmin?"Admin":"Ninja 🥷🏻"}</span>
             <button onClick={()=>{localStorage.removeItem("rl_auth");localStorage.removeItem("rl_role");window.location.reload();}} style={{fontSize:10,color:T.ghost,background:"none",border:`1px solid ${T.border}`,borderRadius:6,padding:"2px 8px",cursor:"pointer",fontFamily:FB}}>Sign out</button>
+          </div>
+          {/* Autosave indicator */}
+          <div style={{marginTop:6,height:16,display:"flex",alignItems:"center",gap:5}}>
+            {saveStatus==="saving"&&<><span style={{width:6,height:6,borderRadius:"50%",background:T.amberText,display:"inline-block",animation:"pulse 1s ease-in-out infinite"}}/>
+              <span style={{fontSize:9,color:T.amberText,fontFamily:FB}}>Saving…</span></>}
+            {saveStatus==="saved"&&<><span style={{width:6,height:6,borderRadius:"50%",background:T.profit,display:"inline-block"}}/>
+              <span style={{fontSize:9,color:T.profit,fontFamily:FB}}>Saved ✓</span></>}
+            {saveStatus==="error"&&<><span style={{width:6,height:6,borderRadius:"50%",background:T.rougeText,display:"inline-block"}}/>
+              <span style={{fontSize:9,color:T.rougeText,fontFamily:FB}}>Save failed — check connection</span></>}
           </div>
         </div>
 
