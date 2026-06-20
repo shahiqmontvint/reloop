@@ -74,8 +74,8 @@ const COLS=[
   {key:"date",      label:"Date Added",   w:96},
   {key:"vertical",  label:"Vertical",     w:80, allBrandsOnly:true},
   {key:"name",      label:"Item",         w:150},
-  {key:"category",  label:"Category",     w:90},
-  {key:"subcat",    label:"Sub Cat",      w:80},
+  {key:"category",  label:"Category",     w:120},
+  {key:"subcat",    label:"Sub Cat",      w:120},
   {key:"size",      label:"Size",         w:60},
   {key:"qty",       label:"Qty",          w:44},
   {key:"grade",     label:"Grade",        w:56},
@@ -184,7 +184,14 @@ function ItemForm({brands,initial,onSave,onClose,defaultBrand,allItems,catTree,o
   const[pbS,setPbS]=useState([]);const[snS,setSnS]=useState([]);const[saS,setSaS]=useState([]);
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const cm=getBCats(f.brand);const cl=Object.keys(cm);const sc=cm[f.category]||[];
-  const showSize=!NO_SIZE_SUBCATS.has(f.subcategory);
+  const showSize=!(f.subcategory||"").split(",").map(s=>s.trim()).some(s=>NO_SIZE_SUBCATS.has(s));
+  const selectedSubs=(f.subcategory||"").split(",").map(s=>s.trim()).filter(Boolean);
+  const toggleSub=v=>{
+    const next=selectedSubs.includes(v)?selectedSubs.filter(s=>s!==v):[...selectedSubs,v];
+    const joined=next.join(", ");
+    const s=regen(f.brand,f.category,joined);
+    setF(p=>({...p,subcategory:joined,...(s?{sku:s}:{})}));
+  };
   const tk=catTree[f.brand]?f.brand:"generic";
   const mem=()=>supplierMemory[f.brand]||(supplierMemory[f.brand]={brands:[],suppliers:[],areas:[]});
   const uniq=a=>[...new Set(a)].filter(Boolean);
@@ -205,7 +212,7 @@ function ItemForm({brands,initial,onSave,onClose,defaultBrand,allItems,catTree,o
     </div>
     <div style={G2}>
       <Field label="Category">{addCat?<div style={{display:"flex",gap:6}}><input autoFocus style={{...INP,flex:1,borderColor:T.lime}} value={newCat} onChange={e=>setNewCat(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")commitCat();if(e.key==="Escape"){setAddCat(false);setNewCat("");}}} placeholder="New category…"/><button onClick={commitCat} style={{...ab,fontSize:13,padding:"0 12px"}}>Add</button><button onClick={()=>{setAddCat(false);setNewCat("");}} style={{...ab,borderColor:T.border,color:T.ghost,fontSize:16}}>×</button></div>:<div style={{display:"flex",gap:6}}><select style={{...INP,flex:1}} value={f.category} onChange={e=>setCat(e.target.value)}>{cl.map(c=><option key={c}>{c}</option>)}</select><button onClick={()=>setAddCat(true)} style={ab}>+</button></div>}</Field>
-      <Field label="Subcategory">{addSub?<div style={{display:"flex",gap:6}}><input autoFocus style={{...INP,flex:1,borderColor:T.lime}} value={newSub} onChange={e=>setNewSub(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")commitSub();if(e.key==="Escape"){setAddSub(false);setNewSub("");}}} placeholder="New subcategory…"/><button onClick={commitSub} style={{...ab,fontSize:13,padding:"0 12px"}}>Add</button><button onClick={()=>{setAddSub(false);setNewSub("");}} style={{...ab,borderColor:T.border,color:T.ghost,fontSize:16}}>×</button></div>:<div style={{display:"flex",gap:6}}><select style={{...INP,flex:1}} value={f.subcategory} onChange={e=>setSubcat(e.target.value)}><option value="">— select —</option>{sc.map(s=><option key={s}>{s}</option>)}</select><button onClick={()=>setAddSub(true)} style={ab}>+</button></div>}</Field>
+      <Field label="Subcategory">{addSub?<div style={{display:"flex",gap:6}}><input autoFocus style={{...INP,flex:1,borderColor:T.lime}} value={newSub} onChange={e=>setNewSub(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")commitSub();if(e.key==="Escape"){setAddSub(false);setNewSub("");}}} placeholder="New subcategory…"/><button onClick={commitSub} style={{...ab,fontSize:13,padding:"0 12px"}}>Add</button><button onClick={()=>{setAddSub(false);setNewSub("");}} style={{...ab,borderColor:T.border,color:T.ghost,fontSize:16}}>×</button></div>:<div style={{display:"flex",flexDirection:"column",gap:6}}><div style={{display:"flex",flexWrap:"wrap",gap:5,padding:"6px 8px",border:`1px solid ${T.border}`,borderRadius:8,background:T.card,minHeight:36}}>{sc.length===0&&<span style={{fontSize:12,color:T.ghost,alignSelf:"center"}}>No subcategories — add one →</span>}{sc.map(s=>{const sel=selectedSubs.includes(s);return <button key={s} type="button" onClick={()=>toggleSub(s)} style={{padding:"2px 10px",borderRadius:20,fontSize:11,fontFamily:FB,cursor:"pointer",border:`1px solid ${sel?T.lime:T.border}`,background:sel?`${T.lime}22`:"transparent",color:sel?T.lime:T.muted,fontWeight:sel?600:400}}>{sel&&<span style={{marginRight:3,fontSize:9}}>✓</span>}{s}</button>;})}</div>{selectedSubs.length>0&&<div style={{fontSize:10,color:T.ghost}}>Selected: {selectedSubs.join(", ")}</div>}<button onClick={()=>setAddSub(true)} style={{...ab,fontSize:12,padding:"0 10px",height:28,alignSelf:"flex-start"}}>+ New subcat</button></div>}</Field>
     </div>
     <div style={G2}>
       <Field label="Brand (product)"><div style={{position:"relative"}}><input style={INP} value={f.productBrand||""} onChange={e=>{set("productBrand",e.target.value);const m=mem();setPbS(e.target.value?uniq(m.brands).filter(x=>x.toLowerCase().includes(e.target.value.toLowerCase())):[]);}} onBlur={()=>setTimeout(()=>setPbS([]),150)} placeholder="e.g. Levi's, Zara…"/><Sug s={pbS} pick={v=>set("productBrand",v)} clear={()=>setPbS([])}/></div></Field>
@@ -2240,8 +2247,37 @@ export default function App(){
   const commitRename=()=>{if(renameVal.trim())saveBrands(brands.map(b=>b.id===renamingId?{...b,name:renameVal.trim()}:b));setRenamingId(null);};
   const recolorBrand=(id,color)=>{saveBrands(brands.map(b=>b.id===id?{...b,color}:b));setColorPickerId(null);};
 
-  const saveNewItem=d=>{setItems(p=>[...p,{id:nid,...d}]);setNid(n=>n+1);setAddItemOpen(false);};
-  const saveEdit=d=>{setItems(p=>p.map(i=>i.id===editItem.id?{...i,...d}:i));setEditItem(null);if(detail?.id===editItem.id)setDetail(prev=>({...prev,...d}));};
+  // Merge new categories/subcats into catTree for a given brand
+  const mergeCatTree = (brandId, category, subcategory) => {
+    if (!brandId || !category) return;
+    const cats = category.split(",").map(c=>c.trim()).filter(Boolean);
+    const subs = subcategory ? subcategory.split(",").map(s=>s.trim()).filter(Boolean) : [];
+    setCatTree(prev => {
+      const next = {...prev};
+      const key = brandId;
+      if (!next[key]) next[key] = {};
+      cats.forEach(cat => {
+        if (!next[key][cat]) next[key][cat] = [];
+        subs.forEach(sub => {
+          if (!next[key][cat].includes(sub)) next[key][cat] = [...next[key][cat], sub];
+        });
+      });
+      return next;
+    });
+  };
+
+  const saveNewItem=d=>{
+    setItems(p=>[...p,{id:nid,...d}]);
+    setNid(n=>n+1);
+    setAddItemOpen(false);
+    mergeCatTree(d.brand, d.category, d.subcategory);
+  };
+  const saveEdit=d=>{
+    setItems(p=>p.map(i=>i.id===editItem.id?{...i,...d}:i));
+    setEditItem(null);
+    if(detail?.id===editItem.id) setDetail(prev=>({...prev,...d}));
+    mergeCatTree(d.brand, d.category, d.subcategory);
+  };
   const delItem=id=>{
     const next=items.filter(i=>i.id!==id);
     setItems(next);
@@ -2722,6 +2758,23 @@ export default function App(){
                     const newItems=[...items,...added];
                     const newNid2=nid+added.length;
                     setItems(newItems);setNid(newNid2);
+                    // Merge all new categories/subcats into catTree
+                    setCatTree(prev=>{
+                      const next={...prev};
+                      added.forEach(it=>{
+                        if(!it.brand||!it.category) return;
+                        const cats=it.category.split(",").map(c=>c.trim()).filter(Boolean);
+                        const subs=it.subcategory?it.subcategory.split(",").map(s=>s.trim()).filter(Boolean):[];
+                        if(!next[it.brand]) next[it.brand]={};
+                        cats.forEach(cat=>{
+                          if(!next[it.brand][cat]) next[it.brand][cat]=[];
+                          subs.forEach(sub=>{
+                            if(!next[it.brand][cat].includes(sub)) next[it.brand][cat]=[...next[it.brand][cat],sub];
+                          });
+                        });
+                      });
+                      return next;
+                    });
                     sbSet({brands,items:newItems,nid:newNid2,catTree,fixes,rates,rateHistory,bundles,attendance,orders,worksheet});
                   }
                   setImportResult({added:added.length,skipped:errors.length,errors});
@@ -2862,8 +2915,8 @@ export default function App(){
                           <TCell w={COLS[0].w}><span style={{fontSize:12,color:T.offWhite}}>{it.inventoryDate||"—"}</span></TCell>
                           {aBrand==="all"&&<TCell w={COLS[1].w}><span style={{fontSize:12,color:T.offWhite,fontWeight:500}}>{gb(it.brand)?.name||"—"}</span></TCell>}
                           <TCell w={COLS[2].w} left><span style={{fontSize:12,fontWeight:500,color:T.offWhite,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.name}</span></TCell>
-                          <TCell w={COLS[3].w}><span style={{fontSize:12,color:T.offWhite}}>{it.category}</span></TCell>
-                          <TCell w={COLS[4].w}><span style={{fontSize:12,color:T.offWhite}}>{it.subcategory||"—"}</span></TCell>
+                          <TCell w={COLS[3].w}><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{(it.category||"—").split(",").map((c,i)=><span key={i} style={{fontSize:11,color:T.offWhite,background:T.surface,border:`1px solid ${T.border}`,borderRadius:20,padding:"1px 7px",whiteSpace:"nowrap"}}>{c.trim()}</span>)}</div></TCell>
+                          <TCell w={COLS[4].w}><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{it.subcategory?(it.subcategory).split(",").map((s,i)=><span key={i} style={{fontSize:11,color:T.muted,background:T.card,border:`1px solid ${T.border}`,borderRadius:20,padding:"1px 7px",whiteSpace:"nowrap"}}>{s.trim()}</span>):<span style={{color:T.ghost,fontSize:12}}>—</span>}</div></TCell>
                           <TCell w={COLS[5].w}>{sizeLabel(it)==="—"?<span style={{fontSize:12,color:T.ghost}}>—</span>:<span style={{fontSize:12,color:T.cobaltText,background:T.cobaltBg,padding:"2px 8px",borderRadius:20}}>{sizeLabel(it)}</span>}</TCell>
                           <TCell w={COLS[6].w}><span style={{fontSize:12,fontWeight:500,color:T.offWhite}}>{it.qty||1}</span></TCell>
                           <TCell w={COLS[7].w}><span style={{fontSize:12,fontWeight:500,color:T.offWhite}}>{it.grade||"—"}</span></TCell>
