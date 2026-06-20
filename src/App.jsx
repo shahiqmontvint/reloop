@@ -71,23 +71,24 @@ const initBrands=[{id:"encore",name:"Encore",tagline:"Y2K — Womenswear",color:
 const initItems=[];
 
 const COLS=[
-  {key:"date",      label:"Date Added",  w:96},
-  {key:"name",      label:"Item",        w:150},
-  {key:"category",  label:"Category",    w:90},
-  {key:"subcat",    label:"Sub Cat",     w:80},
-  {key:"size",      label:"Size",        w:60},
-  {key:"qty",       label:"Qty",         w:44},
-  {key:"grade",     label:"Grade",       w:56},
-  {key:"status",    label:"Status",      w:96},
-  {key:"sku",       label:"SKU",         w:100},
-  {key:"brand",     label:"Product Brand", w:100},
-  {key:"cost",      label:"Cost",        w:72},
-  {key:"totalcost", label:"Total Cost",  w:80},
-  {key:"price",     label:"Sold",        w:80},
-  {key:"totalsold", label:"Total Sold",  w:80},
-  {key:"profit",    label:"Profit",      w:80},
-  {key:"notes",     label:"Notes",       w:140},
-  {key:"actions",   label:"",            w:72},
+  {key:"date",      label:"Date Added",   w:96},
+  {key:"vertical",  label:"Vertical",     w:80, allBrandsOnly:true},
+  {key:"name",      label:"Item",         w:150},
+  {key:"category",  label:"Category",     w:90},
+  {key:"subcat",    label:"Sub Cat",      w:80},
+  {key:"size",      label:"Size",         w:60},
+  {key:"qty",       label:"Qty",          w:44},
+  {key:"grade",     label:"Grade",        w:56},
+  {key:"status",    label:"Status",       w:96},
+  {key:"sku",       label:"SKU",          w:100},
+  {key:"brand",     label:"Product Brand",w:100},
+  {key:"cost",      label:"Cost",         w:72},
+  {key:"totalcost", label:"Total Cost",   w:80},
+  {key:"price",     label:"Sold",         w:80},
+  {key:"totalsold", label:"Total Sold",   w:80},
+  {key:"profit",    label:"Profit",       w:80},
+  {key:"notes",     label:"Notes",        w:140},
+  {key:"actions",   label:"",             w:72},
 ];
 const TOTAL_W = COLS.reduce((s,c)=>s+c.w,0);
 const GRID_COLS = COLS.map(c=>`${c.w}px`).join(" ");
@@ -2089,6 +2090,9 @@ export default function App(){
   const[modulesOpen,setModulesOpen]=useState(true);
 
   const[aBrand,setABrand]=useState("all");
+  // Dynamic columns — Vertical col only shown when All Brands is selected
+  const visCols = COLS.filter(c=>!c.allBrandsOnly || aBrand==="all");
+  const GRID_COLS_DYN = visCols.map(c=>`${c.w}px`).join(" ");
   const[aStat,setAStat]=useState("all");
   const[q,setQ]=useState("");
   const[exportOpen,setExportOpen]=useState(false);
@@ -2570,10 +2574,11 @@ export default function App(){
                               const avgProfPct = totalRevDl>0?((totalProfitDl/totalRevDl)*100).toFixed(1):null;
                               const LOGO_URL="https://res.cloudinary.com/daw3s99fs/image/upload/f_auto,q_auto/WhatsApp_Image_2026-06-08_at_19.43.43-removebg-preview_fcadkj";
                               const fmtMonthYear = d => { if(!d) return ""; const [y,m] = d.split("-"); return `${m}/${y}`; };
+                              const fmtDay = d => d.split("-").reverse().join("_");
                               const dateFromLabel = filterDateFrom ? fmtMonthYear(filterDateFrom) : (exportDateFrom ? fmtMonthYear(exportDateFrom) : "");
                               const dateToLabel   = filterDateTo   ? fmtMonthYear(filterDateTo)   : (exportDateTo   ? fmtMonthYear(exportDateTo)   : "");
-                              const datesPart = dateFromLabel&&dateToLabel ? `_${dateFromLabel}_${dateToLabel}` : dateFromLabel ? `_${dateFromLabel}` : "";
-                              const pdfTitle = `${brand.toLowerCase().replace(/\s+/g,"_")}_inventory${datesPart}`;
+                              const datesPart = dateFromLabel&&dateToLabel ? `_${dateFromLabel}_${dateToLabel}` : dateFromLabel ? `_${dateFromLabel}` : `_${fmtDay(now)}`;
+                              const pdfTitle = `${brand.toLowerCase().replace(/\s+/g,"_")}_inv${datesPart}`;
                               const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${pdfTitle}</title>
                               <link href="https://fonts.googleapis.com/css2?family=Lato:wght@100;700&display=swap" rel="stylesheet">
                               <style>
@@ -2746,7 +2751,7 @@ export default function App(){
                   <div style={{overflowX:"auto"}}>
                   <div style={{width:"100%",minWidth:TOTAL_W+16}}>
                     <div style={{display:"flex",alignItems:"center",padding:"0 8px",height:40,position:"relative",zIndex:2}}>
-                      {COLS.map(col=>(
+                      {visCols.map(col=>(
                         <TCell key={col.key} w={col.w} left={col.key==="name"||col.key==="notes"}>
                           <div onClick={col.key!=="actions"?()=>handleSort(col.key):undefined}
                             style={{display:"flex",alignItems:"center",gap:3,cursor:col.key!=="actions"?"pointer":"default",userSelect:"none",fontSize:10,textTransform:"uppercase",letterSpacing:"0.9px",color:sortCol===col.key?T.lime:T.ghost,fontWeight:600}}>
@@ -2766,23 +2771,24 @@ export default function App(){
                           onMouseEnter={e=>{if(detail?.id!==it.id)e.currentTarget.style.background=T.card;}}
                           onMouseLeave={e=>{if(detail?.id!==it.id)e.currentTarget.style.background="transparent";}}
                           style={{display:"flex",alignItems:"center",padding:"0 8px",borderBottom:isLast?"none":`1px solid ${T.border}`,cursor:"pointer",background:detail?.id===it.id?T.cardHov:"transparent",transition:"background 0.12s",minHeight:52,minWidth:TOTAL_W+16,width:"100%",boxSizing:"border-box"}}>
-                          <TCell w={COLS[0].w}>{it.inventoryDate?<span style={{fontSize:11,color:T.cobaltText,fontFamily:"monospace",whiteSpace:"nowrap"}}>{it.inventoryDate}</span>:<span style={{fontSize:11,color:T.ghost}}>—</span>}</TCell>
-                          <TCell w={COLS[1].w} left><span style={{fontSize:13,fontWeight:500,color:T.offWhite,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.name}</span></TCell>
-                          <TCell w={COLS[2].w}><span style={{fontSize:12,color:T.muted}}>{it.category}</span></TCell>
-                          <TCell w={COLS[3].w}><span style={{fontSize:12,color:T.muted}}>{it.subcategory||"—"}</span></TCell>
-                          <TCell w={COLS[4].w}>{sizeLabel(it)==="—"?<span style={{fontSize:12,color:T.ghost}}>—</span>:<span style={{fontSize:11,fontWeight:600,color:T.cobaltText,background:T.cobaltBg,padding:"2px 8px",borderRadius:20}}>{sizeLabel(it)}</span>}</TCell>
-                          <TCell w={COLS[5].w}><span style={{fontSize:12,fontWeight:600,color:T.offWhite}}>{it.qty||1}</span></TCell>
-                          <TCell w={COLS[6].w}><span style={{fontSize:12,fontWeight:600,color:T.offWhite}}>{it.grade||"—"}</span></TCell>
-                          <TCell w={COLS[7].w}><StatusPill status={it.status}/></TCell>
-                          <TCell w={COLS[8].w}><span style={{fontSize:11,color:T.ghost,fontFamily:"monospace",letterSpacing:"0.3px"}}>{it.sku||"—"}</span></TCell>
-                          <TCell w={COLS[9].w}><span style={{fontSize:11,fontWeight:600,color:it.productBrand?T.offWhite:T.ghost}}>{it.productBrand||"—"}</span></TCell>
-                          <TCell w={COLS[10].w}><span style={{fontSize:12,color:T.muted}}>{isAdmin?`₨${it.cost.toLocaleString()}`:"*****"}</span></TCell>
-                          <TCell w={COLS[11].w}><span style={{fontSize:12,color:T.muted}}>{isAdmin?`₨${(it.cost*(it.qty||1)).toLocaleString()}`:"*****"}</span></TCell>
-                          <TCell w={COLS[12].w}><div style={{textAlign:"center"}}><div style={{fontSize:12,fontWeight:600,color:T.lime}}>{isAdmin?(it.price?`${sym}${it.price.toLocaleString()}`:"—"):"*****"}</div>{isAdmin&&it.currency&&it.currency!=="PKR"&&it.price>0&&<div style={{fontSize:10,color:T.ghost}}>₨{pricePKR.toLocaleString()}</div>}</div></TCell>
-                          <TCell w={COLS[13].w}><span style={{fontSize:12,color:T.lime}}>{isAdmin&&it.price?`₨${(pricePKR*(it.qty||1)).toLocaleString()}`:"—"}</span></TCell>
-                          <TCell w={COLS[14].w}><span style={{fontSize:12,fontWeight:700,color:prof>=0?T.profit:T.loss}}>{isAdmin?(prof>=0?"+":"")+"₨"+prof.toLocaleString():"*****"}</span></TCell>
-                          <TCell w={COLS[15].w} left><span style={{fontSize:11,color:T.ghost,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.notes||"—"}</span></TCell>
-                          <TCell w={COLS[16].w}><div style={{display:"flex",gap:6,justifyContent:"center"}}><IconBtn title="Edit" onClick={e=>{e.stopPropagation();setEditItem(it);}}/><IconBtn title="Delete" danger onClick={e=>{e.stopPropagation();delItem(it.id);}}/></div></TCell>
+                          <TCell w={COLS[0].w}><span style={{fontSize:12,color:T.cobaltText,fontFamily:"monospace",whiteSpace:"nowrap"}}>{it.inventoryDate||"—"}</span></TCell>
+                          {aBrand==="all"&&<TCell w={COLS[1].w}><span style={{fontSize:12,color:T.offWhite,fontWeight:500}}>{gb(it.brand)?.name||"—"}</span></TCell>}
+                          <TCell w={COLS[2].w} left><span style={{fontSize:12,fontWeight:500,color:T.offWhite,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.name}</span></TCell>
+                          <TCell w={COLS[3].w}><span style={{fontSize:12,color:T.offWhite}}>{it.category}</span></TCell>
+                          <TCell w={COLS[4].w}><span style={{fontSize:12,color:T.offWhite}}>{it.subcategory||"—"}</span></TCell>
+                          <TCell w={COLS[5].w}>{sizeLabel(it)==="—"?<span style={{fontSize:12,color:T.ghost}}>—</span>:<span style={{fontSize:12,color:T.cobaltText,background:T.cobaltBg,padding:"2px 8px",borderRadius:20}}>{sizeLabel(it)}</span>}</TCell>
+                          <TCell w={COLS[6].w}><span style={{fontSize:12,fontWeight:500,color:T.offWhite}}>{it.qty||1}</span></TCell>
+                          <TCell w={COLS[7].w}><span style={{fontSize:12,fontWeight:500,color:T.offWhite}}>{it.grade||"—"}</span></TCell>
+                          <TCell w={COLS[8].w}><StatusPill status={it.status}/></TCell>
+                          <TCell w={COLS[9].w}><span style={{fontSize:12,color:T.ghost,fontFamily:"monospace",letterSpacing:"0.3px"}}>{it.sku||"—"}</span></TCell>
+                          <TCell w={COLS[10].w}><span style={{fontSize:12,color:T.offWhite}}>{it.productBrand||"—"}</span></TCell>
+                          <TCell w={COLS[11].w}><span style={{fontSize:12,color:T.offWhite}}>{isAdmin?`₨${it.cost.toLocaleString()}`:"*****"}</span></TCell>
+                          <TCell w={COLS[12].w}><span style={{fontSize:12,color:T.offWhite}}>{isAdmin?`₨${(it.cost*(it.qty||1)).toLocaleString()}`:"*****"}</span></TCell>
+                          <TCell w={COLS[13].w}><div style={{textAlign:"center"}}><div style={{fontSize:12,color:T.lime}}>{isAdmin?(it.price?`${sym}${it.price.toLocaleString()}`:"—"):"*****"}</div>{isAdmin&&it.currency&&it.currency!=="PKR"&&it.price>0&&<div style={{fontSize:10,color:T.ghost}}>₨{pricePKR.toLocaleString()}</div>}</div></TCell>
+                          <TCell w={COLS[14].w}><span style={{fontSize:12,color:T.lime}}>{isAdmin&&it.price?`₨${(pricePKR*(it.qty||1)).toLocaleString()}`:"—"}</span></TCell>
+                          <TCell w={COLS[15].w}><span style={{fontSize:12,fontWeight:500,color:it.price?(prof>=0?T.profit:T.loss):T.ghost}}>{isAdmin?(it.price?(prof>=0?"+":"")+"₨"+prof.toLocaleString():"—"):"*****"}</span></TCell>
+                          <TCell w={COLS[16].w} left><span style={{fontSize:12,color:T.ghost,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",width:"100%"}}>{it.notes||"—"}</span></TCell>
+                          <TCell w={COLS[17].w}><div style={{display:"flex",gap:6,justifyContent:"center"}}><IconBtn title="Edit" onClick={e=>{e.stopPropagation();setEditItem(it);}}/><IconBtn title="Delete" danger onClick={e=>{e.stopPropagation();delItem(it.id);}}/></div></TCell>
                         </div>
                       );
                     })}
