@@ -2053,6 +2053,174 @@ function WorkSheetPage() {
   );
 }
 
+// ── Active Orders Page ────────────────────────────────────────────────────────
+function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin }) {
+  const [addOpen, setAddOpen] = useState(false);
+  const [editOrder, setEditOrder] = useState(null);
+  const [filterStatus, setFilterStatus] = useState("all");
+
+  const STATUS_OPTS = ["pending","confirmed","processing","shipped","delivered","cancelled"];
+  const STATUS_COLOR = {
+    pending:    {bg:"#3A2E10",color:"#F5C642",border:"#F5C64240"},
+    confirmed:  {bg:"#102A3A",color:"#5BB8F5",border:"#5BB8F540"},
+    processing: {bg:"#1A1F3A",color:"#9B8FBB",border:"#9B8FBB40"},
+    shipped:    {bg:"#102A20",color:"#4ADE80",border:"#4ADE8040"},
+    delivered:  {bg:"#0E2A0E",color:"#22C55E",border:"#22C55E40"},
+    cancelled:  {bg:"#2A1010",color:"#F87171",border:"#F8717140"},
+  };
+
+  const emptyOrder = () => ({
+    id: Date.now(),
+    customerName:"", platform:"", orderRef:"", items:"",
+    qty:1, amount:0, currency:"PKR", shippingCost:0,
+    status:"pending", notes:"", createdAt: new Date().toISOString().slice(0,10),
+    updatedAt: new Date().toISOString().slice(0,10),
+  });
+  const [form, setForm] = useState(emptyOrder());
+  const setF = (k,v) => setForm(p=>({...p,[k]:v}));
+
+  const openAdd = () => { setForm(emptyOrder()); setEditOrder(null); setAddOpen(true); };
+  const openEdit = o => { setForm({...o}); setEditOrder(o.id); setAddOpen(true); };
+
+  const saveOrder = () => {
+    if(!form.customerName.trim()) return;
+    const updated = {...form, updatedAt: new Date().toISOString().slice(0,10)};
+    if(editOrder) {
+      setActiveOrders(prev=>prev.map(o=>o.id===editOrder?updated:o));
+    } else {
+      setActiveOrders(prev=>[...prev, updated]);
+    }
+    setAddOpen(false);
+  };
+
+  const deleteOrder = id => setActiveOrders(prev=>prev.filter(o=>o.id!==id));
+  const updateStatus = (id, status) => setActiveOrders(prev=>prev.map(o=>o.id===id?{...o,status,updatedAt:new Date().toISOString().slice(0,10)}:o));
+
+  const filtered = filterStatus==="all" ? activeOrders : activeOrders.filter(o=>o.status===filterStatus);
+  const IS = {padding:"9px 12px",border:`1px solid ${T.border}`,borderRadius:9,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none",width:"100%",boxSizing:"border-box"};
+  const G2 = {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12};
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%",background:T.bg}}>
+
+      {/* Header */}
+      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>📦 Active Orders</div>
+        {isAdmin&&<button onClick={openAdd} style={{padding:"7px 18px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ New order</button>}
+      </div>
+
+      {/* Status filters */}
+      <div style={{padding:"12px 20px",background:T.surface,borderBottom:`1px solid ${T.border}`,display:"flex",gap:6,flexWrap:"wrap",flexShrink:0}}>
+        {["all",...STATUS_OPTS].map(s=>(
+          <button key={s} onClick={()=>setFilterStatus(s)}
+            style={{padding:"4px 14px",borderRadius:20,fontSize:12,fontFamily:FB,cursor:"pointer",
+              border:`1px solid ${filterStatus===s?T.lime:T.border}`,
+              background:filterStatus===s?T.lime:"transparent",
+              color:filterStatus===s?T.ink:T.muted,fontWeight:filterStatus===s?700:400}}>
+            {s.charAt(0).toUpperCase()+s.slice(1)}
+          </button>
+        ))}
+        <span style={{marginLeft:"auto",fontSize:12,color:T.ghost,alignSelf:"center"}}>{filtered.length} order{filtered.length!==1?"s":""}</span>
+      </div>
+
+      {/* Orders list */}
+      <div style={{flex:1,overflowY:"auto",padding:20}}>
+        {filtered.length===0
+          ?<div style={{textAlign:"center",padding:"60px 20px"}}>
+            <div style={{fontSize:36,marginBottom:12}}>📦</div>
+            <div style={{fontSize:16,color:T.ghost,fontFamily:FB}}>{filterStatus==="all"?"No active orders yet":"No orders with this status"}</div>
+            {isAdmin&&filterStatus==="all"&&<button onClick={openAdd} style={{marginTop:16,padding:"8px 20px",border:`1px solid ${T.lime}`,borderRadius:9,background:"transparent",color:T.lime,cursor:"pointer",fontSize:13,fontFamily:FB}}>+ Add first order</button>}
+          </div>
+          :<div style={{display:"flex",flexDirection:"column",gap:12}}>
+            {filtered.map(o=>{
+              const sc = STATUS_COLOR[o.status]||STATUS_COLOR.pending;
+              return (
+                <div key={o.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:14,padding:"16px 18px"}}>
+                  <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:12}}>
+                    <div style={{flex:1}}>
+                      <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:6}}>
+                        <span style={{fontSize:15,fontWeight:700,color:T.offWhite,fontFamily:FB}}>{o.customerName}</span>
+                        {o.platform&&<span style={{fontSize:11,color:T.cobaltText,background:T.cobaltBg,padding:"2px 8px",borderRadius:20,fontFamily:FB}}>{o.platform}</span>}
+                        {o.orderRef&&<span style={{fontSize:11,color:T.ghost,fontFamily:"monospace"}}>#{o.orderRef}</span>}
+                        <span style={{fontSize:11,padding:"2px 10px",borderRadius:20,border:`1px solid ${sc.border}`,background:sc.bg,color:sc.color,fontWeight:600,fontFamily:FB}}>{o.status}</span>
+                      </div>
+                      {o.items&&<div style={{fontSize:13,color:T.muted,marginBottom:4,fontFamily:FB}}>{o.items}{o.qty>1?` × ${o.qty}`:""}</div>}
+                      {o.notes&&<div style={{fontSize:12,color:T.ghost,fontStyle:"italic"}}>{o.notes}</div>}
+                    </div>
+                    {/* Amount — admin only */}
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      {isAdmin
+                        ?<>
+                          <div style={{fontSize:17,fontWeight:700,color:T.lime,fontFamily:FB}}>{o.currency!=="PKR"?o.currency+" ":""}{isAdmin?(o.amount||0).toLocaleString():"—"}{o.currency==="PKR"?" PKR":""}</div>
+                          {o.shippingCost>0&&<div style={{fontSize:11,color:T.ghost}}>+{o.shippingCost.toLocaleString()} shipping</div>}
+                        </>
+                        :<div style={{fontSize:14,color:T.ghost,fontFamily:FB}}>—</div>}
+                      <div style={{fontSize:10,color:T.ghost,marginTop:4}}>{o.createdAt}</div>
+                    </div>
+                  </div>
+
+                  {/* Status update row */}
+                  <div style={{display:"flex",alignItems:"center",gap:6,paddingTop:10,borderTop:`1px solid ${T.border}40`,flexWrap:"wrap"}}>
+                    <span style={{fontSize:11,color:T.ghost,marginRight:4}}>Status:</span>
+                    {STATUS_OPTS.map(s=>(
+                      <button key={s} onClick={()=>isAdmin&&updateStatus(o.id,s)}
+                        style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontFamily:FB,
+                          cursor:isAdmin?"pointer":"default",
+                          border:`1px solid ${o.status===s?(STATUS_COLOR[s]||{border:T.border}).border:T.border}`,
+                          background:o.status===s?(STATUS_COLOR[s]||{bg:"transparent"}).bg:"transparent",
+                          color:o.status===s?(STATUS_COLOR[s]||{color:T.muted}).color:T.ghost}}>
+                        {s}
+                      </button>
+                    ))}
+                    {isAdmin&&<div style={{marginLeft:"auto",display:"flex",gap:6}}>
+                      <button onClick={()=>openEdit(o)} style={{padding:"4px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:12,color:T.muted,fontFamily:FB}} onMouseEnter={e=>e.currentTarget.style.color=T.lime} onMouseLeave={e=>e.currentTarget.style.color=T.muted}>Edit</button>
+                      <button onClick={()=>deleteOrder(o.id)} style={{padding:"4px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:12,color:T.muted,fontFamily:FB}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color=T.muted}>Delete</button>
+                    </div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>}
+      </div>
+
+      {/* Add/Edit modal — admin only */}
+      {addOpen&&isAdmin&&(
+        <div onClick={()=>setAddOpen(false)} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:400}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:500,maxWidth:"96vw",padding:26,maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{fontSize:18,fontWeight:700,color:T.lime,fontFamily:FB,marginBottom:20}}>{editOrder?"Edit order":"New order"}</div>
+            <div style={G2}>
+              <div><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Customer name *</div><input value={form.customerName} onChange={e=>setF("customerName",e.target.value)} placeholder="Name or handle" style={IS}/></div>
+              <div><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Platform</div><input value={form.platform} onChange={e=>setF("platform",e.target.value)} placeholder="e.g. Instagram, Vinted…" style={IS}/></div>
+            </div>
+            <div style={{marginBottom:12}}><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Order ref / ID</div><input value={form.orderRef} onChange={e=>setF("orderRef",e.target.value)} placeholder="Optional order number" style={IS}/></div>
+            <div style={{marginBottom:12}}><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Items</div><input value={form.items} onChange={e=>setF("items",e.target.value)} placeholder="e.g. Fred Perry T-Shirt, Y2K Jeans…" style={IS}/></div>
+            <div style={G2}>
+              <div><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Qty</div><input type="number" min="1" value={form.qty} onChange={e=>setF("qty",parseInt(e.target.value)||1)} style={IS}/></div>
+              <div><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Status</div><select value={form.status} onChange={e=>setF("status",e.target.value)} style={IS}>{STATUS_OPTS.map(s=><option key={s}>{s}</option>)}</select></div>
+            </div>
+            <div style={G2}>
+              <div><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Amount</div>
+                <div style={{display:"flex",gap:6}}>
+                  <select value={form.currency} onChange={e=>setF("currency",e.target.value)} style={{...IS,width:80,flex:"none"}}>
+                    {["PKR","GBP","USD","EUR"].map(c=><option key={c}>{c}</option>)}
+                  </select>
+                  <input type="number" min="0" value={form.amount} onChange={e=>setF("amount",parseFloat(e.target.value)||0)} style={{...IS,flex:1}}/>
+                </div>
+              </div>
+              <div><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Shipping cost</div><input type="number" min="0" value={form.shippingCost} onChange={e=>setF("shippingCost",parseFloat(e.target.value)||0)} style={IS}/></div>
+            </div>
+            <div style={{marginBottom:20}}><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Notes</div><textarea value={form.notes} onChange={e=>setF("notes",e.target.value)} placeholder="Any extra details…" rows={3} style={{...IS,resize:"vertical"}}/></div>
+            <div style={{display:"flex",gap:8,justifyContent:"flex-end",paddingTop:16,borderTop:`1px solid ${T.border}`}}>
+              <button onClick={()=>setAddOpen(false)} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
+              <button onClick={saveOrder} disabled={!form.customerName.trim()} style={{padding:"8px 24px",border:"none",borderRadius:8,background:form.customerName.trim()?T.lime:"#333",color:form.customerName.trim()?T.ink:T.ghost,cursor:form.customerName.trim()?"pointer":"default",fontSize:13,fontWeight:700,fontFamily:FB}}>Save order</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Access Denied ─────────────────────────────────────────────────────────────
 function AccessDenied() {
   return (
@@ -2228,7 +2396,7 @@ export default function App(){
 
   // ── Debounced autosave — fires 800ms after last state change ─────────────
   const persist = (overrides={}) => {
-    sbSet({ brands, items, nid, catTree, fixes, rates, rateHistory, bundles, attendance, orders, worksheet, ...overrides });
+    sbSet({ brands, items, nid, catTree, fixes, rates, rateHistory, bundles, attendance, orders, activeOrders, worksheet, ...overrides });
   };
 
   useEffect(()=>{
@@ -2249,7 +2417,7 @@ export default function App(){
       }
     }, 800);
     return ()=>{ if(saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  },[brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,worksheet,loaded]);
+  },[brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,activeOrders,worksheet,loaded]);
 
   const saveBrands = next => {
     setBrands(next);
@@ -2465,6 +2633,7 @@ export default function App(){
                   {icon:"📦",label:"Bundles",page:"bundles"},
                   {icon:"💱",label:"Conversion",page:"conversion",adminOnly:true},
                   {icon:"🗓️",label:"Attendance",page:"attendance"},
+                  {icon:"📦",label:"Active Orders",page:"activeorders"},
                   {icon:"📋",label:"Order Working",page:"orders",adminOnly:true},
                   {icon:"🤖",label:"Profit Bot",page:"profitbot",adminOnly:true},
                   {icon:"💰",label:"Finance",page:"worksheet",adminOnly:true},
@@ -2492,7 +2661,8 @@ export default function App(){
         :activePage==="bundles"?<BundlesPage items={items} bundles={bundles} setBundles={setBundles} brands={brands}/>
         :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);sbSet({brands,items,nid,catTree,fixes,rates:r,rateHistory,bundles,attendance,orders,worksheet});}} rateHistory={rateHistory} setRateHistory={rh=>{setRateHistory(rh);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory:rh,bundles,attendance,orders,worksheet});}}/>
         :activePage==="attendance"?<AttendancePage attendance={attendance} isAdmin={isAdmin} setAttendance={a=>{setAttendance(a);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance:a,orders,worksheet});}}/>
-        :activePage==="orders"?(isAdmin?<OrderWorkingPage orders={orders} setOrders={o=>{setOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders:o,worksheet});}}/>:<AccessDenied/>)
+        :activePage==="activeorders"?<ActiveOrdersPage activeOrders={activeOrders} setActiveOrders={o=>{setActiveOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,activeOrders:o,worksheet});}} isAdmin={isAdmin}/>
+        :activePage==="orders"?(isAdmin?<OrderWorkingPage orders={orders} setOrders={o=>{setOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders:o,activeOrders,worksheet});}}/>:<AccessDenied/>)
         :activePage==="profitbot"?(isAdmin?<ProfitBotPage rates={rates}/>:<AccessDenied/>)
         :activePage==="worksheet"?(isAdmin?<WorkSheetPage/>:<AccessDenied/>)
         :(
