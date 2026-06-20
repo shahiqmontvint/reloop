@@ -2392,35 +2392,56 @@ export default function App(){
                           const dateRangeLabel = dateFrom&&dateTo?`${dateFrom} to ${dateTo}`:dateFrom?`From ${dateFrom}`:dateTo?`To ${dateTo}`:"All dates";
                           // use exportFiltered for actual export
                           const doExport = (exportFmt) => {
-                            const headers = ["SKU","Item","Brand","Category","Subcategory","Size","Grade","Status","Qty","Cost (₨)","Sold Price","Currency","Date Added","Notes"];
-                            const rows = exportFiltered.map(it=>[
-                              it.sku||"",
-                              `"${(it.name||"").replace(/"/g,'""')}"`,
-                              brands.find(b=>b.id===it.brand)?.name||"",
-                              it.category||"",
-                              it.subcategory||"",
-                              sizeLabel(it)||"",
-                              it.grade||"",
-                              it.status||"",
-                              it.qty||1,
-                              it.cost||0,
-                              it.price||0,
-                              it.currency||"PKR",
-                              it.inventoryDate||"",
-                              `"${(it.notes||"").replace(/"/g,'""')}"`,
-                            ].join(","));
+                            const headers = ["Date Added","Item","Category","Sub Cat","Size","Qty","Grade","Status","SKU","Brand","Cost (₨)","Total Cost (₨)","Sold Price","Total Sold","Profit (₨)","% Profit","Notes"];
+                            const rows = exportFiltered.map(it=>{
+                              const b = brands.find(x=>x.id===it.brand);
+                              const soldPKR = toPKR(it.price,it.currency);
+                              const qty = it.qty||1;
+                              const cost = it.cost||0;
+                              const totalCost = cost*qty;
+                              const totalSold = soldPKR*qty;
+                              const profit = soldPKR-cost;
+                              const profitPct = soldPKR>0?((profit/soldPKR)*100).toFixed(1)+"%" :"";
+                              const soldDisplay = it.price?(it.currency!=="PKR"?`${it.currency} ${it.price} (Rs ${soldPKR.toLocaleString()})`:`Rs ${it.price}`): "";
+                              const totalSoldDisplay = it.price?`Rs ${totalSold.toLocaleString()}`:"";
+                              return [
+                                it.inventoryDate||"",
+                                `"${(it.name||"").replace(/"/g,'""')}"`,
+                                it.category||"",
+                                it.subcategory||"",
+                                sizeLabel(it)||"",
+                                qty,
+                                it.grade||"",
+                                it.status||"",
+                                it.sku||"",
+                                b?.name||"",
+                                cost?`Rs ${cost.toLocaleString()}`:"",
+                                totalCost?`Rs ${totalCost.toLocaleString()}`:"",
+                                soldDisplay,
+                                totalSoldDisplay,
+                                it.price?`Rs ${profit.toLocaleString()}`:"",
+                                profitPct,
+                                `"${(it.notes||"").replace(/"/g,'""')}"`,
+                              ].join(",");
+                            });
                             const totalQtyDl  = exportFiltered.reduce((s,i)=>s+(i.qty||1),0);
                             const totalCostDl = exportFiltered.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
                             const totalCostPerItem = exportFiltered.reduce((s,i)=>s+(i.cost||0),0);
+                            const totalProfitDl = exportFiltered.filter(i=>i.price).reduce((s,i)=>s+(toPKR(i.price,i.currency)-(i.cost||0)),0);
+                            const totalRevDl = exportFiltered.filter(i=>i.price).reduce((s,i)=>s+toPKR(i.price,i.currency),0);
+                            const avgProfPct = totalRevDl>0?((totalProfitDl/totalRevDl)*100).toFixed(1)+"%":"";
                             const slug = brand.toLowerCase().replace(/\s+/g,"-");
                             if (exportFmt==="csv") {
                               const csv = [
                                 `"RELOOP — Inventory Export"`,
                                 `"Brand: ${brand} | Filter: ${aStat==="all"?"All":aStat} | Date range: ${dateRangeLabel} | Exported: ${now}"`,
-                                `"Items: ${exportFiltered.length} | Total Qty: ${totalQtyDl} | Total Inv. Value: Rs${totalCostDl.toLocaleString()}"`,
+                                `"Items: ${exportFiltered.length} | Total Qty: ${totalQtyDl} | Total Cost: Rs${totalCostPerItem.toLocaleString()} | Inv. Value: Rs${totalCostDl.toLocaleString()} | Total Profit: Rs${totalProfitDl.toLocaleString()} | Avg Profit%: ${avgProfPct}"`,
                                 "",
                                 headers.join(","),
                                 ...rows,
+                                "",
+                                // Totals row
+                                `"TOTAL","","","","",${totalQtyDl},"","","","","Rs ${totalCostPerItem.toLocaleString()}","Rs ${totalCostDl.toLocaleString()}","","","Rs ${totalProfitDl.toLocaleString()}","${avgProfPct}",""`,
                                 "",
                                 `"Generated by ReLoop — reloopio.netlify.app"`,
                               ].join("\n");
