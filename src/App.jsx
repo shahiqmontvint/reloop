@@ -177,7 +177,7 @@ function ItemForm({brands,initial,onSave,onClose,defaultBrand,allItems,catTree,o
   const dbo=brands.find(b=>b.id===dbid);
   const getBCats=id=>catTree[id]||catTree["generic"]||GENERIC_CATS;
   const fCat=Object.keys(getBCats(dbid))[0]||"Tops";
-  const[f,setF]=useState(()=>{if(initial)return initial;return{brand:dbid,name:"",productBrand:"",category:fCat,subcategory:"",grade:"",sizeMin:"",sizeMax:"",qty:1,supplierName:"",supplierArea:"",inventoryDate:new Date().toISOString().slice(0,10),cost:"",price:"",currency:"PKR",status:"available",sku:nextSku(dbid,dbo?.name||"",fCat,"",allItems),notes:"",platforms:[]};});
+  const[f,setF]=useState(()=>{if(initial)return initial;return{brand:dbid,name:"",productBrand:"",category:fCat,subcategory:"",grade:"",sizeMin:"",sizeMax:"",qty:0,supplierName:"",supplierArea:"",inventoryDate:new Date().toISOString().slice(0,10),cost:"",price:"",currency:"PKR",status:"available",sku:nextSku(dbid,dbo?.name||"",fCat,"",allItems),notes:"",platforms:[]};});
   const[skuEdited,setSkuEdited]=useState(!!initial?.sku);
   const[addCat,setAddCat]=useState(false);const[newCat,setNewCat]=useState("");
   const[addSub,setAddSub]=useState(false);const[newSub,setNewSub]=useState("");
@@ -295,7 +295,7 @@ function ItemForm({brands,initial,onSave,onClose,defaultBrand,allItems,catTree,o
       <Field label="Grade"><select style={INP} value={f.grade||""} onChange={e=>set("grade",e.target.value)}><option value="">— select —</option>{GRADES.map(g=><option key={g}>{g}</option>)}</select></Field>
     </div>
     <div style={G2}>
-      <Field label="Quantity"><input style={INP} type="number" min="1" value={f.qty||1} onChange={e=>set("qty",Math.max(1,parseInt(e.target.value)||1))}/></Field>
+      <Field label="Quantity"><input style={INP} type="number" min="0" value={f.qty===0?"":f.qty} placeholder="0" onChange={e=>set("qty",parseInt(e.target.value)||0)}/></Field>
       <Field label="Status"><select style={INP} value={f.status} onChange={e=>set("status",e.target.value)}>{Object.entries(STLBL).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></Field>
     </div>
     <div style={G2}>
@@ -2054,12 +2054,14 @@ function WorkSheetPage() {
 }
 
 // ── Active Orders Page ────────────────────────────────────────────────────────
-function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin, items, brands, setItems }) {
-  const [addOpen, setAddOpen]       = useState(false);
-  const [editId,  setEditId]        = useState(null);
+function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin, items, brands, setItems, platformList, setPlatformList }) {
+  const [addOpen, setAddOpen]         = useState(false);
+  const [editId,  setEditId]          = useState(null);
   const [filterStatus, setFilterStatus] = useState("all");
-  const [skuSearch, setSkuSearch]   = useState("");
-  const [skuOpen,  setSkuOpen]      = useState(false);
+  const [skuSearch, setSkuSearch]     = useState("");
+  const [skuOpen,  setSkuOpen]        = useState(false);
+  const [platInput, setPlatInput]     = useState("");
+  const [platOpen,  setPlatOpen]      = useState(false);
 
   const STATUS_OPTS = ["pending","confirmed","processing","shipped","delivered","cancelled"];
   const STATUS_COLOR = {
@@ -2070,106 +2072,115 @@ function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin, items, brand
     delivered: {bg:"#0E2A0E",color:"#22C55E",border:"#22C55E40"},
     cancelled: {bg:"#2A1010",color:"#F87171",border:"#F8717140"},
   };
-  const PLATFORMS = ["Instagram","Vinted","Depop","eBay","WhatsApp","In-person","Other"];
 
   const emptyForm = () => ({
     id:Date.now(), vertical:"", sku:"", skuItem:null,
     platform:"", customer:"", platformOrderNo:"",
-    itemDesc:"", qty:1, soldAmount:0, currency:"PKR",
+    itemDesc:"", qty:0, soldAmount:0, currency:"PKR",
     notes:"", status:"pending",
     createdAt:new Date().toISOString().slice(0,10),
   });
   const [form, setForm] = useState(emptyForm());
   const setF = (k,v) => setForm(p=>({...p,[k]:v}));
 
-  // SKU lookup helpers
-  const verticalItems = form.vertical
-    ? items.filter(i=>i.brand===form.vertical&&i.qty>0)
-    : [];
+  const verticalItems = form.vertical ? items.filter(i=>i.brand===form.vertical) : [];
   const skuMatches = verticalItems.filter(i=>
-    !skuSearch || i.sku?.toLowerCase().includes(skuSearch.toLowerCase()) ||
-    i.name?.toLowerCase().includes(skuSearch.toLowerCase())
+    !skuSearch || i.sku?.toLowerCase().includes(skuSearch.toLowerCase()) || i.name?.toLowerCase().includes(skuSearch.toLowerCase())
   );
   const lookupItem = sku => items.find(i=>i.sku===sku)||null;
 
-  const pickSku = (it) => {
-    setF("sku", it.sku);
-    setF("skuItem", it);
-    setF("itemDesc", it.name||"");
-    setSkuSearch(it.sku);
-    setSkuOpen(false);
+  const pickSku = it => {
+    setF("sku", it.sku); setF("skuItem", it); setF("itemDesc", it.name||"");
+    setSkuSearch(it.sku); setSkuOpen(false);
+  };
+  const handleSkuInput = val => {
+    setSkuSearch(val); setF("sku", val); setSkuOpen(true);
+    const exact = lookupItem(val);
+    setF("skuItem", exact||null);
+    if(exact) setF("itemDesc", exact.name||"");
   };
 
-  const handleSkuInput = (val) => {
-    setSkuSearch(val);
-    setF("sku", val);
-    setSkuOpen(true);
-    const exact = lookupItem(val);
-    if(exact){ setF("skuItem", exact); setF("itemDesc", exact.name||""); }
-    else setF("skuItem", null);
+  // Platform typeahead helpers
+  const platMatches = platformList.filter(p=>p.toLowerCase().includes(platInput.toLowerCase()));
+  const pickPlatform = p => { setF("platform", p); setPlatInput(p); setPlatOpen(false); };
+  const addPlatform  = () => {
+    const v = platInput.trim();
+    if(!v) return;
+    if(!platformList.includes(v)) setPlatformList([...platformList, v]);
+    pickPlatform(v);
   };
 
   // Profit calc
-  const calcProfit = (o) => {
+  const calcProfit = o => {
     const it = o.skuItem || lookupItem(o.sku);
-    if(!it||!o.soldAmount) return null;
-    const cost = (it.cost||0) * (o.qty||1);
-    const rev  = (o.soldAmount||0) * (o.qty||1);
-    const profit = rev - cost;
-    const pct = it.cost>0 ? ((o.soldAmount - it.cost)/it.cost*100) : null;
-    return {profit, pct, cost, rev};
+    if(!it || !o.soldAmount) return null;
+    const profit = (o.soldAmount - (it.cost||0)) * (o.qty||1);
+    const pct    = it.cost>0 ? ((o.soldAmount - it.cost)/it.cost*100) : null;
+    return { profit, pct, cost:(it.cost||0)*(o.qty||1), rev:o.soldAmount*(o.qty||1) };
   };
 
-  const openAdd = () => { setForm(emptyForm()); setSkuSearch(""); setEditId(null); setAddOpen(true); };
-  const openEdit = (o) => { setForm({...o}); setSkuSearch(o.sku||""); setEditId(o.id); setAddOpen(true); };
+  const openAdd  = ()  => { setForm(emptyForm()); setSkuSearch(""); setPlatInput(""); setEditId(null); setAddOpen(true); };
+  const openEdit = o   => { setForm({...o}); setSkuSearch(o.sku||""); setPlatInput(o.platform||""); setEditId(o.id); setAddOpen(true); };
+
+  // Sync inventory: subtract qty, update sold price, but NEVER change status
+  const syncInventory = (order, prevOrder) => {
+    const it = lookupItem(order.sku);
+    if(!it) return;
+    const nowClosed  = order.status==="shipped"||order.status==="delivered";
+    const wasClosed  = prevOrder && (prevOrder.status==="shipped"||prevOrder.status==="delivered");
+    if(nowClosed && !wasClosed) {
+      // Deduct qty and update sold price — but keep status unchanged
+      setItems(prev=>prev.map(i=>{
+        if(i.sku!==order.sku) return i;
+        const newQty = Math.max(0, (i.qty||0) - (order.qty||0));
+        return {
+          ...i,
+          qty: newQty,
+          price: order.soldAmount||i.price,
+          currency: order.currency||i.currency,
+          // Status stays exactly as-is — never auto-flip
+        };
+      }));
+    }
+    // Undo deduction if reverting from shipped/delivered
+    if(wasClosed && !nowClosed) {
+      setItems(prev=>prev.map(i=>{
+        if(i.sku!==order.sku) return i;
+        return { ...i, qty: (i.qty||0) + (prevOrder.qty||0) };
+      }));
+    }
+  };
 
   const saveOrder = () => {
     if(!form.customer.trim()||!form.sku.trim()) return;
-    const it = form.skuItem || lookupItem(form.sku);
-    const finalQty = Math.min(form.qty||1, it?.qty||9999);
-    const saved = {...form, qty:finalQty, updatedAt:new Date().toISOString().slice(0,10)};
-
-    // Subtract qty from inventory when status is delivered/shipped
-    if((saved.status==="delivered"||saved.status==="shipped") && it) {
-      const prevOrder = editId ? activeOrders.find(o=>o.id===editId) : null;
-      const wasDeducted = prevOrder && (prevOrder.status==="delivered"||prevOrder.status==="shipped");
-      if(!wasDeducted) {
-        setItems(prev=>prev.map(i=>i.sku===saved.sku?{...i,qty:Math.max(0,(i.qty||0)-finalQty),status:i.qty-finalQty<=0?"sold":i.status}:i));
-      }
-    }
-
+    const saved = {...form, updatedAt:new Date().toISOString().slice(0,10)};
+    const prevOrder = editId ? activeOrders.find(o=>o.id===editId) : null;
+    syncInventory(saved, prevOrder);
     if(editId) setActiveOrders(prev=>prev.map(o=>o.id===editId?saved:o));
     else setActiveOrders(prev=>[...prev, saved]);
     setAddOpen(false);
   };
 
-  const deleteOrder = id => setActiveOrders(prev=>prev.filter(o=>o.id!==id));
-
+  const deleteOrder  = id => setActiveOrders(prev=>prev.filter(o=>o.id!==id));
   const updateStatus = (id, status) => {
     const o = activeOrders.find(x=>x.id===id);
     if(!o) return;
-    // Deduct inventory on first transition to shipped/delivered
-    const wasDeducted = o.status==="shipped"||o.status==="delivered";
-    const nowDeducted = status==="shipped"||status==="delivered";
-    if(nowDeducted && !wasDeducted && o.sku) {
-      setItems(prev=>prev.map(i=>i.sku===o.sku?{...i,qty:Math.max(0,(i.qty||0)-(o.qty||1)),status:i.qty-(o.qty||1)<=0?"sold":i.status}:i));
-    }
-    setActiveOrders(prev=>prev.map(x=>x.id===id?{...x,status,updatedAt:new Date().toISOString().slice(0,10)}:x));
+    const updated = {...o, status, updatedAt:new Date().toISOString().slice(0,10)};
+    syncInventory(updated, o);
+    setActiveOrders(prev=>prev.map(x=>x.id===id?updated:x));
   };
 
-  const filtered = filterStatus==="all"?activeOrders:activeOrders.filter(o=>o.status===filterStatus);
+  const filtered = filterStatus==="all" ? activeOrders : activeOrders.filter(o=>o.status===filterStatus);
   const IS = {padding:"9px 12px",border:`1px solid ${T.border}`,borderRadius:9,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none",width:"100%",boxSizing:"border-box"};
+  const LBL = {fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"};
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",background:T.bg}}>
-
-      {/* Top bar */}
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"10px 20px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         <div style={{fontFamily:FB,fontSize:18,fontWeight:700,color:T.offWhite,flex:1}}>📦 Active Orders</div>
         {isAdmin&&<button onClick={openAdd} style={{padding:"7px 18px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ New order</button>}
       </div>
 
-      {/* Status filter pills */}
       <div style={{padding:"10px 20px",background:T.surface,borderBottom:`1px solid ${T.border}`,display:"flex",gap:6,flexWrap:"wrap",flexShrink:0}}>
         {["all",...STATUS_OPTS].map(s=>(
           <button key={s} onClick={()=>setFilterStatus(s)}
@@ -2183,7 +2194,6 @@ function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin, items, brand
         <span style={{marginLeft:"auto",fontSize:12,color:T.ghost,alignSelf:"center"}}>{filtered.length} order{filtered.length!==1?"s":""}</span>
       </div>
 
-      {/* Orders */}
       <div style={{flex:1,overflowY:"auto",padding:20}}>
         {filtered.length===0
           ?<div style={{textAlign:"center",padding:"60px 20px"}}>
@@ -2193,12 +2203,11 @@ function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin, items, brand
           </div>
           :<div style={{display:"flex",flexDirection:"column",gap:10}}>
             {filtered.map(o=>{
-              const sc = STATUS_COLOR[o.status]||STATUS_COLOR.pending;
-              const pc = calcProfit(o);
-              const brandName = brands.find(b=>b.id===o.vertical)?.name||o.vertical||"";
+              const sc=STATUS_COLOR[o.status]||STATUS_COLOR.pending;
+              const pc=calcProfit(o);
+              const brandName=brands.find(b=>b.id===o.vertical)?.name||o.vertical||"";
               return (
                 <div key={o.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:14,padding:"14px 18px"}}>
-                  {/* Header row */}
                   <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:10}}>
                     <div style={{flex:1}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:5}}>
@@ -2210,17 +2219,14 @@ function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin, items, brand
                       <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
                         {o.sku&&<span style={{fontSize:11,fontFamily:"monospace",color:T.ghost}}>{o.sku}</span>}
                         {o.itemDesc&&<span style={{fontSize:12,color:T.muted}}>{o.itemDesc}</span>}
-                        {o.qty>1&&<span style={{fontSize:12,color:T.cobaltText}}>× {o.qty}</span>}
+                        {o.qty>0&&<span style={{fontSize:12,color:T.cobaltText}}>× {o.qty}</span>}
                         {o.platformOrderNo&&<span style={{fontSize:11,color:T.ghost}}>#{o.platformOrderNo}</span>}
                       </div>
                       {o.notes&&<div style={{fontSize:11,color:T.ghost,marginTop:4,fontStyle:"italic"}}>{o.notes}</div>}
                     </div>
-                    {/* Amounts — admin only */}
-                    <div style={{textAlign:"right",flexShrink:0,minWidth:120}}>
+                    <div style={{textAlign:"right",flexShrink:0,minWidth:110}}>
                       {isAdmin?<>
-                        <div style={{fontSize:17,fontWeight:700,color:T.lime,fontFamily:FB}}>
-                          {o.currency!=="PKR"?o.currency+" ":""}{(o.soldAmount||0).toLocaleString()}{o.currency==="PKR"?" PKR":""}
-                        </div>
+                        <div style={{fontSize:16,fontWeight:700,color:T.lime,fontFamily:FB}}>{o.currency!=="PKR"?o.currency+" ":""}{(o.soldAmount||0).toLocaleString()}{o.currency==="PKR"?" PKR":""}</div>
                         {pc&&<>
                           <div style={{fontSize:11,color:pc.profit>=0?T.profit:T.loss,marginTop:2}}>{pc.profit>=0?"+":""}{pc.profit.toLocaleString()} profit</div>
                           {pc.pct!==null&&<div style={{fontSize:11,color:T.ghost}}>{pc.pct.toFixed(1)}% margin</div>}
@@ -2229,20 +2235,15 @@ function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin, items, brand
                       <div style={{fontSize:10,color:T.ghost,marginTop:4}}>{o.createdAt}</div>
                     </div>
                   </div>
-                  {/* Status update + actions */}
                   <div style={{display:"flex",alignItems:"center",gap:5,paddingTop:10,borderTop:`1px solid ${T.border}40`,flexWrap:"wrap"}}>
                     <span style={{fontSize:11,color:T.ghost,marginRight:2}}>Status:</span>
                     {STATUS_OPTS.map(s=>{
-                      const c2=STATUS_COLOR[s]||{};
-                      const sel=o.status===s;
+                      const c2=STATUS_COLOR[s]||{};const sel=o.status===s;
                       return <button key={s} onClick={()=>isAdmin&&updateStatus(o.id,s)}
                         style={{padding:"2px 9px",borderRadius:20,fontSize:11,fontFamily:FB,
                           cursor:isAdmin?"pointer":"default",
                           border:`1px solid ${sel?c2.border:T.border}`,
-                          background:sel?c2.bg:"transparent",
-                          color:sel?c2.color:T.ghost}}>
-                        {s}
-                      </button>;
+                          background:sel?c2.bg:"transparent",color:sel?c2.color:T.ghost}}>{s}</button>;
                     })}
                     {isAdmin&&<div style={{marginLeft:"auto",display:"flex",gap:6}}>
                       <button onClick={()=>openEdit(o)} style={{padding:"3px 10px",border:`1px solid ${T.border}`,borderRadius:7,background:"transparent",cursor:"pointer",fontSize:12,color:T.muted,fontFamily:FB}} onMouseEnter={e=>e.currentTarget.style.color=T.lime} onMouseLeave={e=>e.currentTarget.style.color=T.muted}>Edit</button>
@@ -2255,7 +2256,6 @@ function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin, items, brand
           </div>}
       </div>
 
-      {/* Add/Edit modal */}
       {addOpen&&isAdmin&&(
         <div onClick={()=>setAddOpen(false)} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:400}}>
           <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:540,maxWidth:"96vw",padding:26,maxHeight:"92vh",overflowY:"auto"}}>
@@ -2263,27 +2263,27 @@ function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin, items, brand
 
             {/* Vertical */}
             <div style={{marginBottom:14}}>
-              <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Vertical</div>
+              <div style={LBL}>Vertical</div>
               <select value={form.vertical} onChange={e=>{setF("vertical",e.target.value);setF("sku","");setF("skuItem",null);setSkuSearch("");}} style={IS}>
                 <option value="">— select vertical —</option>
                 {brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
 
-            {/* SKU with typeahead */}
+            {/* SKU typeahead */}
             <div style={{marginBottom:14}}>
-              <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>SKU <span style={{color:T.ghost,textTransform:"none",fontWeight:400}}>(type or paste, or pick from list)</span></div>
+              <div style={LBL}>SKU <span style={{textTransform:"none",fontWeight:400,color:T.ghost}}>(type, paste, or pick)</span></div>
               <div style={{position:"relative"}}>
                 <input value={skuSearch} onChange={e=>handleSkuInput(e.target.value)}
                   onFocus={()=>setSkuOpen(true)} onBlur={()=>setTimeout(()=>setSkuOpen(false),150)}
-                  placeholder={form.vertical?"Search SKU or item name…":"Select a vertical first"}
+                  placeholder={form.vertical?"Search SKU or item name…":"Select vertical first"}
                   style={{...IS,borderColor:form.skuItem?T.lime:T.border}}/>
-                {form.skuItem&&<div style={{fontSize:11,color:T.lime,marginTop:4,fontFamily:FB}}>✓ {form.skuItem.name} — Cost: ₨{(form.skuItem.cost||0).toLocaleString()} · Stock: {form.skuItem.qty}</div>}
+                {form.skuItem&&<div style={{fontSize:11,color:T.lime,marginTop:4}}>✓ {form.skuItem.name} — Cost: ₨{(form.skuItem.cost||0).toLocaleString()} · Stock: {form.skuItem.qty}</div>}
                 {skuOpen&&skuMatches.length>0&&(
-                  <div style={{position:"absolute",top:"100%",left:0,right:0,background:T.bg,border:`1px solid ${T.border}`,borderRadius:9,zIndex:20,marginTop:2,maxHeight:200,overflowY:"auto",boxShadow:"0 4px 16px rgba(0,0,0,0.4)"}}>
+                  <div style={{position:"absolute",top:"100%",left:0,right:0,background:T.bg,border:`1px solid ${T.border}`,borderRadius:9,zIndex:20,marginTop:2,maxHeight:180,overflowY:"auto",boxShadow:"0 4px 16px rgba(0,0,0,0.4)"}}>
                     {skuMatches.map(it=>(
                       <div key={it.id} onMouseDown={()=>pickSku(it)}
-                        style={{padding:"9px 12px",cursor:"pointer",borderBottom:`1px solid ${T.border}40`,display:"flex",justifyContent:"space-between",alignItems:"center"}}
+                        style={{padding:"8px 12px",cursor:"pointer",borderBottom:`1px solid ${T.border}40`,display:"flex",justifyContent:"space-between",alignItems:"center"}}
                         onMouseEnter={e=>e.currentTarget.style.background=T.card}
                         onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                         <div>
@@ -2301,66 +2301,87 @@ function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin, items, brand
               </div>
             </div>
 
-            {/* Platform + Customer */}
+            {/* Platform typeahead with add-new */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
               <div>
-                <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Platform</div>
-                <select value={form.platform} onChange={e=>setF("platform",e.target.value)} style={IS}>
-                  <option value="">— select —</option>
-                  {PLATFORMS.map(p=><option key={p}>{p}</option>)}
-                </select>
+                <div style={LBL}>Platform</div>
+                <div style={{position:"relative"}}>
+                  <input value={platInput} onChange={e=>{setPlatInput(e.target.value);setF("platform",e.target.value);setPlatOpen(true);}}
+                    onFocus={()=>setPlatOpen(true)} onBlur={()=>setTimeout(()=>setPlatOpen(false),150)}
+                    placeholder="Search or add platform…" style={IS}/>
+                  {platOpen&&(platMatches.length>0||platInput.trim())&&(
+                    <div style={{position:"absolute",top:"100%",left:0,right:0,background:T.bg,border:`1px solid ${T.border}`,borderRadius:9,zIndex:20,marginTop:2,maxHeight:160,overflowY:"auto",boxShadow:"0 4px 16px rgba(0,0,0,0.4)"}}>
+                      {platMatches.map(p=>(
+                        <div key={p} onMouseDown={()=>pickPlatform(p)}
+                          style={{padding:"8px 12px",cursor:"pointer",fontSize:12,color:form.platform===p?T.lime:T.offWhite,borderBottom:`1px solid ${T.border}40`}}
+                          onMouseEnter={e=>e.currentTarget.style.background=T.card}
+                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                          {form.platform===p&&"✓ "}{p}
+                        </div>
+                      ))}
+                      {platInput.trim()&&!platformList.includes(platInput.trim())&&(
+                        <div onMouseDown={addPlatform}
+                          style={{padding:"8px 12px",cursor:"pointer",fontSize:12,color:T.lime,display:"flex",alignItems:"center",gap:6}}
+                          onMouseEnter={e=>e.currentTarget.style.background=T.card}
+                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                          <span>+</span> Add "{platInput.trim()}" as platform
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
-                <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Customer *</div>
+                <div style={LBL}>Customer *</div>
                 <input value={form.customer} onChange={e=>setF("customer",e.target.value)} placeholder="Name or handle" style={IS}/>
               </div>
             </div>
 
             {/* Platform order no */}
             <div style={{marginBottom:14}}>
-              <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Platform order number</div>
+              <div style={LBL}>Platform order number</div>
               <input value={form.platformOrderNo} onChange={e=>setF("platformOrderNo",e.target.value)} placeholder="Optional" style={IS}/>
             </div>
 
             {/* Item + Qty */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 100px",gap:12,marginBottom:14}}>
               <div>
-                <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Item description</div>
+                <div style={LBL}>Item description</div>
                 <input value={form.itemDesc} onChange={e=>setF("itemDesc",e.target.value)} placeholder="Auto-filled from SKU" style={IS}/>
               </div>
               <div>
-                <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Qty</div>
-                <input type="number" min="1" max={form.skuItem?.qty||999} value={form.qty}
-                  onChange={e=>setF("qty",Math.max(1,parseInt(e.target.value)||1))} style={IS}/>
-                {form.skuItem&&<div style={{fontSize:10,color:T.ghost,marginTop:3}}>Max: {form.skuItem.qty} in stock</div>}
+                <div style={LBL}>Qty</div>
+                <input type="number" min="0" value={form.qty===0?"":form.qty} placeholder="0"
+                  onChange={e=>setF("qty",parseInt(e.target.value)||0)} style={IS}/>
+                {form.skuItem&&<div style={{fontSize:10,color:T.ghost,marginTop:3}}>Stock: {form.skuItem.qty}</div>}
               </div>
             </div>
 
             {/* Sold amount */}
             <div style={{marginBottom:14}}>
-              <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Sold amount</div>
+              <div style={LBL}>Sold amount</div>
               <div style={{display:"flex",gap:8}}>
                 <select value={form.currency} onChange={e=>setF("currency",e.target.value)} style={{...IS,width:90,flex:"none"}}>
                   {["PKR","GBP","USD","EUR"].map(c=><option key={c}>{c}</option>)}
                 </select>
-                <input type="number" min="0" value={form.soldAmount} onChange={e=>setF("soldAmount",parseFloat(e.target.value)||0)} style={{...IS,flex:1}}/>
+                <input type="number" min="0" value={form.soldAmount===0?"":form.soldAmount} placeholder="0"
+                  onChange={e=>setF("soldAmount",parseFloat(e.target.value)||0)} style={{...IS,flex:1}}/>
               </div>
-              {/* Live profit preview */}
               {form.skuItem&&form.soldAmount>0&&(()=>{
                 const pc=calcProfit(form);
                 if(!pc) return null;
-                return <div style={{marginTop:8,padding:"8px 12px",background:T.bg,borderRadius:8,border:`1px solid ${pc.profit>=0?T.profit:T.loss}40`,display:"flex",gap:20}}>
-                  <div style={{fontSize:12}}><span style={{color:T.ghost}}>Cost: </span><span style={{color:T.offWhite}}>₨{pc.cost.toLocaleString()}</span></div>
-                  <div style={{fontSize:12}}><span style={{color:T.ghost}}>Revenue: </span><span style={{color:T.offWhite}}>₨{pc.rev.toLocaleString()}</span></div>
-                  <div style={{fontSize:12}}><span style={{color:T.ghost}}>Profit: </span><span style={{color:pc.profit>=0?T.profit:T.loss,fontWeight:600}}>{pc.profit>=0?"+":""}₨{pc.profit.toLocaleString()}</span></div>
-                  {pc.pct!==null&&<div style={{fontSize:12}}><span style={{color:T.ghost}}>Margin: </span><span style={{color:pc.profit>=0?T.profit:T.loss,fontWeight:600}}>{pc.pct.toFixed(1)}%</span></div>}
+                return <div style={{marginTop:8,padding:"8px 12px",background:T.bg,borderRadius:8,border:`1px solid ${pc.profit>=0?T.profit:T.loss}40`,display:"flex",gap:16,flexWrap:"wrap"}}>
+                  <span style={{fontSize:12}}><span style={{color:T.ghost}}>Cost: </span><span style={{color:T.offWhite}}>₨{pc.cost.toLocaleString()}</span></span>
+                  <span style={{fontSize:12}}><span style={{color:T.ghost}}>Revenue: </span><span style={{color:T.offWhite}}>₨{pc.rev.toLocaleString()}</span></span>
+                  <span style={{fontSize:12}}><span style={{color:T.ghost}}>Profit: </span><span style={{color:pc.profit>=0?T.profit:T.loss,fontWeight:600}}>{pc.profit>=0?"+":""}₨{pc.profit.toLocaleString()}</span></span>
+                  {pc.pct!==null&&<span style={{fontSize:12}}><span style={{color:T.ghost}}>Margin: </span><span style={{color:pc.profit>=0?T.profit:T.loss,fontWeight:600}}>{pc.pct.toFixed(1)}%</span></span>}
                 </div>;
               })()}
             </div>
 
             {/* Notes */}
             <div style={{marginBottom:20}}>
-              <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Notes</div>
+              <div style={LBL}>Notes</div>
               <textarea value={form.notes} onChange={e=>setF("notes",e.target.value)} placeholder="Any extra details…" rows={2} style={{...IS,resize:"vertical"}}/>
             </div>
 
@@ -2371,9 +2392,7 @@ function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin, items, brand
                   background:(form.customer.trim()&&form.sku.trim())?T.lime:"#333",
                   color:(form.customer.trim()&&form.sku.trim())?T.ink:T.ghost,
                   cursor:(form.customer.trim()&&form.sku.trim())?"pointer":"default",
-                  fontSize:13,fontWeight:700,fontFamily:FB}}>
-                Save order
-              </button>
+                  fontSize:13,fontWeight:700,fontFamily:FB}}>Save order</button>
             </div>
           </div>
         </div>
@@ -2494,6 +2513,7 @@ export default function App(){
   const[orders,setOrders]=useState([]);
   const[activeOrders,setActiveOrders]=useState([]);
   const[worksheet,setWorksheet]=useState({cols:["Date","Description","Type","Amount (₨)","Notes"],rows:[]});
+  const[platformList,setPlatformList]=useState(["Fleek","Instagram (B2C)","Instagram (B2B)","Vinted","Depop","eBay","WhatsApp","In-person","Offline","Other"]);
   const[loaded,setLoaded]=useState(false);
   const[saveStatus,setSaveStatus]=useState("idle"); // idle | saving | saved | error
   const saveTimerRef = useRef(null);
@@ -2548,6 +2568,7 @@ export default function App(){
         if(d.orders)         setOrders(d.orders);
         if(d.activeOrders)   setActiveOrders(d.activeOrders);
         if(d.worksheet)      setWorksheet(d.worksheet);
+        if(d.platformList)   setPlatformList(d.platformList);
       } else {
         sbSet({ brands:initBrands, items:initItems, nid:7, catTree:{encore:{...BRAND_CATS.encore},generic:{...GENERIC_CATS},montvint:{...GENERIC_CATS},tbd:{...GENERIC_CATS}}, fixes:[], rates:DEFAULT_RATES, bundles:[] });
       }
@@ -2557,7 +2578,7 @@ export default function App(){
 
   // ── Debounced autosave — fires 800ms after last state change ─────────────
   const persist = (overrides={}) => {
-    sbSet({ brands, items, nid, catTree, fixes, rates, rateHistory, bundles, attendance, orders, activeOrders, worksheet, ...overrides });
+    sbSet({ brands, items, nid, catTree, fixes, rates, rateHistory, bundles, attendance, orders, activeOrders, worksheet, platformList, ...overrides });
   };
 
   useEffect(()=>{
@@ -2568,7 +2589,7 @@ export default function App(){
     // Debounce: wait 800ms after last change before writing to Supabase
     saveTimerRef.current = setTimeout(async ()=>{
       try {
-        await sbSet({ brands, items, nid, catTree, fixes, rates, rateHistory, bundles, attendance, orders, worksheet });
+        await sbSet({ brands, items, nid, catTree, fixes, rates, rateHistory, bundles, attendance, orders, activeOrders, worksheet, platformList });
         setSaveStatus("saved");
         // Reset to idle after 2s
         setTimeout(()=>setSaveStatus("idle"), 2000);
@@ -2578,7 +2599,7 @@ export default function App(){
       }
     }, 800);
     return ()=>{ if(saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  },[brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,activeOrders,worksheet,loaded]);
+  },[brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,activeOrders,worksheet,platformList,loaded]);
 
   const saveBrands = next => {
     setBrands(next);
@@ -2822,7 +2843,7 @@ export default function App(){
         :activePage==="bundles"?<BundlesPage items={items} bundles={bundles} setBundles={setBundles} brands={brands}/>
         :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);sbSet({brands,items,nid,catTree,fixes,rates:r,rateHistory,bundles,attendance,orders,worksheet});}} rateHistory={rateHistory} setRateHistory={rh=>{setRateHistory(rh);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory:rh,bundles,attendance,orders,worksheet});}}/>
         :activePage==="attendance"?<AttendancePage attendance={attendance} isAdmin={isAdmin} setAttendance={a=>{setAttendance(a);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance:a,orders,worksheet});}}/>
-        :activePage==="activeorders"?<ActiveOrdersPage activeOrders={activeOrders} setActiveOrders={o=>{setActiveOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,activeOrders:o,worksheet});}} isAdmin={isAdmin} items={items} brands={brands} setItems={newItems=>{setItems(newItems);sbSet({brands,items:newItems,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,activeOrders,worksheet});}}/>
+        :activePage==="activeorders"?<ActiveOrdersPage activeOrders={activeOrders} setActiveOrders={o=>{setActiveOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,activeOrders:o,worksheet,platformList});}} isAdmin={isAdmin} items={items} brands={brands} platformList={platformList} setPlatformList={pl=>{setPlatformList(pl);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,activeOrders,worksheet,platformList:pl});}} setItems={newItems=>{setItems(newItems);sbSet({brands,items:newItems,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,activeOrders,worksheet,platformList});}}/>
         :activePage==="orders"?(isAdmin?<OrderWorkingPage orders={orders} setOrders={o=>{setOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders:o,activeOrders,worksheet});}}/>:<AccessDenied/>)
         :activePage==="profitbot"?(isAdmin?<ProfitBotPage rates={rates}/>:<AccessDenied/>)
         :activePage==="worksheet"?(isAdmin?<WorkSheetPage/>:<AccessDenied/>)
