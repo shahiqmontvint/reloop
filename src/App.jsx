@@ -2054,63 +2054,123 @@ function WorkSheetPage() {
 }
 
 // ── Active Orders Page ────────────────────────────────────────────────────────
-function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin }) {
-  const [addOpen, setAddOpen] = useState(false);
-  const [editOrder, setEditOrder] = useState(null);
+function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin, items, brands, setItems }) {
+  const [addOpen, setAddOpen]       = useState(false);
+  const [editId,  setEditId]        = useState(null);
   const [filterStatus, setFilterStatus] = useState("all");
+  const [skuSearch, setSkuSearch]   = useState("");
+  const [skuOpen,  setSkuOpen]      = useState(false);
 
   const STATUS_OPTS = ["pending","confirmed","processing","shipped","delivered","cancelled"];
   const STATUS_COLOR = {
-    pending:    {bg:"#3A2E10",color:"#F5C642",border:"#F5C64240"},
-    confirmed:  {bg:"#102A3A",color:"#5BB8F5",border:"#5BB8F540"},
-    processing: {bg:"#1A1F3A",color:"#9B8FBB",border:"#9B8FBB40"},
-    shipped:    {bg:"#102A20",color:"#4ADE80",border:"#4ADE8040"},
-    delivered:  {bg:"#0E2A0E",color:"#22C55E",border:"#22C55E40"},
-    cancelled:  {bg:"#2A1010",color:"#F87171",border:"#F8717140"},
+    pending:   {bg:"#3A2E10",color:"#F5C642",border:"#F5C64240"},
+    confirmed: {bg:"#102A3A",color:"#5BB8F5",border:"#5BB8F540"},
+    processing:{bg:"#1A1F3A",color:"#9B8FBB",border:"#9B8FBB40"},
+    shipped:   {bg:"#102A20",color:"#4ADE80",border:"#4ADE8040"},
+    delivered: {bg:"#0E2A0E",color:"#22C55E",border:"#22C55E40"},
+    cancelled: {bg:"#2A1010",color:"#F87171",border:"#F8717140"},
   };
+  const PLATFORMS = ["Instagram","Vinted","Depop","eBay","WhatsApp","In-person","Other"];
 
-  const emptyOrder = () => ({
-    id: Date.now(),
-    customerName:"", platform:"", orderRef:"", items:"",
-    qty:1, amount:0, currency:"PKR", shippingCost:0,
-    status:"pending", notes:"", createdAt: new Date().toISOString().slice(0,10),
-    updatedAt: new Date().toISOString().slice(0,10),
+  const emptyForm = () => ({
+    id:Date.now(), vertical:"", sku:"", skuItem:null,
+    platform:"", customer:"", platformOrderNo:"",
+    itemDesc:"", qty:1, soldAmount:0, currency:"PKR",
+    notes:"", status:"pending",
+    createdAt:new Date().toISOString().slice(0,10),
   });
-  const [form, setForm] = useState(emptyOrder());
+  const [form, setForm] = useState(emptyForm());
   const setF = (k,v) => setForm(p=>({...p,[k]:v}));
 
-  const openAdd = () => { setForm(emptyOrder()); setEditOrder(null); setAddOpen(true); };
-  const openEdit = o => { setForm({...o}); setEditOrder(o.id); setAddOpen(true); };
+  // SKU lookup helpers
+  const verticalItems = form.vertical
+    ? items.filter(i=>i.brand===form.vertical&&i.qty>0)
+    : [];
+  const skuMatches = verticalItems.filter(i=>
+    !skuSearch || i.sku?.toLowerCase().includes(skuSearch.toLowerCase()) ||
+    i.name?.toLowerCase().includes(skuSearch.toLowerCase())
+  );
+  const lookupItem = sku => items.find(i=>i.sku===sku)||null;
+
+  const pickSku = (it) => {
+    setF("sku", it.sku);
+    setF("skuItem", it);
+    setF("itemDesc", it.name||"");
+    setSkuSearch(it.sku);
+    setSkuOpen(false);
+  };
+
+  const handleSkuInput = (val) => {
+    setSkuSearch(val);
+    setF("sku", val);
+    setSkuOpen(true);
+    const exact = lookupItem(val);
+    if(exact){ setF("skuItem", exact); setF("itemDesc", exact.name||""); }
+    else setF("skuItem", null);
+  };
+
+  // Profit calc
+  const calcProfit = (o) => {
+    const it = o.skuItem || lookupItem(o.sku);
+    if(!it||!o.soldAmount) return null;
+    const cost = (it.cost||0) * (o.qty||1);
+    const rev  = (o.soldAmount||0) * (o.qty||1);
+    const profit = rev - cost;
+    const pct = it.cost>0 ? ((o.soldAmount - it.cost)/it.cost*100) : null;
+    return {profit, pct, cost, rev};
+  };
+
+  const openAdd = () => { setForm(emptyForm()); setSkuSearch(""); setEditId(null); setAddOpen(true); };
+  const openEdit = (o) => { setForm({...o}); setSkuSearch(o.sku||""); setEditId(o.id); setAddOpen(true); };
 
   const saveOrder = () => {
-    if(!form.customerName.trim()) return;
-    const updated = {...form, updatedAt: new Date().toISOString().slice(0,10)};
-    if(editOrder) {
-      setActiveOrders(prev=>prev.map(o=>o.id===editOrder?updated:o));
-    } else {
-      setActiveOrders(prev=>[...prev, updated]);
+    if(!form.customer.trim()||!form.sku.trim()) return;
+    const it = form.skuItem || lookupItem(form.sku);
+    const finalQty = Math.min(form.qty||1, it?.qty||9999);
+    const saved = {...form, qty:finalQty, updatedAt:new Date().toISOString().slice(0,10)};
+
+    // Subtract qty from inventory when status is delivered/shipped
+    if((saved.status==="delivered"||saved.status==="shipped") && it) {
+      const prevOrder = editId ? activeOrders.find(o=>o.id===editId) : null;
+      const wasDeducted = prevOrder && (prevOrder.status==="delivered"||prevOrder.status==="shipped");
+      if(!wasDeducted) {
+        setItems(prev=>prev.map(i=>i.sku===saved.sku?{...i,qty:Math.max(0,(i.qty||0)-finalQty),status:i.qty-finalQty<=0?"sold":i.status}:i));
+      }
     }
+
+    if(editId) setActiveOrders(prev=>prev.map(o=>o.id===editId?saved:o));
+    else setActiveOrders(prev=>[...prev, saved]);
     setAddOpen(false);
   };
 
   const deleteOrder = id => setActiveOrders(prev=>prev.filter(o=>o.id!==id));
-  const updateStatus = (id, status) => setActiveOrders(prev=>prev.map(o=>o.id===id?{...o,status,updatedAt:new Date().toISOString().slice(0,10)}:o));
 
-  const filtered = filterStatus==="all" ? activeOrders : activeOrders.filter(o=>o.status===filterStatus);
+  const updateStatus = (id, status) => {
+    const o = activeOrders.find(x=>x.id===id);
+    if(!o) return;
+    // Deduct inventory on first transition to shipped/delivered
+    const wasDeducted = o.status==="shipped"||o.status==="delivered";
+    const nowDeducted = status==="shipped"||status==="delivered";
+    if(nowDeducted && !wasDeducted && o.sku) {
+      setItems(prev=>prev.map(i=>i.sku===o.sku?{...i,qty:Math.max(0,(i.qty||0)-(o.qty||1)),status:i.qty-(o.qty||1)<=0?"sold":i.status}:i));
+    }
+    setActiveOrders(prev=>prev.map(x=>x.id===id?{...x,status,updatedAt:new Date().toISOString().slice(0,10)}:x));
+  };
+
+  const filtered = filterStatus==="all"?activeOrders:activeOrders.filter(o=>o.status===filterStatus);
   const IS = {padding:"9px 12px",border:`1px solid ${T.border}`,borderRadius:9,background:T.card,fontSize:13,fontFamily:FB,color:T.offWhite,outline:"none",width:"100%",boxSizing:"border-box"};
-  const G2 = {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12};
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",background:T.bg}}>
 
-      {/* Header */}
-      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"12px 20px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-        <div style={{fontFamily:FB,fontSize:20,fontWeight:700,color:T.offWhite,flex:1}}>📦 Active Orders</div>
+      {/* Top bar */}
+      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"10px 20px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <div style={{fontFamily:FB,fontSize:18,fontWeight:700,color:T.offWhite,flex:1}}>📦 Active Orders</div>
         {isAdmin&&<button onClick={openAdd} style={{padding:"7px 18px",border:"none",borderRadius:9,background:T.lime,color:T.ink,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:FB}}>+ New order</button>}
       </div>
 
-      {/* Status filters */}
-      <div style={{padding:"12px 20px",background:T.surface,borderBottom:`1px solid ${T.border}`,display:"flex",gap:6,flexWrap:"wrap",flexShrink:0}}>
+      {/* Status filter pills */}
+      <div style={{padding:"10px 20px",background:T.surface,borderBottom:`1px solid ${T.border}`,display:"flex",gap:6,flexWrap:"wrap",flexShrink:0}}>
         {["all",...STATUS_OPTS].map(s=>(
           <button key={s} onClick={()=>setFilterStatus(s)}
             style={{padding:"4px 14px",borderRadius:20,fontSize:12,fontFamily:FB,cursor:"pointer",
@@ -2123,58 +2183,70 @@ function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin }) {
         <span style={{marginLeft:"auto",fontSize:12,color:T.ghost,alignSelf:"center"}}>{filtered.length} order{filtered.length!==1?"s":""}</span>
       </div>
 
-      {/* Orders list */}
+      {/* Orders */}
       <div style={{flex:1,overflowY:"auto",padding:20}}>
         {filtered.length===0
           ?<div style={{textAlign:"center",padding:"60px 20px"}}>
             <div style={{fontSize:36,marginBottom:12}}>📦</div>
-            <div style={{fontSize:16,color:T.ghost,fontFamily:FB}}>{filterStatus==="all"?"No active orders yet":"No orders with this status"}</div>
-            {isAdmin&&filterStatus==="all"&&<button onClick={openAdd} style={{marginTop:16,padding:"8px 20px",border:`1px solid ${T.lime}`,borderRadius:9,background:"transparent",color:T.lime,cursor:"pointer",fontSize:13,fontFamily:FB}}>+ Add first order</button>}
+            <div style={{fontSize:15,color:T.ghost,fontFamily:FB}}>No orders yet</div>
+            {isAdmin&&<button onClick={openAdd} style={{marginTop:16,padding:"8px 20px",border:`1px solid ${T.lime}`,borderRadius:9,background:"transparent",color:T.lime,cursor:"pointer",fontSize:13,fontFamily:FB}}>+ Add first order</button>}
           </div>
-          :<div style={{display:"flex",flexDirection:"column",gap:12}}>
+          :<div style={{display:"flex",flexDirection:"column",gap:10}}>
             {filtered.map(o=>{
               const sc = STATUS_COLOR[o.status]||STATUS_COLOR.pending;
+              const pc = calcProfit(o);
+              const brandName = brands.find(b=>b.id===o.vertical)?.name||o.vertical||"";
               return (
-                <div key={o.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:14,padding:"16px 18px"}}>
-                  <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:12}}>
+                <div key={o.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:14,padding:"14px 18px"}}>
+                  {/* Header row */}
+                  <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:10}}>
                     <div style={{flex:1}}>
-                      <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:6}}>
-                        <span style={{fontSize:15,fontWeight:700,color:T.offWhite,fontFamily:FB}}>{o.customerName}</span>
-                        {o.platform&&<span style={{fontSize:11,color:T.cobaltText,background:T.cobaltBg,padding:"2px 8px",borderRadius:20,fontFamily:FB}}>{o.platform}</span>}
-                        {o.orderRef&&<span style={{fontSize:11,color:T.ghost,fontFamily:"monospace"}}>#{o.orderRef}</span>}
-                        <span style={{fontSize:11,padding:"2px 10px",borderRadius:20,border:`1px solid ${sc.border}`,background:sc.bg,color:sc.color,fontWeight:600,fontFamily:FB}}>{o.status}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:5}}>
+                        <span style={{fontSize:15,fontWeight:700,color:T.offWhite,fontFamily:FB}}>{o.customer}</span>
+                        {brandName&&<span style={{fontSize:11,color:T.cobaltText,background:T.cobaltBg,padding:"1px 8px",borderRadius:20}}>{brandName}</span>}
+                        {o.platform&&<span style={{fontSize:11,color:T.muted,background:T.card,padding:"1px 8px",borderRadius:20,border:`1px solid ${T.border}`}}>{o.platform}</span>}
+                        <span style={{fontSize:11,padding:"2px 10px",borderRadius:20,border:`1px solid ${sc.border}`,background:sc.bg,color:sc.color,fontWeight:600}}>{o.status}</span>
                       </div>
-                      {o.items&&<div style={{fontSize:13,color:T.muted,marginBottom:4,fontFamily:FB}}>{o.items}{o.qty>1?` × ${o.qty}`:""}</div>}
-                      {o.notes&&<div style={{fontSize:12,color:T.ghost,fontStyle:"italic"}}>{o.notes}</div>}
+                      <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
+                        {o.sku&&<span style={{fontSize:11,fontFamily:"monospace",color:T.ghost}}>{o.sku}</span>}
+                        {o.itemDesc&&<span style={{fontSize:12,color:T.muted}}>{o.itemDesc}</span>}
+                        {o.qty>1&&<span style={{fontSize:12,color:T.cobaltText}}>× {o.qty}</span>}
+                        {o.platformOrderNo&&<span style={{fontSize:11,color:T.ghost}}>#{o.platformOrderNo}</span>}
+                      </div>
+                      {o.notes&&<div style={{fontSize:11,color:T.ghost,marginTop:4,fontStyle:"italic"}}>{o.notes}</div>}
                     </div>
-                    {/* Amount — admin only */}
-                    <div style={{textAlign:"right",flexShrink:0}}>
-                      {isAdmin
-                        ?<>
-                          <div style={{fontSize:17,fontWeight:700,color:T.lime,fontFamily:FB}}>{o.currency!=="PKR"?o.currency+" ":""}{isAdmin?(o.amount||0).toLocaleString():"—"}{o.currency==="PKR"?" PKR":""}</div>
-                          {o.shippingCost>0&&<div style={{fontSize:11,color:T.ghost}}>+{o.shippingCost.toLocaleString()} shipping</div>}
-                        </>
-                        :<div style={{fontSize:14,color:T.ghost,fontFamily:FB}}>—</div>}
+                    {/* Amounts — admin only */}
+                    <div style={{textAlign:"right",flexShrink:0,minWidth:120}}>
+                      {isAdmin?<>
+                        <div style={{fontSize:17,fontWeight:700,color:T.lime,fontFamily:FB}}>
+                          {o.currency!=="PKR"?o.currency+" ":""}{(o.soldAmount||0).toLocaleString()}{o.currency==="PKR"?" PKR":""}
+                        </div>
+                        {pc&&<>
+                          <div style={{fontSize:11,color:pc.profit>=0?T.profit:T.loss,marginTop:2}}>{pc.profit>=0?"+":""}{pc.profit.toLocaleString()} profit</div>
+                          {pc.pct!==null&&<div style={{fontSize:11,color:T.ghost}}>{pc.pct.toFixed(1)}% margin</div>}
+                        </>}
+                      </>:<div style={{fontSize:14,color:T.ghost}}>—</div>}
                       <div style={{fontSize:10,color:T.ghost,marginTop:4}}>{o.createdAt}</div>
                     </div>
                   </div>
-
-                  {/* Status update row */}
-                  <div style={{display:"flex",alignItems:"center",gap:6,paddingTop:10,borderTop:`1px solid ${T.border}40`,flexWrap:"wrap"}}>
-                    <span style={{fontSize:11,color:T.ghost,marginRight:4}}>Status:</span>
-                    {STATUS_OPTS.map(s=>(
-                      <button key={s} onClick={()=>isAdmin&&updateStatus(o.id,s)}
-                        style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontFamily:FB,
+                  {/* Status update + actions */}
+                  <div style={{display:"flex",alignItems:"center",gap:5,paddingTop:10,borderTop:`1px solid ${T.border}40`,flexWrap:"wrap"}}>
+                    <span style={{fontSize:11,color:T.ghost,marginRight:2}}>Status:</span>
+                    {STATUS_OPTS.map(s=>{
+                      const c2=STATUS_COLOR[s]||{};
+                      const sel=o.status===s;
+                      return <button key={s} onClick={()=>isAdmin&&updateStatus(o.id,s)}
+                        style={{padding:"2px 9px",borderRadius:20,fontSize:11,fontFamily:FB,
                           cursor:isAdmin?"pointer":"default",
-                          border:`1px solid ${o.status===s?(STATUS_COLOR[s]||{border:T.border}).border:T.border}`,
-                          background:o.status===s?(STATUS_COLOR[s]||{bg:"transparent"}).bg:"transparent",
-                          color:o.status===s?(STATUS_COLOR[s]||{color:T.muted}).color:T.ghost}}>
+                          border:`1px solid ${sel?c2.border:T.border}`,
+                          background:sel?c2.bg:"transparent",
+                          color:sel?c2.color:T.ghost}}>
                         {s}
-                      </button>
-                    ))}
+                      </button>;
+                    })}
                     {isAdmin&&<div style={{marginLeft:"auto",display:"flex",gap:6}}>
-                      <button onClick={()=>openEdit(o)} style={{padding:"4px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:12,color:T.muted,fontFamily:FB}} onMouseEnter={e=>e.currentTarget.style.color=T.lime} onMouseLeave={e=>e.currentTarget.style.color=T.muted}>Edit</button>
-                      <button onClick={()=>deleteOrder(o.id)} style={{padding:"4px 12px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:12,color:T.muted,fontFamily:FB}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color=T.muted}>Delete</button>
+                      <button onClick={()=>openEdit(o)} style={{padding:"3px 10px",border:`1px solid ${T.border}`,borderRadius:7,background:"transparent",cursor:"pointer",fontSize:12,color:T.muted,fontFamily:FB}} onMouseEnter={e=>e.currentTarget.style.color=T.lime} onMouseLeave={e=>e.currentTarget.style.color=T.muted}>Edit</button>
+                      <button onClick={()=>deleteOrder(o.id)} style={{padding:"3px 10px",border:`1px solid ${T.border}`,borderRadius:7,background:"transparent",cursor:"pointer",fontSize:12,color:T.muted,fontFamily:FB}} onMouseEnter={e=>e.currentTarget.style.color=T.rougeText} onMouseLeave={e=>e.currentTarget.style.color=T.muted}>Delete</button>
                     </div>}
                   </div>
                 </div>
@@ -2183,36 +2255,125 @@ function ActiveOrdersPage({ activeOrders, setActiveOrders, isAdmin }) {
           </div>}
       </div>
 
-      {/* Add/Edit modal — admin only */}
+      {/* Add/Edit modal */}
       {addOpen&&isAdmin&&(
         <div onClick={()=>setAddOpen(false)} style={{position:"fixed",inset:0,background:"rgba(10,5,20,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:400}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:500,maxWidth:"96vw",padding:26,maxHeight:"90vh",overflowY:"auto"}}>
-            <div style={{fontSize:18,fontWeight:700,color:T.lime,fontFamily:FB,marginBottom:20}}>{editOrder?"Edit order":"New order"}</div>
-            <div style={G2}>
-              <div><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Customer name *</div><input value={form.customerName} onChange={e=>setF("customerName",e.target.value)} placeholder="Name or handle" style={IS}/></div>
-              <div><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Platform</div><input value={form.platform} onChange={e=>setF("platform",e.target.value)} placeholder="e.g. Instagram, Vinted…" style={IS}/></div>
+          <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,width:540,maxWidth:"96vw",padding:26,maxHeight:"92vh",overflowY:"auto"}}>
+            <div style={{fontSize:18,fontWeight:700,color:T.lime,fontFamily:FB,marginBottom:20}}>{editId?"Edit order":"New order"}</div>
+
+            {/* Vertical */}
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Vertical</div>
+              <select value={form.vertical} onChange={e=>{setF("vertical",e.target.value);setF("sku","");setF("skuItem",null);setSkuSearch("");}} style={IS}>
+                <option value="">— select vertical —</option>
+                {brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
             </div>
-            <div style={{marginBottom:12}}><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Order ref / ID</div><input value={form.orderRef} onChange={e=>setF("orderRef",e.target.value)} placeholder="Optional order number" style={IS}/></div>
-            <div style={{marginBottom:12}}><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Items</div><input value={form.items} onChange={e=>setF("items",e.target.value)} placeholder="e.g. Fred Perry T-Shirt, Y2K Jeans…" style={IS}/></div>
-            <div style={G2}>
-              <div><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Qty</div><input type="number" min="1" value={form.qty} onChange={e=>setF("qty",parseInt(e.target.value)||1)} style={IS}/></div>
-              <div><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Status</div><select value={form.status} onChange={e=>setF("status",e.target.value)} style={IS}>{STATUS_OPTS.map(s=><option key={s}>{s}</option>)}</select></div>
-            </div>
-            <div style={G2}>
-              <div><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Amount</div>
-                <div style={{display:"flex",gap:6}}>
-                  <select value={form.currency} onChange={e=>setF("currency",e.target.value)} style={{...IS,width:80,flex:"none"}}>
-                    {["PKR","GBP","USD","EUR"].map(c=><option key={c}>{c}</option>)}
-                  </select>
-                  <input type="number" min="0" value={form.amount} onChange={e=>setF("amount",parseFloat(e.target.value)||0)} style={{...IS,flex:1}}/>
-                </div>
+
+            {/* SKU with typeahead */}
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>SKU <span style={{color:T.ghost,textTransform:"none",fontWeight:400}}>(type or paste, or pick from list)</span></div>
+              <div style={{position:"relative"}}>
+                <input value={skuSearch} onChange={e=>handleSkuInput(e.target.value)}
+                  onFocus={()=>setSkuOpen(true)} onBlur={()=>setTimeout(()=>setSkuOpen(false),150)}
+                  placeholder={form.vertical?"Search SKU or item name…":"Select a vertical first"}
+                  style={{...IS,borderColor:form.skuItem?T.lime:T.border}}/>
+                {form.skuItem&&<div style={{fontSize:11,color:T.lime,marginTop:4,fontFamily:FB}}>✓ {form.skuItem.name} — Cost: ₨{(form.skuItem.cost||0).toLocaleString()} · Stock: {form.skuItem.qty}</div>}
+                {skuOpen&&skuMatches.length>0&&(
+                  <div style={{position:"absolute",top:"100%",left:0,right:0,background:T.bg,border:`1px solid ${T.border}`,borderRadius:9,zIndex:20,marginTop:2,maxHeight:200,overflowY:"auto",boxShadow:"0 4px 16px rgba(0,0,0,0.4)"}}>
+                    {skuMatches.map(it=>(
+                      <div key={it.id} onMouseDown={()=>pickSku(it)}
+                        style={{padding:"9px 12px",cursor:"pointer",borderBottom:`1px solid ${T.border}40`,display:"flex",justifyContent:"space-between",alignItems:"center"}}
+                        onMouseEnter={e=>e.currentTarget.style.background=T.card}
+                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                        <div>
+                          <div style={{fontSize:12,fontFamily:"monospace",color:T.cobaltText}}>{it.sku}</div>
+                          <div style={{fontSize:11,color:T.muted}}>{it.name}</div>
+                        </div>
+                        <div style={{textAlign:"right"}}>
+                          <div style={{fontSize:11,color:T.offWhite}}>₨{(it.cost||0).toLocaleString()}</div>
+                          <div style={{fontSize:10,color:T.ghost}}>Stock: {it.qty}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Shipping cost</div><input type="number" min="0" value={form.shippingCost} onChange={e=>setF("shippingCost",parseFloat(e.target.value)||0)} style={IS}/></div>
             </div>
-            <div style={{marginBottom:20}}><div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Notes</div><textarea value={form.notes} onChange={e=>setF("notes",e.target.value)} placeholder="Any extra details…" rows={3} style={{...IS,resize:"vertical"}}/></div>
-            <div style={{display:"flex",gap:8,justifyContent:"flex-end",paddingTop:16,borderTop:`1px solid ${T.border}`}}>
+
+            {/* Platform + Customer */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+              <div>
+                <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Platform</div>
+                <select value={form.platform} onChange={e=>setF("platform",e.target.value)} style={IS}>
+                  <option value="">— select —</option>
+                  {PLATFORMS.map(p=><option key={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Customer *</div>
+                <input value={form.customer} onChange={e=>setF("customer",e.target.value)} placeholder="Name or handle" style={IS}/>
+              </div>
+            </div>
+
+            {/* Platform order no */}
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Platform order number</div>
+              <input value={form.platformOrderNo} onChange={e=>setF("platformOrderNo",e.target.value)} placeholder="Optional" style={IS}/>
+            </div>
+
+            {/* Item + Qty */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 100px",gap:12,marginBottom:14}}>
+              <div>
+                <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Item description</div>
+                <input value={form.itemDesc} onChange={e=>setF("itemDesc",e.target.value)} placeholder="Auto-filled from SKU" style={IS}/>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Qty</div>
+                <input type="number" min="1" max={form.skuItem?.qty||999} value={form.qty}
+                  onChange={e=>setF("qty",Math.max(1,parseInt(e.target.value)||1))} style={IS}/>
+                {form.skuItem&&<div style={{fontSize:10,color:T.ghost,marginTop:3}}>Max: {form.skuItem.qty} in stock</div>}
+              </div>
+            </div>
+
+            {/* Sold amount */}
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Sold amount</div>
+              <div style={{display:"flex",gap:8}}>
+                <select value={form.currency} onChange={e=>setF("currency",e.target.value)} style={{...IS,width:90,flex:"none"}}>
+                  {["PKR","GBP","USD","EUR"].map(c=><option key={c}>{c}</option>)}
+                </select>
+                <input type="number" min="0" value={form.soldAmount} onChange={e=>setF("soldAmount",parseFloat(e.target.value)||0)} style={{...IS,flex:1}}/>
+              </div>
+              {/* Live profit preview */}
+              {form.skuItem&&form.soldAmount>0&&(()=>{
+                const pc=calcProfit(form);
+                if(!pc) return null;
+                return <div style={{marginTop:8,padding:"8px 12px",background:T.bg,borderRadius:8,border:`1px solid ${pc.profit>=0?T.profit:T.loss}40`,display:"flex",gap:20}}>
+                  <div style={{fontSize:12}}><span style={{color:T.ghost}}>Cost: </span><span style={{color:T.offWhite}}>₨{pc.cost.toLocaleString()}</span></div>
+                  <div style={{fontSize:12}}><span style={{color:T.ghost}}>Revenue: </span><span style={{color:T.offWhite}}>₨{pc.rev.toLocaleString()}</span></div>
+                  <div style={{fontSize:12}}><span style={{color:T.ghost}}>Profit: </span><span style={{color:pc.profit>=0?T.profit:T.loss,fontWeight:600}}>{pc.profit>=0?"+":""}₨{pc.profit.toLocaleString()}</span></div>
+                  {pc.pct!==null&&<div style={{fontSize:12}}><span style={{color:T.ghost}}>Margin: </span><span style={{color:pc.profit>=0?T.profit:T.loss,fontWeight:600}}>{pc.pct.toFixed(1)}%</span></div>}
+                </div>;
+              })()}
+            </div>
+
+            {/* Notes */}
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:11,color:T.ghost,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.7px"}}>Notes</div>
+              <textarea value={form.notes} onChange={e=>setF("notes",e.target.value)} placeholder="Any extra details…" rows={2} style={{...IS,resize:"vertical"}}/>
+            </div>
+
+            <div style={{display:"flex",gap:8,justifyContent:"flex-end",paddingTop:14,borderTop:`1px solid ${T.border}`}}>
               <button onClick={()=>setAddOpen(false)} style={{padding:"8px 16px",border:`1px solid ${T.border}`,borderRadius:8,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FB}}>Cancel</button>
-              <button onClick={saveOrder} disabled={!form.customerName.trim()} style={{padding:"8px 24px",border:"none",borderRadius:8,background:form.customerName.trim()?T.lime:"#333",color:form.customerName.trim()?T.ink:T.ghost,cursor:form.customerName.trim()?"pointer":"default",fontSize:13,fontWeight:700,fontFamily:FB}}>Save order</button>
+              <button onClick={saveOrder} disabled={!form.customer.trim()||!form.sku.trim()}
+                style={{padding:"8px 24px",border:"none",borderRadius:8,
+                  background:(form.customer.trim()&&form.sku.trim())?T.lime:"#333",
+                  color:(form.customer.trim()&&form.sku.trim())?T.ink:T.ghost,
+                  cursor:(form.customer.trim()&&form.sku.trim())?"pointer":"default",
+                  fontSize:13,fontWeight:700,fontFamily:FB}}>
+                Save order
+              </button>
             </div>
           </div>
         </div>
@@ -2661,7 +2822,7 @@ export default function App(){
         :activePage==="bundles"?<BundlesPage items={items} bundles={bundles} setBundles={setBundles} brands={brands}/>
         :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);sbSet({brands,items,nid,catTree,fixes,rates:r,rateHistory,bundles,attendance,orders,worksheet});}} rateHistory={rateHistory} setRateHistory={rh=>{setRateHistory(rh);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory:rh,bundles,attendance,orders,worksheet});}}/>
         :activePage==="attendance"?<AttendancePage attendance={attendance} isAdmin={isAdmin} setAttendance={a=>{setAttendance(a);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance:a,orders,worksheet});}}/>
-        :activePage==="activeorders"?<ActiveOrdersPage activeOrders={activeOrders} setActiveOrders={o=>{setActiveOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,activeOrders:o,worksheet});}} isAdmin={isAdmin}/>
+        :activePage==="activeorders"?<ActiveOrdersPage activeOrders={activeOrders} setActiveOrders={o=>{setActiveOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,activeOrders:o,worksheet});}} isAdmin={isAdmin} items={items} brands={brands} setItems={newItems=>{setItems(newItems);sbSet({brands,items:newItems,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,activeOrders,worksheet});}}/>
         :activePage==="orders"?(isAdmin?<OrderWorkingPage orders={orders} setOrders={o=>{setOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders:o,activeOrders,worksheet});}}/>:<AccessDenied/>)
         :activePage==="profitbot"?(isAdmin?<ProfitBotPage rates={rates}/>:<AccessDenied/>)
         :activePage==="worksheet"?(isAdmin?<WorkSheetPage/>:<AccessDenied/>)
