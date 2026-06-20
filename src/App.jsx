@@ -1913,7 +1913,7 @@ function WorkSheetPage() {
     <div style={{display:"flex",flexDirection:"column",height:"100%",background:T.bg}}>
       {/* Header */}
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"10px 18px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-        <div style={{fontFamily:FB,fontSize:18,fontWeight:700,color:T.offWhite,flex:1}}>🏢 Fin HQ's</div>
+        <div style={{fontFamily:FB,fontSize:18,fontWeight:700,color:T.offWhite,flex:1}}>💰 Finance</div>
         <span style={{fontSize:11,color:T.ghost,background:T.card,padding:"3px 10px",borderRadius:5,border:`1px solid ${T.border}`,fontFamily:FB}}>
           👁 View only — edit directly in Google Sheets
         </span>
@@ -1940,8 +1940,8 @@ function WorkSheetPage() {
       {/* GSheet embed — full height, tabs handled natively by Google */}
       <div style={{flex:1,position:"relative",background:"#fff"}}>
         {loading&&<div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:T.bg,zIndex:2}}>
-          <div style={{fontSize:32,marginBottom:14}}>🏢</div>
-          <div style={{fontSize:14,color:T.offWhite,fontFamily:FB,fontWeight:600,marginBottom:6}}>Loading Fin HQ's...</div>
+          <div style={{fontSize:32,marginBottom:14}}>💰</div>
+          <div style={{fontSize:14,color:T.offWhite,fontFamily:FB,fontWeight:600,marginBottom:6}}>Loading Finance...</div>
           <div style={{fontSize:12,color:T.ghost,fontFamily:FB}}>Fetching your Google Sheet</div>
         </div>}
         <iframe
@@ -2140,7 +2140,7 @@ export default function App(){
   const saveBrands = next => {
     setBrands(next);
     setTimeout(() => {
-      sbSet({ brands:next, items, nid, catTree, fixes, rates, bundles });
+      sbSet({ brands:next, items, nid, catTree, fixes, rates, rateHistory, bundles, attendance, orders, worksheet });
     }, 100);
   };
 
@@ -2185,7 +2185,7 @@ export default function App(){
     const next=items.filter(i=>i.id!==id);
     setItems(next);
     if(detail?.id===id)setDetail(null);
-    sbSet({brands,items:next,nid,catTree,fixes,rates,bundles});
+    sbSet({brands,items:next,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders,worksheet});
   };
   const chStatus=(id,s)=>{setItems(p=>p.map(i=>i.id===id?{...i,status:s}:i));setDetail(prev=>prev?.id===id?{...prev,status:s}:prev);};
   const handleStatusChange=(id,ns)=>{if(ns==="reserved"){setReserveModal(id);setReserveData({name:"",platform:""});}else chStatus(id,ns);};
@@ -2283,7 +2283,7 @@ export default function App(){
                   {icon:"🗓️",label:"Attendance",page:"attendance"},
                   {icon:"📋",label:"Order Working",page:"orders",adminOnly:true},
                   {icon:"🤖",label:"Profit Bot",page:"profitbot",adminOnly:true},
-                  {icon:"🏢",label:"Fin HQ's",page:"worksheet",adminOnly:true},
+                  {icon:"💰",label:"Finance",page:"worksheet",adminOnly:true},
                   {icon:"🧾",label:"Sales ↗",page:null,adminOnly:true},
                   {icon:"📊",label:"Analytics ↗",page:null,adminOnly:true},
                   {icon:"🤝",label:"Suppliers ↗",page:null,adminOnly:true},
@@ -2306,8 +2306,8 @@ export default function App(){
         {activePage==="categories"?<CategoriesPage catTree={catTree} setCatTree={setCatTree} brands={brands}/>
         :activePage==="fixes"?<FixesPage fixes={fixes} setFixes={setFixes} items={items} brands={brands} attendance={attendance}/>
         :activePage==="bundles"?<BundlesPage items={items} bundles={bundles} setBundles={setBundles} brands={brands}/>
-        :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);sbSet({brands,items,nid,catTree,fixes,rates:r,rateHistory,bundles,attendance});}} rateHistory={rateHistory} setRateHistory={rh=>{setRateHistory(rh);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory:rh,bundles,attendance});}}/>
-        :activePage==="attendance"?<AttendancePage attendance={attendance} isAdmin={isAdmin} setAttendance={a=>{setAttendance(a);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance:a,orders});}}/>
+        :activePage==="conversion"?<ConversionPage rates={rates} setRates={r=>{setRates(r);sbSet({brands,items,nid,catTree,fixes,rates:r,rateHistory,bundles,attendance,orders,worksheet});}} rateHistory={rateHistory} setRateHistory={rh=>{setRateHistory(rh);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory:rh,bundles,attendance,orders,worksheet});}}/>
+        :activePage==="attendance"?<AttendancePage attendance={attendance} isAdmin={isAdmin} setAttendance={a=>{setAttendance(a);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance:a,orders,worksheet});}}/>
         :activePage==="orders"?(isAdmin?<OrderWorkingPage orders={orders} setOrders={o=>{setOrders(o);sbSet({brands,items,nid,catTree,fixes,rates,rateHistory,bundles,attendance,orders:o,worksheet});}}/>:<AccessDenied/>)
         :activePage==="profitbot"?(isAdmin?<ProfitBotPage rates={rates}/>:<AccessDenied/>)
         :activePage==="worksheet"?(isAdmin?<WorkSheetPage/>:<AccessDenied/>)
