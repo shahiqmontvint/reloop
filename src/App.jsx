@@ -80,7 +80,7 @@ const COLS=[
   {key:"grade",     label:"Grade",       w:56},
   {key:"status",    label:"Status",      w:96},
   {key:"sku",       label:"SKU",         w:100},
-  {key:"brand",     label:"Brand",       w:80},
+  {key:"brand",     label:"Product Brand", w:100},
   {key:"cost",      label:"Cost",        w:72},
   {key:"totalcost", label:"Total Cost",  w:80},
   {key:"price",     label:"Sold",        w:80},
@@ -2455,34 +2455,38 @@ export default function App(){
                           const dateRangeLabel = dateFrom&&dateTo?`${dateFrom} to ${dateTo}`:dateFrom?`From ${dateFrom}`:dateTo?`To ${dateTo}`:"All dates";
                           // use exportFiltered for actual export
                           const doExport = (exportFmt) => {
-                            const headers = ["Date Added","Item","Category","Sub Cat","Size","Qty","Grade","Status","SKU","Brand","Cost (₨)","Total Cost (₨)","Sold Price","Total Sold","Profit (₨)","% Profit","Notes"];
+                            const headers = ["Date Added","Item","Category","Sub Cat","Size","Qty","Grade","Status","SKU","Vertical","Brand","Cost","Total Cost","Sold Price","Total Sold","Profit","% Profit","Notes"];
                             const rows = exportFiltered.map(it=>{
                               const b = brands.find(x=>x.id===it.brand);
                               const soldPKR = toPKR(it.price,it.currency);
                               const qty = it.qty||1;
                               const cost = it.cost||0;
                               const totalCost = cost*qty;
-                              const totalSold = soldPKR*qty;
-                              const profit = soldPKR-cost;
-                              const profitPct = soldPKR>0?((profit/soldPKR)*100).toFixed(1)+"%" :"";
-                              const soldDisplay = it.price?(it.currency!=="PKR"?`${it.currency} ${it.price} (Rs ${soldPKR.toLocaleString()})`:`Rs ${it.price}`): "";
-                              const totalSoldDisplay = it.price?`Rs ${totalSold.toLocaleString()}`:"";
+                              const hasSale = it.price && soldPKR>0;
+                              const totalSold = hasSale?soldPKR*qty:null;
+                              const profit = hasSale?soldPKR-cost:null;
+                              const profitPct = hasSale&&soldPKR>0?((profit/soldPKR)*100).toFixed(1)+"%":"";
+                              const soldDisplay = hasSale?(it.currency!=="PKR"?`${it.currency} ${it.price}`:`Rs ${it.price}`):"";
+                              const totalSoldDisplay = hasSale?`Rs ${totalSold.toLocaleString()}`:"";
+                              const profitDisplay = hasSale?`Rs ${profit.toLocaleString()}`:"";
+                              const sizeDisplay = sizeLabel(it)||"-";
                               return [
-                                it.inventoryDate||"",
+                                it.inventoryDate?it.inventoryDate.split("-").reverse().join("/"):"",
                                 `"${(it.name||"").replace(/"/g,'""')}"`,
                                 it.category||"",
                                 it.subcategory||"",
-                                sizeLabel(it)||"",
+                                sizeDisplay,
                                 qty,
                                 it.grade||"",
                                 it.status||"",
                                 it.sku||"",
                                 b?.name||"",
+                                it.productBrand||"",
                                 cost?`Rs ${cost.toLocaleString()}`:"",
                                 totalCost?`Rs ${totalCost.toLocaleString()}`:"",
                                 soldDisplay,
                                 totalSoldDisplay,
-                                it.price?`Rs ${profit.toLocaleString()}`:"",
+                                profitDisplay,
                                 profitPct,
                                 `"${(it.notes||"").replace(/"/g,'""')}"`,
                               ].join(",");
@@ -2490,25 +2494,44 @@ export default function App(){
                             const totalQtyDl  = exportFiltered.reduce((s,i)=>s+(i.qty||1),0);
                             const totalCostDl = exportFiltered.reduce((s,i)=>s+(i.cost||0)*(i.qty||1),0);
                             const totalCostPerItem = exportFiltered.reduce((s,i)=>s+(i.cost||0),0);
-                            const totalProfitDl = exportFiltered.filter(i=>i.price).reduce((s,i)=>s+(toPKR(i.price,i.currency)-(i.cost||0)),0);
-                            const totalRevDl = exportFiltered.filter(i=>i.price).reduce((s,i)=>s+toPKR(i.price,i.currency),0);
+                            const soldItems = exportFiltered.filter(i=>i.price&&toPKR(i.price,i.currency)>0);
+                            const totalProfitDl = soldItems.reduce((s,i)=>s+(toPKR(i.price,i.currency)-(i.cost||0)),0);
+                            const totalRevDl = soldItems.reduce((s,i)=>s+toPKR(i.price,i.currency),0);
                             const avgProfPct = totalRevDl>0?((totalProfitDl/totalRevDl)*100).toFixed(1)+"%":"";
+                            const hasSales = soldItems.length>0;
                             const slug = brand.toLowerCase().replace(/\s+/g,"-");
                             if (exportFmt==="csv") {
+                              // BOM for proper Excel UTF-8 rendering
+                              const BOM = "\uFEFF";
+                              const summaryParts = [
+                                `Items: ${exportFiltered.length}`,
+                                `Total Qty: ${totalQtyDl}`,
+                                `Inv. Value: Rs${totalCostDl.toLocaleString()}`,
+                              ];
+                              if(hasSales) summaryParts.push(`Total Profit: Rs${totalProfitDl.toLocaleString()}`,`Avg Profit%: ${avgProfPct}`);
+                              const totalRowParts = [
+                                "TOTAL","","","","",
+                                totalQtyDl,"","","","","",
+                                `Rs ${totalCostPerItem.toLocaleString()}`,
+                                `Rs ${totalCostDl.toLocaleString()}`,
+                                hasSales?`Rs ${soldItems.reduce((s,i)=>s+toPKR(i.price,i.currency)*(i.qty||1),0).toLocaleString()}`:"",
+                                hasSales?`Rs ${soldItems.reduce((s,i)=>s+toPKR(i.price,i.currency)*(i.qty||1),0).toLocaleString()}`:"",
+                                hasSales?`Rs ${totalProfitDl.toLocaleString()}`:"",
+                                avgProfPct,
+                                "",
+                              ];
                               const csv = [
-                                `"RELOOP — Inventory Export"`,
-                                `"Brand: ${brand} | Filter: ${aStat==="all"?"All":aStat} | Date range: ${dateRangeLabel} | Exported: ${now}"`,
-                                `"Items: ${exportFiltered.length} | Total Qty: ${totalQtyDl} | Total Cost: Rs${totalCostPerItem.toLocaleString()} | Inv. Value: Rs${totalCostDl.toLocaleString()} | Total Profit: Rs${totalProfitDl.toLocaleString()} | Avg Profit%: ${avgProfPct}"`,
+                                "RELOOP Inventory Export",
+                                `Brand: ${brand} | Filter: ${aStat==="all"?"All":aStat} | Date range: ${dateRangeLabel} | Exported: ${now}`,
+                                summaryParts.join(" | "),
                                 "",
                                 headers.join(","),
                                 ...rows,
+                                totalRowParts.join(","),
                                 "",
-                                // Totals row
-                                `"TOTAL","","","","",${totalQtyDl},"","","","","Rs ${totalCostPerItem.toLocaleString()}","Rs ${totalCostDl.toLocaleString()}","","","Rs ${totalProfitDl.toLocaleString()}","${avgProfPct}",""`,
-                                "",
-                                `"Generated by ReLoop — reloopio.netlify.app"`,
+                                "Generated by ReLoop reloopio.netlify.app",
                               ].join("\n");
-                              const blob = new Blob([csv],{type:"text/csv"});
+                              const blob = new Blob([BOM+csv],{type:"text/csv;charset=utf-8"});
                               const url = URL.createObjectURL(blob);
                               const a = document.createElement("a");
                               a.href=url; a.download=`reloop-inventory-${slug}-${now}.csv`;
@@ -2525,12 +2548,14 @@ export default function App(){
                                   <td style="font-family:monospace;font-size:8px;text-align:left">${it.sku||"\u2014"}</td>
                                   <td style="text-align:left">${it.name||"\u2014"}</td>
                                   <td style="text-align:center">${b?.name||"\u2014"}</td>
+                                  <td style="text-align:center">${it.productBrand||"\u2014"}</td>
                                   <td style="text-align:center">${it.category||"\u2014"}</td>
                                   <td style="text-align:center">${it.subcategory||"\u2014"}</td>
                                   <td style="text-align:center">${it.grade||"\u2014"}</td>
                                   <td style="text-align:center">${it.qty||1}</td>
                                   <td style="text-align:center">${sizeLabel(it)||"\u2014"}</td>
-                                  <td style="text-align:right">${it.cost?"Rs "+( it.cost||0).toLocaleString():"\u2014"}</td>
+                                  <td style="text-align:right">${it.cost?"Rs "+(it.cost||0).toLocaleString():"\u2014"}</td>
+                                  <td style="text-align:right">${it.cost?"Rs "+((it.cost||0)*(it.qty||1)).toLocaleString():"\u2014"}</td>
                                   <td style="text-align:right">${it.price?`${sym?sym+" ":"Rs "}${it.price.toLocaleString()}`:"\u2014"}</td>
                                   <td style="text-align:left;font-size:8px;color:#444">${it.notes||""}</td>
                                   <td style="text-align:right">${it.price?(prof>=0?"+":"")+"Rs "+prof.toLocaleString():"\u2014"}</td>
@@ -2599,6 +2624,7 @@ export default function App(){
                                   <th>Date Added</th>
                                   <th class="left">SKU</th>
                                   <th class="left">Item</th>
+                                  <th>Vertical</th>
                                   <th>Brand</th>
                                   <th>Category</th>
                                   <th>Subcat</th>
@@ -2606,6 +2632,7 @@ export default function App(){
                                   <th>Qty</th>
                                   <th>Size</th>
                                   <th class="right">Cost Price</th>
+                                  <th class="right">Total Cost</th>
                                   <th class="right">Sold Price</th>
                                   <th class="left">Notes</th>
                                   <th class="right">Profit</th>
@@ -2744,7 +2771,7 @@ export default function App(){
                           <TCell w={COLS[6].w}><span style={{fontSize:12,fontWeight:600,color:T.offWhite}}>{it.grade||"—"}</span></TCell>
                           <TCell w={COLS[7].w}><StatusPill status={it.status}/></TCell>
                           <TCell w={COLS[8].w}><span style={{fontSize:11,color:T.ghost,fontFamily:"monospace",letterSpacing:"0.3px"}}>{it.sku||"—"}</span></TCell>
-                          <TCell w={COLS[9].w}><span style={{fontSize:11,fontWeight:600,color:it.productBrand?T.offWhite:T.ghost}}>{it.productBrand||gb(it.brand)?.name||"—"}</span></TCell>
+                          <TCell w={COLS[9].w}><span style={{fontSize:11,fontWeight:600,color:it.productBrand?T.offWhite:T.ghost}}>{it.productBrand||"—"}</span></TCell>
                           <TCell w={COLS[10].w}><span style={{fontSize:12,color:T.muted}}>{isAdmin?`₨${it.cost.toLocaleString()}`:"*****"}</span></TCell>
                           <TCell w={COLS[11].w}><span style={{fontSize:12,color:T.muted}}>{isAdmin?`₨${(it.cost*(it.qty||1)).toLocaleString()}`:"*****"}</span></TCell>
                           <TCell w={COLS[12].w}><div style={{textAlign:"center"}}><div style={{fontSize:12,fontWeight:600,color:T.lime}}>{isAdmin?(it.price?`${sym}${it.price.toLocaleString()}`:"—"):"*****"}</div>{isAdmin&&it.currency&&it.currency!=="PKR"&&it.price>0&&<div style={{fontSize:10,color:T.ghost}}>₨{pricePKR.toLocaleString()}</div>}</div></TCell>
