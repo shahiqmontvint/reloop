@@ -2156,7 +2156,7 @@ export default function App(){
   const[brands,setBrands]=useState(initBrands);
   const[items,setItems]=useState(initItems);
   const[nid,setNid]=useState(7);
-  const[catTree,setCatTree]=useState({encore:{...BRAND_CATS.encore},generic:{...GENERIC_CATS}});
+  const[catTree,setCatTree]=useState({encore:{...BRAND_CATS.encore},generic:{...GENERIC_CATS},montvint:{...GENERIC_CATS},tbd:{...GENERIC_CATS}});
   const[fixes,setFixes]=useState([]);
   const[rates,setRates]=useState(DEFAULT_RATES);
   const[rateHistory,setRateHistory]=useState([]);
@@ -2209,7 +2209,7 @@ export default function App(){
         if(d.brands?.length) setBrands(d.brands);
         if(d.items?.length)  setItems(d.items);
         if(d.nid)            setNid(d.nid);
-        if(d.catTree)        setCatTree(d.catTree);
+        if(d.catTree)        setCatTree(prev=>({montvint:{...GENERIC_CATS},tbd:{...GENERIC_CATS},...d.catTree}));
         if(d.fixes)          setFixes(d.fixes);
         if(d.rates)          setRates(d.rates);
         if(d.rateHistory)    setRateHistory(d.rateHistory);
@@ -2218,7 +2218,7 @@ export default function App(){
         if(d.orders)         setOrders(d.orders);
         if(d.worksheet)      setWorksheet(d.worksheet);
       } else {
-        sbSet({ brands:initBrands, items:initItems, nid:7, catTree:{encore:{...BRAND_CATS.encore},generic:{...GENERIC_CATS}}, fixes:[], rates:DEFAULT_RATES, bundles:[] });
+        sbSet({ brands:initBrands, items:initItems, nid:7, catTree:{encore:{...BRAND_CATS.encore},generic:{...GENERIC_CATS},montvint:{...GENERIC_CATS},tbd:{...GENERIC_CATS}}, fixes:[], rates:DEFAULT_RATES, bundles:[] });
       }
       setLoaded(true);
     })();
